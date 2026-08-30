@@ -11962,10 +11962,17 @@ Ground rules:
     if (el) el.textContent = `Live AI, talks back — ${taLiveAiCallCount} call${taLiveAiCallCount === 1 ? '' : 's'} this session`;
   }
 
-  // Bumped from 20s: a full multi-city itinerary with several tool rounds
-  // can legitimately take longer than a quick lookup. Still finite — this
-  // isn't "wait forever," just recalibrated for realistic round-trip time.
-  const TA_REQUEST_TIMEOUT_MS = 30000;
+  // Bumped from 20s to 30s, and now to 60s: live testing (Aug 2026) hit a
+  // consistent 30s timeout on real multi-city itinerary requests (which need
+  // two full round trips — one to decide on find_matching_itinerary/
+  // get_city_data, a second to synthesize the actual day-by-day answer from
+  // the results) even with a working key and no server error. Unconfirmed
+  // whether 30s was genuinely too short for that much generation, or
+  // something was actually hanging — raised the ceiling as the safe first
+  // move (a request that would have succeeded at 35s shouldn't be killed at
+  // 30s) pending the browser dev-tools Network-tab timing that would tell us
+  // which one it actually is.
+  const TA_REQUEST_TIMEOUT_MS = 60000;
   const TA_ROUND_LABELS = {
     search_guide: 'Searching this guide…',
     get_city_data: 'Pulling hotel/restaurant/tour data…',
