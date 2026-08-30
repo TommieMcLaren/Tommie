@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Mic Test</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 20px; color: #2a2a2a; }
+  button { background: #5a7a5a; color: #fff; border: none; border-radius: 8px; padding: 12px 20px; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: 0.6; }
+  #result { margin-top: 20px; padding: 14px; border-radius: 8px; background: #f4f1e8; white-space: pre-wrap; font-size: 13.5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <h2>Mic Test</h2>
+  <p>Tests two things separately: (1) does the browser grant microphone permission at all, (2) does speech recognition actually transcribe. Click, then say something out loud.</p>
+  <button id="btn">Test Microphone</button>
+  <div id="result">(not tested yet)</div>
+
+<script>
+  document.getElementById('btn').addEventListener('click', async () => {
+    const btn = document.getElementById('btn');
+    const result = document.getElementById('result');
+    btn.disabled = true;
+    result.textContent = 'Step 1: requesting microphone permission...';
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      result.textContent = 'MIC PERMISSION FAILED at step 1 (never got to speech recognition)\n\n' + e.name + ': ' + e.message;
+      btn.disabled = false;
+      return;
+    }
+    stream.getTracks().forEach(t => t.stop());
+    result.textContent = 'Step 1 OK — mic permission granted.\nStep 2: starting speech recognition — say something now...';
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      result.textContent += '\n\nSTEP 2 FAILED: SpeechRecognition API not present in this browser/context (mic permission was fine — this is a separate API).';
+      btn.disabled = false;
+      return;
+    }
+    const rec = new SpeechRec();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = 'en-US';
+    let settled = false;
+    rec.onresult = (e) => {
+      settled = true;
+      result.textContent += '\n\nSTEP 2 SUCCESS — heard: "' + e.results[0][0].transcript + '"';
+      btn.disabled = false;
+    };
+    rec.onerror = (e) => {
+      settled = true;
+      result.textContent += '\n\nSTEP 2 ERROR — event.error = "' + e.error + '"';
+      btn.disabled = false;
+    };
+    rec.onend = () => {
+      if (!settled) result.textContent += '\n\nSTEP 2 ENDED with no result and no error event — likely just silence/timeout. Try again and speak sooner/louder.';
+      btn.disabled = false;
+    };
+    try { rec.start(); } catch (e) {
+      result.textContent += '\n\nSTEP 2 THREW ON start(): ' + e.name + ': ' + e.message;
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Live API Test</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 20px; color: #2a2a2a; }
+  button { background: #5a7a5a; color: #fff; border: none; border-radius: 8px; padding: 12px 20px; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: 0.6; }
+  #result { margin-top: 20px; padding: 14px; border-radius: 8px; background: #f4f1e8; white-space: pre-wrap; font-size: 13.5px; line-height: 1.5; }
+  .ok { background: #e3f0e3; }
+  .fail { background: #f5e3e3; }
+</style>
+</head>
+<body>
+  <h2>Live API Test</h2>
+  <p>Tests nothing except: can this page reach the real Claude API? No guide, no calendar, no voice — just the raw call.</p>
+  <button id="btn">Call Claude</button>
+  <div id="result">(not tested yet)</div>
+
+<script>
+  document.getElementById('btn').addEventListener('click', async () => {
+    const btn = document.getElementById('btn');
+    const result = document.getElementById('result');
+    btn.disabled = true;
+    result.className = '';
+    result.textContent = 'Calling...';
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 50,
+          messages: [{ role: 'user', content: 'Reply with exactly: API call succeeded.' }]
+        })
+      });
+      const data = await resp.json();
+      if (data && data.content) {
+        result.className = 'ok';
+        result.textContent = 'SUCCESS\n\n' + JSON.stringify(data.content, null, 2);
+      } else {
+        result.className = 'fail';
+        result.textContent = 'REACHED THE API, BUT NO CONTENT BACK\n\n' + JSON.stringify(data, null, 2);
+      }
+    } catch (e) {
+      result.className = 'fail';
+      result.textContent = 'FETCH THREW AN ERROR (never reached Anthropic)\n\n' + e.name + ': ' + e.message;
+    }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>
