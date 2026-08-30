@@ -190,6 +190,80 @@ client-facing sales tool, two things were done, in order:
   left a button stuck disabled or a spinner running forever on any
   unexpected error inside the `.then()` body itself.
 
+## Live testing round 2 (Aug 2026) — real bugs found and fixed, this time with actual signal
+
+Unlike the first BYOK pass, this round happened with a real API key and a
+live claude.ai chat working end-to-end, so these fixes are based on actual
+observed behavior, not blind code review:
+
+- **Retry-button audit, done properly this time.** The first fix only
+  covered the typed "Just Type — Skip Voice" path. The actual microphone
+  path (`convoListenOnce`'s `rec.onresult`) was untouched and had the exact
+  same bug — error text saying "tap retry" with no button. Now uses
+  `addErrorWithRetry` there too, plus speaks the error aloud (voice mode
+  should always talk back) and stops rather than auto-looping back into
+  listening on failure, so a persistent problem can't silently rack up
+  repeated failed requests unseen.
+- **The 30s timeout was real and reproducible** — confirmed via the
+  browser's Network tab Timing panel: a full multi-city itinerary
+  legitimately took ~41s to generate (three other round-trip calls in the
+  same exchange were all under 3s — this was specifically the final
+  synthesis call). Not a hang. Led directly to the streaming rewrite below.
+- **Streaming.** `callClaudeAI`'s two fetch call sites now go through
+  `streamAnthropicMessages()` (SSE, hand-parsed — no SDK available in a
+  build-step-free static file) instead of a plain non-streaming fetch. The
+  fixed-ceiling timeout is replaced with an IDLE timeout (`TA_REQUEST_
+  TIMEOUT_MS`, still 60000): the clock only fires if no new data arrives,
+  so a slow-but-flowing 41s+ response is no longer at risk of being killed,
+  while a genuinely dead connection still gets caught. Also means the DE
+  sees the answer being written (`updateTypingText`) instead of a static
+  "thinking" animation for up to a minute. `parseSseChunk()` +
+  `createStreamAccumulator()` reconstruct the same `{content, stop_reason}`
+  shape a non-streaming response has, so all the downstream logic (tool
+  execution, `looksLikeHallucinatedToolCall`, refusal handling) is
+  unchanged — logic-tested in Node against a synthetic event stream chunked
+  at deliberately awkward, mid-JSON-object boundaries (the real-world SSE
+  failure mode) for both a tool-use turn and a text-only turn, plus a
+  mid-stream `error` event and a `refusal`. **Known gap:** `stop_details`
+  (the refusal category name) isn't populated on the streaming path — the
+  refusal is still caught and blocked correctly, it just won't name why.
+  The actual `fetch()`/`ReadableStream`/`AbortController` plumbing itself
+  could not be tested from this environment (no live network) — this is
+  the one part of this change still riding on code review, not a live run.
+- **Conversation memory, two separate real gaps closed:**
+  1. `convoHistory` (the actual `{role, content}` array sent to Claude —
+     different from the on-screen chat bubbles, which were already being
+     saved) was never persisted to `localStorage` at all. A page
+     reload — including just opening a newer file version, which is what
+     was actually happening between rounds of live testing — looked like
+     the conversation survived (the bubbles were still there) but the
+     model had no real memory of any of it. Now saved/restored alongside
+     `taState` in the same `TA_STORAGE_KEY` blob.
+  2. `startConversationMode()`/`startTypedConversationMode()` used to
+     unconditionally reset `convoHistory = []` every time — meaning even
+     within one page session, ending and restarting Conversation Mode (the
+     natural thing to do after an error) wiped context. History now only
+     clears on "Start new client" (`contextResetBtn`), a real topic change.
+- **Voice picker.** Added a "🔊 Spoken voice" section to ⚙️ Settings — a
+  dropdown over the browser's actual installed TTS voices (populated from
+  `speechSynthesis.getVoices()`, handling Chrome's async `voiceschanged`
+  load) plus rate/pitch sliders and a preview button, applied via a shared
+  `applyVoicePrefs()` used by both Conversation Mode and the per-draft
+  "🔊 Read aloud" buttons. **There is no actual celebrity voice available**
+  (David Attenborough / Morgan Freeman were asked about) — browsers only
+  expose their own installed voices, and cloning a real person's voice
+  without consent isn't something to build regardless of feasibility. The
+  settings copy says this explicitly.
+- **Short spoken summaries.** Voice mode used to read full structured
+  itineraries aloud verbatim (day-by-day bullets, hotel names) — mechanical
+  to listen to, and redundant since the DE reads the full detail on screen.
+  `convoContextNote()` now asks the model to append a `VOICE_SUMMARY: ...`
+  line (one warm, conversational sentence) after any long/detailed answer;
+  `splitVoiceSummary()` pulls that out so only the short summary gets
+  spoken while the full answer still displays and still saves to
+  `convoHistory` in full. Short conversational replies are unaffected — the
+  main system prompt already keeps those brief.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send.

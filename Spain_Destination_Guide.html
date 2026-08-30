@@ -11467,6 +11467,7 @@ ${resultsBody}
   .ta-typing span:nth-child(3) { animation-delay: .3s; }
   @keyframes ta-bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
   .ta-typing-status { font-size: 11.5px; color: #8a8776; margin-left: 6px; vertical-align: middle; }
+  .ta-typing-live { background: #f3ead9; color: #2a2a22; padding: 14px 17px; border-radius: 16px 16px 16px 4px; display: inline-block; max-width: 98%; white-space: pre-wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 
   .ta-draft-block { margin-top: 8px; background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
   .ta-draft-label { font-weight: 700; font-size: 11px; color: var(--sage-darker); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
@@ -12053,6 +12054,154 @@ Ground rules:
     return headers;
   }
 
+  // ---------- Streaming (Aug 2026) ----------
+  // Real live testing found a 41s single round trip for a full multi-city
+  // itinerary (see CLAUDE.md) — legitimate generation time, not a bug, but
+  // a fixed wall-clock timeout will always be wrong for it: too short and
+  // it kills a request that was actively succeeding, too long and a truly
+  // stalled connection hangs the UI forever. Streaming replaces that
+  // trade-off with an IDLE timeout instead — the clock only fires if no new
+  // data arrives for TA_REQUEST_TIMEOUT_MS, so a slow-but-flowing response
+  // can run as long as it needs, while a genuinely dead connection still
+  // gets caught. It also means the DE sees the answer being written instead
+  // of a static "thinking" animation for up to a minute.
+  //
+  // Parses one chunk of raw SSE text against a running leftover buffer
+  // (network chunks can split a "data: {...}" line or a whole event
+  // anywhere), calling onEvent for each complete event found. Returns the
+  // new leftover to carry into the next chunk.
+  function parseSseChunk(buffer, chunkText, onEvent) {
+    const combined = buffer + chunkText;
+    const lines = combined.split('\n');
+    const leftover = lines.pop(); // last line may be incomplete — hold it for the next chunk
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue; // skips blank lines, "event: ..." lines, comments
+      const jsonStr = line.slice(6).trim();
+      if (!jsonStr) continue;
+      let evt;
+      try { evt = JSON.parse(jsonStr); } catch (e) { continue; } // a malformed/split event — skip rather than throw
+      onEvent(evt);
+    }
+    return leftover;
+  }
+
+  // Accumulates Anthropic's Messages-API streaming events into the same
+  // {content, stop_reason} shape the rest of this file already expects from
+  // a non-streaming response, so callClaudeAI's tool-handling, refusal
+  // check, and looksLikeHallucinatedToolCall logic all work completely
+  // unchanged regardless of which path built `data`. Known small gap:
+  // stop_details (used for the refusal category name) isn't populated here
+  // — couldn't confirm its exact streaming event shape without live docs
+  // access, so a refusal still refuses correctly, it just won't name the
+  // category.
+  function createStreamAccumulator() {
+    const content = [];
+    let stopReason = null;
+    let errorEvent = null;
+    return {
+      handleEvent(evt, onTextDelta) {
+        switch (evt.type) {
+          case 'content_block_start':
+            content[evt.index] = evt.content_block && evt.content_block.type === 'tool_use'
+              ? { type: 'tool_use', id: evt.content_block.id, name: evt.content_block.name, input: {}, _rawInput: '' }
+              : { type: 'text', text: '' };
+            break;
+          case 'content_block_delta':
+            if (!content[evt.index]) break;
+            if (evt.delta.type === 'text_delta') {
+              content[evt.index].text += evt.delta.text;
+              if (onTextDelta) onTextDelta(evt.delta.text);
+            } else if (evt.delta.type === 'input_json_delta') {
+              content[evt.index]._rawInput = (content[evt.index]._rawInput || '') + evt.delta.partial_json;
+            }
+            break;
+          case 'content_block_stop':
+            if (content[evt.index] && content[evt.index].type === 'tool_use') {
+              try { content[evt.index].input = content[evt.index]._rawInput ? JSON.parse(content[evt.index]._rawInput) : {}; }
+              catch (e) { content[evt.index].input = {}; }
+              delete content[evt.index]._rawInput;
+            }
+            break;
+          case 'message_delta':
+            if (evt.delta && evt.delta.stop_reason) stopReason = evt.delta.stop_reason;
+            break;
+          case 'error':
+            errorEvent = evt.error;
+            break;
+          // message_start / message_stop / ping carry nothing this file needs.
+        }
+      },
+      getResult() {
+        return { content: content.filter(Boolean), stop_reason: stopReason, error: errorEvent };
+      }
+    };
+  }
+
+  // Streams one Messages API call. Returns { resp, data }: on a non-2xx
+  // response, data is null and the caller does its existing resp.json()
+  // error handling unchanged (an immediate 400/401 comes back as a normal
+  // JSON body, not a stream, even when stream:true was requested — only a
+  // request that already returned 200 and started streaming can fail
+  // mid-stream, which surfaces here as an 'error' event instead). Throws
+  // {name:'ClientTimeout'} on idle timeout, matching the shape the existing
+  // catch blocks in callClaudeAI already handle.
+  async function streamAnthropicMessages(body, headers, onTextDelta) {
+    const controller = new AbortController();
+    let idleTimer;
+    const armIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => controller.abort(), TA_REQUEST_TIMEOUT_MS);
+    };
+    armIdleTimer();
+    let resp;
+    try {
+      resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(Object.assign({}, body, { stream: true })),
+        signal: controller.signal
+      });
+    } catch (e) {
+      clearTimeout(idleTimer);
+      if (e && e.name === 'AbortError') { const err = new Error('idle timeout'); err.name = 'ClientTimeout'; throw err; }
+      throw e;
+    }
+    if (!resp.ok || !resp.body) { clearTimeout(idleTimer); return { resp, data: null }; }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    const acc = createStreamAccumulator();
+    let buffer = '';
+    try {
+      while (true) {
+        let chunk;
+        try { chunk = await reader.read(); }
+        catch (e) {
+          if (e && e.name === 'AbortError') { const err = new Error('idle timeout'); err.name = 'ClientTimeout'; throw err; }
+          throw e;
+        }
+        if (chunk.done) break;
+        armIdleTimer(); // data arrived — reset the IDLE clock, not a fixed total-time clock
+        buffer = parseSseChunk(buffer, decoder.decode(chunk.value, { stream: true }), evt => acc.handleEvent(evt, onTextDelta));
+      }
+    } finally {
+      clearTimeout(idleTimer);
+    }
+    return { resp, data: acc.getResult() };
+  }
+
+  // Shared by both call sites below: turns a non-2xx response into the same
+  // detailed error messages this file already had, reading the real error
+  // body Anthropic sends back (an immediate rejection is always a normal
+  // JSON body, never a stream, even when stream:true was requested).
+  async function describeErrorResponse(resp) {
+    let detail = '';
+    try { const errBody = await resp.json(); detail = errBody && errBody.error && errBody.error.message ? ' — ' + errBody.error.message : ''; } catch (e) { /* body wasn't JSON */ }
+    if (resp.status === 401) return 'Your API key was rejected (401)' + detail + ' — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.';
+    if (resp.status === 429) return 'Rate limited by Anthropic (429) — wait a moment and try again.';
+    return `Anthropic returned an error (${resp.status})${detail}. Tap retry, or check your key under ⚙️.`;
+  }
+
   async function callClaudeAI(messages, extraSystemNote, mcpServers, progressDiv) {
     const apiKey = getStoredApiKey();
     if (!apiKey) {
@@ -12063,7 +12212,6 @@ Ground rules:
     let citiesUsed = [];
     for (let round = 0; round < 7; round++) {
       let data;
-      let timeoutId;
       let clientToolUses, textBlocks;
       try {
         // NOTE ON MODEL CHOICE: this was 'claude-opus-5' briefly, but two live
@@ -12075,57 +12223,40 @@ Ground rules:
         const body = { model: TA_MODEL, max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers) };
         if (TA_MODEL_SUPPORTS_FALLBACKS) body.fallbacks = 'default';
         if (mcpServers && mcpServers.length) body.mcp_servers = mcpServers;
-        // Still no AbortController/signal here — not because of the old
-        // postMessage bridge (BYOK calls Anthropic directly, no relay), but
-        // because the existing Promise.race timeout already does the job and
-        // there's no reason to touch working timeout logic for this change.
-        const resp = await Promise.race([
-          fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: buildRequestHeaders(mcpServers),
-            body: JSON.stringify(body)
-          }),
-          new Promise((_, reject) => { timeoutId = setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS); })
-        ]);
-        clearTimeout(timeoutId);
-        if (!resp.ok) {
-          // Surface Anthropic's own error message (e.g. "fallbacks: unsupported
-          // for this model") rather than just a bare status code — a 400 with
-          // no detail is very hard to diagnose from the DE's side, and this is
-          // exactly what would have named the fallbacks/model mismatch bug
-          // immediately instead of needing a live debugging round-trip.
-          let detail = '';
-          try { const errBody = await resp.json(); detail = errBody && errBody.error && errBody.error.message ? ' — ' + errBody.error.message : ''; } catch (e) { /* body wasn't JSON */ }
-          if (resp.status === 401) {
-            return { text: '', error: 'Your API key was rejected (401)' + detail + ' — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
-          }
-          if (resp.status === 429) {
-            return { text: '', error: 'Rate limited by Anthropic (429) — wait a moment and try again.' };
-          }
-          return { text: '', error: `Anthropic returned an error (${resp.status})${detail}. Tap retry, or check your key under ⚙️.` };
+        let liveText = '';
+        const streamed = await streamAnthropicMessages(body, buildRequestHeaders(mcpServers), delta => {
+          liveText += delta;
+          updateTypingText(progressDiv, liveText);
+        });
+        if (!streamed.resp.ok) {
+          return { text: '', error: await describeErrorResponse(streamed.resp) };
         }
-        data = await resp.json();
-        bumpLiveAiCounter(); // only counts once the network round-trip actually completed
+        data = streamed.data;
+        bumpLiveAiCounter(); // only counts once the stream actually finished
         if (!data) {
           return { text: '', error: "The AI layer didn't return a usable response — try again." };
+        }
+        if (data.error) {
+          // A mid-stream error event (e.g. overloaded) — the request DID
+          // start successfully (resp.ok was true), it broke partway through.
+          return { text: '', error: (data.error.message) || "The connection broke partway through that response. Tap retry." };
         }
         if (data.stop_reason === 'refusal') {
           // Safety classifiers declined this request even after the automatic
           // server-side fallback already tried a second model — this is a
           // real decline, not a bug, so say so plainly instead of a generic
-          // "no answer" message.
-          const category = data.stop_details && data.stop_details.category;
-          return { text: '', error: `This request was declined${category ? ' (category: ' + category + ')' : ''} — try rephrasing it, or handle this one manually.` };
+          // "no answer" message. (stop_details/category isn't populated on
+          // the streaming path — see the note above createStreamAccumulator.)
+          return { text: '', error: "This request was declined — try rephrasing it, or handle this one manually." };
         }
         if (!data.content) {
-          return { text: '', error: (data.error && data.error.message) || "The AI layer didn't return a usable response — try again." };
+          return { text: '', error: "The AI layer didn't return a usable response — try again." };
         }
         clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary'));
         textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
       } catch (e) {
-        clearTimeout(timeoutId);
         if (e && e.name === 'ClientTimeout') {
-          return { text: '', error: `That request went ${TA_REQUEST_TIMEOUT_MS / 1000}s with no response — most likely a stalled connection. The underlying request may still finish in the background (this doesn't truly cancel it, just stops waiting), but tap retry rather than assume it's still working.` };
+          return { text: '', error: `That request stalled — ${TA_REQUEST_TIMEOUT_MS / 1000}s passed with no new data from Anthropic. The underlying request may still finish in the background (this doesn't truly cancel it, just stops waiting), but tap retry rather than assume it's still working.` };
         }
         // Anything unexpected — including a bug in this code, not just a network
         // failure — lands here now instead of silently hanging the UI forever
@@ -12173,23 +12304,19 @@ Ground rules:
     try {
       const finalBody = { model: TA_MODEL, max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo };
       if (TA_MODEL_SUPPORTS_FALLBACKS) finalBody.fallbacks = 'default';
-      const resp = await Promise.race([
-        fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: buildRequestHeaders(null), body: JSON.stringify(finalBody) }),
-        new Promise((_, reject) => setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS))
-      ]);
-      if (!resp.ok) {
-        let detail = '';
-        try { const errBody = await resp.json(); detail = errBody && errBody.error && errBody.error.message ? ' — ' + errBody.error.message : ''; } catch (e) { /* body wasn't JSON */ }
-        if (resp.status === 401) {
-          return { text: '', error: 'Your API key was rejected (401)' + detail + ' — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
-        }
-        if (resp.status === 429) {
-          return { text: '', error: 'Rate limited by Anthropic (429) — wait a moment and try again.' };
-        }
-        return { text: '', error: `Anthropic returned an error (${resp.status})${detail}. Tap retry, or check your key under ⚙️.` };
+      let liveText = '';
+      const streamed = await streamAnthropicMessages(finalBody, buildRequestHeaders(null), delta => {
+        liveText += delta;
+        updateTypingText(progressDiv, liveText);
+      });
+      if (!streamed.resp.ok) {
+        return { text: '', error: await describeErrorResponse(streamed.resp) };
       }
-      const finalData = await resp.json();
+      const finalData = streamed.data;
       bumpLiveAiCounter();
+      if (finalData && finalData.error) {
+        return { text: '', error: (finalData.error.message) || "The connection broke partway through that response. Tap retry." };
+      }
       const finalText = finalData && finalData.content ? finalData.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
       if (finalText && looksLikeHallucinatedToolCall(finalText)) {
         return { text: '', error: "This looked like the AI narrating a fake tool call instead of returning real, grounded guide data — refusing to show it rather than risk a fabricated itinerary reaching a client. Use the offline Quote Builder for now, or tap retry." };
@@ -12220,6 +12347,7 @@ Ground rules:
     pendingResume = null;
     lastDraftContext = null;
     lastKnowledgeContext = null;
+    convoHistory = []; // real topic change — this is the one action that should actually clear conversation context
     updateContextBar();
     addMsg('sys', 'Started fresh — ready for a new client.', false);
   });
@@ -12253,6 +12381,24 @@ Ground rules:
     if (!div) return;
     const statusEl = div.querySelector('.ta-typing-status');
     if (statusEl) statusEl.textContent = text ? ' — ' + text : '';
+  }
+
+  // Swaps the bouncing-dots "thinking" animation for the actual answer text
+  // as it streams in, so a long itinerary generation reads as progress
+  // instead of a silent multi-second wait. Safe to call repeatedly — each
+  // call just extends the same text node.
+  function updateTypingText(div, partialText) {
+    if (!div) return;
+    const dotsEl = div.querySelector('.ta-typing');
+    if (dotsEl) dotsEl.style.display = 'none';
+    let liveEl = div.querySelector('.ta-typing-live');
+    if (!liveEl) {
+      liveEl = document.createElement('span');
+      liveEl.className = 'ta-typing-live';
+      div.appendChild(liveEl);
+    }
+    liveEl.textContent = partialText;
+    msgsEl.scrollTop = msgsEl.scrollHeight;
   }
 
   function escapeHtml(s) {
@@ -13687,11 +13833,17 @@ Tommie McLaren`
     if (!SpeechRec) { addMsg('sys', "Conversation Mode needs voice support — try Chrome or Edge.", false); return; }
     convoActive = true;
     convoVoiceBlocked = false;
-    convoHistory = [];
+    // Deliberately NOT resetting convoHistory here — it used to be wiped on
+    // every Start/Stop toggle, so ending a conversation (including after an
+    // error) and starting again lost all context, even mid-session. History
+    // now only clears via "Start new client" (contextResetBtn) — a real
+    // topic change, not just a mode toggle.
     convoBtn.classList.add('listening');
     convoIcon.textContent = '🔴';
     convoLabel.textContent = 'End Conversation';
-    addMsg('sys', '🎙️ Conversation mode on — just talk, I\'ll answer out loud using the live AI (not just this guide\'s offline data). Say "stop" or tap the button to end.', false);
+    addMsg('sys', convoHistory.length
+      ? '🎙️ Conversation mode on — picking up where we left off. Say "stop" or tap the button to end.'
+      : '🎙️ Conversation mode on — just talk, I\'ll answer out loud using the live AI (not just this guide\'s offline data). Say "stop" or tap the button to end.', false);
     convoListenOnce();
   }
 
@@ -13715,11 +13867,14 @@ Tommie McLaren`
   function startTypedConversationMode() {
     convoActive = true;
     convoVoiceBlocked = true;
-    convoHistory = [];
+    // See the comment in startConversationMode() — convoHistory persists
+    // across mode toggles now, only "Start new client" clears it.
     convoBtn.classList.remove('listening');
     convoIcon.textContent = '⌨️';
     convoLabel.textContent = 'Conversation (typed) — tap to end';
-    addMsg('sys', "💬 Talking with the live AI now — type below, I'll reason it through and speak the answer back too. This bypasses the offline guide lookup entirely. Tap \"Start Conversation\" to end.", false);
+    addMsg('sys', convoHistory.length
+      ? "💬 Continuing with the live AI — picking up where we left off. Tap \"Start Conversation\" to end."
+      : "💬 Talking with the live AI now — type below, I'll reason it through and speak the answer back too. This bypasses the offline guide lookup entirely. Tap \"Start Conversation\" to end.", false);
     input.focus();
   }
   const textConvoBtn = document.getElementById('ta-text-convo-btn');
@@ -13949,7 +14104,13 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         const span = div.querySelector('span');
         return { role, html: span ? span.innerHTML : '' };
       });
-      localStorage.setItem(TA_STORAGE_KEY, JSON.stringify({ taState, messages }));
+      // convoHistory is the actual {role, content} array sent to Claude for
+      // conversational context — saving `messages` above only restores the
+      // on-screen chat log's look, not what the model actually remembers.
+      // Without this, a page reload (or opening a newly-sent file version)
+      // looked like the conversation survived but a follow-up question had
+      // no real memory of it. Already capped to 12 turns in convoRespond().
+      localStorage.setItem(TA_STORAGE_KEY, JSON.stringify({ taState, messages, convoHistory }));
     } catch (e) { /* storage unavailable (private browsing, quota, file:// edge cases) — fail silently */ }
   }
   function addMsgRaw(role, html) {
@@ -13971,6 +14132,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         saved.messages.forEach(m => addMsgRaw(m.role, m.html));
         msgsEl.scrollTop = msgsEl.scrollHeight;
       }
+      if (Array.isArray(saved.convoHistory)) convoHistory = saved.convoHistory;
     } catch (e) { /* corrupt or unavailable — just start fresh */ }
   }
   // ---------- Quote Builder handoff — the Quote Builder is a separate,
