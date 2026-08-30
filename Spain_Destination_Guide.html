@@ -11430,6 +11430,17 @@ ${resultsBody}
   #ta-settings-actions #ta-apikey-clear:hover { background: #963a33; }
   #ta-settings-actions #ta-apikey-close { background: none; color: #6a7d63; text-decoration: underline; text-underline-offset: 2px; }
   #ta-apikey-status { margin: 8px 0 0; font-size: 11px; font-style: italic; opacity: 0.85; }
+  #ta-voice-select {
+    width: 100%; box-sizing: border-box; padding: 7px 9px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.12);
+    font-family: 'Lato', sans-serif; font-size: 12.5px; margin-bottom: 8px; background: #fff;
+  }
+  #ta-voice-sliders { display: flex; gap: 16px; margin-bottom: 10px; }
+  #ta-voice-sliders label { flex: 1; font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
+  #ta-voice-test {
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 7px; font-size: 11.5px;
+    padding: 6px 12px; cursor: pointer; transition: background .12s ease; font-family: 'Lato', sans-serif; font-weight: 700;
+  }
+  #ta-voice-test:hover { background: var(--sage-darker); }
 
   #ta-context {
     display: none; align-items: center; gap: 8px; padding: 8px 14px;
@@ -11567,6 +11578,19 @@ ${resultsBody}
       <button type="button" id="ta-apikey-close">Done</button>
     </div>
     <p id="ta-apikey-status"></p>
+    <p style="margin-top:16px;">
+      🔊 <b>Spoken voice</b> (Conversation Mode + "read aloud" buttons). Browsers only expose
+      their own built-in voices — there's no real David Attenborough or Morgan Freeman available
+      here, and cloning a real person's voice without their consent isn't something this app will
+      do. Pick your browser's deepest available voice and slow/lower it a touch for a similar
+      narrator feel.
+    </p>
+    <select id="ta-voice-select"><option value="">Browser default</option></select>
+    <div id="ta-voice-sliders">
+      <label>Rate <input type="range" id="ta-voice-rate" min="0.7" max="1.3" step="0.05" value="1"></label>
+      <label>Pitch <input type="range" id="ta-voice-pitch" min="0.6" max="1.4" step="0.05" value="1"></label>
+    </div>
+    <button type="button" id="ta-voice-test">🔊 Preview voice</button>
   </div>
   <div id="ta-msgs">
     <div class="ta-msg bot"><span>Hi! I can draft emails/SMS, pull live Kensington itineraries, answer questions from this guide (hotels, restaurants, DMC rates, exam traps — anything in here), or explain your last pick — tap a tool above, or just ask, e.g. "start the outreach email, client's name is Sarah, going to Barcelona" or "what's a good Premier hotel in Seville?"</span></div>
@@ -11636,7 +11660,7 @@ ${resultsBody}
 
   settingsBtn.addEventListener('click', () => {
     settingsPanel.hidden = !settingsPanel.hidden;
-    if (!settingsPanel.hidden) refreshApiKeyUI();
+    if (!settingsPanel.hidden) { refreshApiKeyUI(); refreshVoiceUI(); }
   });
   document.getElementById('ta-apikey-save').addEventListener('click', () => {
     setStoredApiKey(apiKeyInput.value);
@@ -11649,6 +11673,54 @@ ${resultsBody}
   document.getElementById('ta-apikey-close').addEventListener('click', () => { settingsPanel.hidden = true; });
 
   refreshApiKeyUI(); // run once on load so the subtitle reflects key presence immediately
+
+  // ---------- Voice picker ----------
+  const voiceSelect = document.getElementById('ta-voice-select');
+  const voiceRateInput = document.getElementById('ta-voice-rate');
+  const voicePitchInput = document.getElementById('ta-voice-pitch');
+  const voiceTestBtn = document.getElementById('ta-voice-test');
+
+  // Chrome loads voices asynchronously — getVoices() can return [] on the
+  // first call, filled in later via the voiceschanged event. Re-running
+  // this on that event (and it's safe to call more than once) is the
+  // standard workaround.
+  function populateVoiceOptions() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    const prefs = getStoredVoicePrefs();
+    voiceSelect.innerHTML = '<option value="">Browser default</option>' +
+      voices.map(v => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`).join('');
+    voiceSelect.value = prefs.voiceName || '';
+  }
+  if ('speechSynthesis' in window) {
+    populateVoiceOptions();
+    window.speechSynthesis.onvoiceschanged = populateVoiceOptions;
+  } else if (voiceSelect) {
+    voiceSelect.disabled = true; voiceRateInput.disabled = true; voicePitchInput.disabled = true; voiceTestBtn.disabled = true;
+  }
+
+  function refreshVoiceUI() {
+    const prefs = getStoredVoicePrefs();
+    if (voiceSelect) voiceSelect.value = prefs.voiceName || '';
+    if (voiceRateInput) voiceRateInput.value = prefs.rate;
+    if (voicePitchInput) voicePitchInput.value = prefs.pitch;
+  }
+  refreshVoiceUI();
+
+  function saveVoicePrefsFromUI() {
+    setStoredVoicePrefs({
+      voiceName: voiceSelect ? voiceSelect.value : '',
+      rate: voiceRateInput ? parseFloat(voiceRateInput.value) : 1,
+      pitch: voicePitchInput ? parseFloat(voicePitchInput.value) : 1
+    });
+  }
+  if (voiceSelect) voiceSelect.addEventListener('change', saveVoicePrefsFromUI);
+  if (voiceRateInput) voiceRateInput.addEventListener('input', saveVoicePrefsFromUI);
+  if (voicePitchInput) voicePitchInput.addEventListener('input', saveVoicePrefsFromUI);
+  if (voiceTestBtn) voiceTestBtn.addEventListener('click', () => {
+    speakText("Good afternoon. This is how I'll sound when I'm reading you an itinerary.");
+  });
 
   chipsEl.querySelectorAll('.ta-chip').forEach(chip => {
     chip.addEventListener('click', () => { input.value = chip.dataset.fill; send(); });
@@ -11686,15 +11758,46 @@ ${resultsBody}
     } catch (e) { return false; }
   }
 
+  // Spoken-voice preferences (Conversation Mode + any "🔊 Read aloud"
+  // button) — browsers only expose their own installed TTS voices, not
+  // real people's voices (no actual celebrity voice is available here, by
+  // design — see the settings panel copy). Stored together as one JSON
+  // blob since they're always read/written together.
+  const TA_VOICE_STORAGE_KEY = 'kt-trip-assistant:voice:v1';
+
+  function getStoredVoicePrefs() {
+    try {
+      const raw = localStorage.getItem(TA_VOICE_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return { voiceName: (parsed && parsed.voiceName) || '', rate: (parsed && parsed.rate) || 1, pitch: (parsed && parsed.pitch) || 1 };
+    } catch (e) { return { voiceName: '', rate: 1, pitch: 1 }; }
+  }
+
+  function setStoredVoicePrefs(prefs) {
+    try { localStorage.setItem(TA_VOICE_STORAGE_KEY, JSON.stringify(prefs)); return true; }
+    catch (e) { return false; }
+  }
+
+  // Shared by speakText() (Conversation Mode) and the "🔊 Read aloud" button
+  // on drafts (wireCopySpeak) so both sound the same, not just voice mode.
+  function applyVoicePrefs(utter) {
+    const prefs = getStoredVoicePrefs();
+    utter.rate = prefs.rate;
+    utter.pitch = prefs.pitch;
+    if (prefs.voiceName && 'speechSynthesis' in window) {
+      const match = window.speechSynthesis.getVoices().find(v => v.name === prefs.voiceName);
+      if (match) utter.voice = match;
+    }
+  }
+
   // ============================================================
-  // Live AI layer — calls the real Claude API via this artifact's
-  // built-in AI capability (no key needed; draws on the user's normal
-  // Claude.ai usage, not a separate metered bill). This is the
-  // "real conversation" layer: used for Conversation Mode (voice),
-  // itinerary polishing, live web lookups, and anything the offline
-  // pattern-matching engine above can't confidently handle. Routine
-  // matched requests never touch this — they stay instant and free
-  // through the existing rule-based paths.
+  // Live AI layer — as of the BYOK migration (Aug 2026), calls
+  // api.anthropic.com directly using the DE's own API key (⚙️ Settings) —
+  // see buildRequestHeaders() below. This is the "real conversation" layer:
+  // used for Conversation Mode (voice), itinerary polishing, live web
+  // lookups, and anything the offline pattern-matching engine above can't
+  // confidently handle. Routine matched requests never touch this — they
+  // stay instant and free through the existing rule-based paths.
   // ============================================================
   const TA_SYSTEM_PROMPT = `You are the Trip Assistant embedded inside Kensington Tours' internal Spain Destination Certification guide, helping a Kensington Destination Expert (DE) plan client trips and draft client-ready copy.
 
@@ -13047,6 +13150,7 @@ Tommie McLaren`
         }
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
+        applyVoicePrefs(utter);
         sbtn.classList.add('speaking');
         utter.onend = () => sbtn.classList.remove('speaking');
         utter.onerror = () => sbtn.classList.remove('speaking');
@@ -13299,12 +13403,12 @@ Tommie McLaren`
       // history sent to Claude.
       const runConvoSend = () => {
         const typingDiv = showTyping();
-        convoRespond(text, typingDiv).then(({ text: replyText, cities, error }) => {
+        convoRespond(text, typingDiv).then(({ text: replyText, speech, cities, error }) => {
           typingDiv.remove();
           if (error) { convoHistory.pop(); addErrorWithRetry(replyText, runConvoSend); return; }
           addMsg('bot', escapeHtml(replyText), true);
           renderCitiesMapMsg(cities);
-          speakText(replyText);
+          speakText(speech);
         }).catch(e => {
           typingDiv.remove();
           convoHistory.pop();
@@ -13427,12 +13531,23 @@ Tommie McLaren`
     // Strip markdown-ish characters so it doesn't read "asterisk asterisk" aloud
     const clean = text.replace(/[*_#>`]/g, '').replace(/\n{2,}/g, '. ').replace(/\n/g, ' ');
     const utter = new SpeechSynthesisUtterance(clean);
-    utter.rate = 1.02;
+    applyVoicePrefs(utter);
     convoBtn.classList.add('speaking');
     utter.onend = () => { convoBtn.classList.remove('speaking'); if (onDone) onDone(); };
     utter.onerror = () => { convoBtn.classList.remove('speaking'); if (onDone) onDone(); };
     window.speechSynthesis.speak(utter);
   }
+
+  // Conversation Mode reads replies aloud, and reciting a full structured
+  // itinerary (day-by-day bullets, hotel names, etc.) verbatim sounds
+  // mechanical, not like a person talking — and the DE can read the full
+  // detail on screen themselves anyway. This asks the model to append a
+  // short, warm spoken summary after any long, detailed answer; the code
+  // (see splitVoiceSummary below) speaks only that line and shows the full
+  // answer on screen as before. Short conversational replies already stay
+  // brief per the main system prompt, so this only matters for the
+  // itinerary/draft case that prompt explicitly exempts from brevity.
+  const TA_VOICE_SUMMARY_NOTE = `This is Conversation Mode — your reply may be read aloud. If your answer is long and detailed (a full itinerary, a draft, anything more than a few sentences), write the complete answer as normal first — the DE will read that part on screen. Then, on its own final line, add exactly one sentence starting with "VOICE_SUMMARY: " that's a warm, natural, spoken-sounding summary of the key point (as if you're telling a colleague the headline, not reciting the itinerary) — e.g. "VOICE_SUMMARY: I've built an 8-day Madrid and Barcelona trip anchored to a real Kensington itinerary, with Premier hotels and a few food-forward picks layered in." If your answer is already short (a few sentences), skip the VOICE_SUMMARY line entirely — just answer normally.`;
 
   function convoContextNote() {
     const bits = [];
@@ -13441,7 +13556,20 @@ Tommie McLaren`
     else if (taState.destination) bits.push('Destination discussed: ' + taState.destination);
     if (taState.tier) bits.push('Budget tier: ' + taState.tier);
     if (taState.dietNeeds && taState.dietNeeds.length) bits.push('Dietary needs: ' + taState.dietNeeds.join(', '));
-    return bits.length ? 'Current session context (may be relevant, may not — use judgment):\n' + bits.join('\n') : '';
+    const contextBlock = bits.length ? 'Current session context (may be relevant, may not — use judgment):\n' + bits.join('\n') : '';
+    return TA_VOICE_SUMMARY_NOTE + (contextBlock ? '\n\n' + contextBlock : '');
+  }
+
+  // Pulls the model's "VOICE_SUMMARY: ..." line (see TA_VOICE_SUMMARY_NOTE)
+  // out of a reply: what's spoken vs. what's shown on screen are now two
+  // different things on purpose. Falls back to speaking the whole reply if
+  // the model didn't add one (short replies, or it just didn't follow the
+  // format) — better to read the full thing than stay silent.
+  function splitVoiceSummary(text, isError) {
+    if (isError || !text) return { displayText: text, speechText: text };
+    const m = text.match(/\n+VOICE_SUMMARY:\s*([^\n]+)\s*$/i);
+    if (!m) return { displayText: text, speechText: text };
+    return { displayText: text.slice(0, m.index).trim() || text, speechText: m[1].trim() };
   }
 
   // Renders the same inline route map the scenario builder uses, but for
@@ -13462,9 +13590,12 @@ Tommie McLaren`
     convoHistory.push({ role: 'user', content: transcript });
     if (convoHistory.length > 12) convoHistory = convoHistory.slice(-12);
     const result = await callClaudeAI(convoHistory, convoContextNote(), null, progressDiv);
-    const replyText = result.error ? result.error : result.text;
-    if (!result.error) convoHistory.push({ role: 'assistant', content: replyText });
-    return { text: replyText, cities: result.cities || [], error: !!result.error };
+    const rawText = result.error ? result.error : result.text;
+    const { displayText, speechText } = splitVoiceSummary(rawText, !!result.error);
+    // Store the clean displayed text (no VOICE_SUMMARY line) in history, not
+    // the raw reply — keeps later turns' context free of the speech-only tag.
+    if (!result.error) convoHistory.push({ role: 'assistant', content: displayText });
+    return { text: displayText, speech: speechText, cities: result.cities || [], error: !!result.error };
   }
 
   function convoListenOnce() {
@@ -13473,23 +13604,40 @@ Tommie McLaren`
     rec.continuous = false;
     rec.interimResults = false;
     rec.lang = 'en-US';
-    rec.onresult = async (e) => {
+    rec.onresult = (e) => {
       convoConsecutiveErrors = 0;
       const transcript = e.results[0][0].transcript;
       addMsg('user', escapeHtml(transcript), true);
       if (CONVO_STOP_RE.test(transcript)) { stopConversationMode(); return; }
       convoBtn.classList.remove('listening');
-      const typingDiv = showTyping();
-      try {
-        const { text: replyText, cities } = await convoRespond(transcript, typingDiv);
-        typingDiv.remove();
-        addMsg('bot', escapeHtml(replyText), true);
-        renderCitiesMapMsg(cities);
-        speakText(replyText, () => { if (convoActive) convoListenOnce(); });
-      } catch (err) {
-        typingDiv.remove();
-        addMsg('bot', escapeHtml("Something unexpected broke: " + (err && err.message ? err.message : String(err)) + ". Tap the button to try again."), true);
-      }
+      // Same pattern as send()'s typed path: a failed request stops and shows
+      // a real retry button rather than silently auto-looping back into
+      // listening, which could otherwise pile up repeated failures with no
+      // visible acknowledgment if the key/network problem doesn't clear.
+      // Still speaks the error aloud first — voice mode should always talk
+      // back, even to report a problem.
+      const runVoiceRespond = () => {
+        const typingDiv = showTyping();
+        convoRespond(transcript, typingDiv).then(({ text: replyText, speech, cities, error }) => {
+          typingDiv.remove();
+          if (error) {
+            convoHistory.pop(); // same dup-turn guard as send()'s convoActive branch
+            speakText(replyText);
+            addErrorWithRetry(replyText, runVoiceRespond);
+            return;
+          }
+          addMsg('bot', escapeHtml(replyText), true);
+          renderCitiesMapMsg(cities);
+          speakText(speech, () => { if (convoActive) convoListenOnce(); });
+        }).catch(err => {
+          typingDiv.remove();
+          convoHistory.pop();
+          const msg = "Something unexpected broke: " + (err && err.message ? err.message : String(err));
+          speakText(msg);
+          addErrorWithRetry(msg, runVoiceRespond);
+        });
+      };
+      runVoiceRespond();
     };
     rec.onerror = (e) => {
       const errType = e && e.error;
