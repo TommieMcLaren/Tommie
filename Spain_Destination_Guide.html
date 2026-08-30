@@ -12919,6 +12919,12 @@ Tommie McLaren`
           </div>`;
           draftBlock.insertAdjacentHTML('afterend', html);
           wireCopySpeak(draftBlock.nextElementSibling);
+        }).catch(e => {
+          // Defense in depth per HANDOFF: callClaudeAI itself never throws,
+          // but a bug in this .then() body (or in wireCopySpeak/DOM code)
+          // shouldn't leave the button stuck on "Condensing…" forever.
+          smsbtn.disabled = false; smsbtn.textContent = origLabel;
+          addMsg('bot', escapeHtml("Something unexpected broke while condensing that: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
         });
       });
     });
@@ -12938,6 +12944,9 @@ Tommie McLaren`
         callClaudeAI([{ role: 'user', content: 'Create this as an Outlook draft.' }], note, [TA_CALENDAR_MCP]).then(result => {
           obtn.disabled = false; obtn.textContent = origLabel;
           addMsg('bot', escapeHtml(result.error || result.text), true);
+        }).catch(e => {
+          obtn.disabled = false; obtn.textContent = origLabel;
+          addMsg('bot', escapeHtml("Something unexpected broke while saving that draft: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
         });
       });
     });
@@ -12961,6 +12970,9 @@ Tommie McLaren`
         callClaudeAI([{ role: 'user', content: 'Schedule this follow-up.' }], note, [TA_CALENDAR_MCP]).then(result => {
           schbtn.disabled = false; schbtn.textContent = origLabel;
           addMsg('bot', escapeHtml(result.error || result.text), true);
+        }).catch(e => {
+          schbtn.disabled = false; schbtn.textContent = origLabel;
+          addMsg('bot', escapeHtml("Something unexpected broke while scheduling that: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
         });
       });
     });
@@ -13091,6 +13103,9 @@ Tommie McLaren`
           if (result.error) { addErrorWithRetry(result.error, runAskAi); return; }
           addMsg('bot', escapeHtml(result.text), true);
           renderCitiesMapMsg(result.cities);
+        }).catch(e => {
+          typingDiv.remove();
+          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runAskAi);
         });
       };
       runAskAi();
@@ -13128,6 +13143,9 @@ Tommie McLaren`
           typingDiv.remove();
           if (result.error) { addErrorWithRetry(result.error, runPolish); return; }
           renderAndTrackDrafts([{ key: 'polishedItinerary', label: '📋 Polished Itinerary Email', subject: null, body: result.text }]);
+        }).catch(e => {
+          typingDiv.remove();
+          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runPolish);
         });
       };
       runPolish();
@@ -13440,6 +13458,9 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
           typingDiv.remove();
           if (res.error) { addErrorWithRetry(res.error, runCheck); return; }
           addMsg('bot', escapeHtml(res.text || "Didn't find anything to report."), true);
+        }).catch(e => {
+          typingDiv.remove();
+          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runCheck);
         });
       };
       runCheck();
