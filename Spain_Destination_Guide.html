@@ -11787,10 +11787,9 @@ Ground rules:
     if (el) el.textContent = `Live AI, talks back — ${taLiveAiCallCount} call${taLiveAiCallCount === 1 ? '' : 's'} this session`;
   }
 
-  // Bumped from 20s: Opus 5 (upgraded from Sonnet 4.6 for answer quality) with
-  // a higher max_tokens ceiling can legitimately take longer on a full
-  // multi-city itinerary, especially with thinking. Still finite — this
-  // isn't "wait forever," just recalibrated for a slower, smarter model.
+  // Bumped from 20s: a full multi-city itinerary with several tool rounds
+  // can legitimately take longer than a quick lookup. Still finite — this
+  // isn't "wait forever," just recalibrated for realistic round-trip time.
   const TA_REQUEST_TIMEOUT_MS = 30000;
   const TA_ROUND_LABELS = {
     search_guide: 'Searching this guide…',
@@ -11819,6 +11818,26 @@ Ground rules:
     return TA_TOOLS.concat(mcpServers.map(s => ({ type: 'mcp_toolset', mcp_server_name: s.name })));
   }
 
+  // Detects the model narrating a FAKE tool call as plain text instead of
+  // issuing a real tool_use block — observed live (Aug 2026) in two
+  // different invented notations (<function_calls><invoke...> once,
+  // <tool_call>{"tool":...}</tool_call> another time, under two different
+  // models). A different made-up format each time is itself the tell: a
+  // genuine tool_use block mishandled by this file's own parsing would fail
+  // the same way every time, not reinvent its syntax — so this is the model
+  // freestyling from the tool descriptions in its system prompt with no real
+  // tool-calling channel open, not a client bug. Leading unconfirmed
+  // hypothesis: the AI-powered-artifacts bridge forwards web_search and
+  // mcp_toolset tool entries but silently drops this guide's own custom
+  // tools (search_guide/get_city_data/find_matching_itinerary) rather than
+  // erroring — check the browser dev tools Network tab on the request to
+  // api.anthropic.com/v1/messages for a real `"type": "tool_use"` block in
+  // the response to confirm. Whatever the root cause, never show the DE
+  // output that matches this pattern — it may be a fabricated itinerary.
+  function looksLikeHallucinatedToolCall(text) {
+    return /<function_calls>|<invoke[\s>]|<\/invoke>|<tool_call[\s>]|<\/tool_call>/i.test(text || '');
+  }
+
   async function callClaudeAI(messages, extraSystemNote, mcpServers, progressDiv) {
     const system = TA_SYSTEM_PROMPT + (extraSystemNote ? '\n\n' + extraSystemNote : '');
     let convo = messages.slice();
@@ -11828,7 +11847,13 @@ Ground rules:
       let timeoutId;
       let clientToolUses, textBlocks;
       try {
-        const body = { model: 'claude-opus-5', max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers), fallbacks: 'default' };
+        // NOTE ON MODEL CHOICE: this was 'claude-opus-5' briefly, but two live
+        // tests both showed the fake-tool-call symptom above under BOTH that
+        // model and 'claude-sonnet-4-6' — evidence the model isn't the actual
+        // cause, so don't treat re-picking a model as a fix for this. Reverted
+        // to 'claude-sonnet-4-6' to match what was actually live-tested;
+        // looksLikeHallucinatedToolCall() above is the real safety net.
+        const body = { model: 'claude-sonnet-4-6', max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers), fallbacks: 'default' };
         if (mcpServers && mcpServers.length) body.mcp_servers = mcpServers;
         // No AbortController/signal here on purpose — this environment relays
         // fetch() to api.anthropic.com across a postMessage bridge (the artifact
@@ -11875,6 +11900,9 @@ Ground rules:
         return { text: '', error: "Couldn't reach the live AI layer. Most likely cause: this needs to be open as an actual Claude artifact (with \"Create AI-powered artifacts\" on in Settings) — a plain downloaded HTML file opened directly in a browser can't call Claude this way. If that's not it, something broke unexpectedly: " + (e && e.message ? e.message : String(e)) };
       }
       if (!clientToolUses.length) {
+        if (looksLikeHallucinatedToolCall(textBlocks)) {
+          return { text: '', error: "This looked like the AI narrating a fake tool call instead of returning real, grounded guide data — refusing to show it rather than risk a fabricated itinerary reaching a client. This usually means the live tool-calling channel isn't actually open in this environment (see the comment above buildTools() for how to confirm via dev tools). Use the offline Quote Builder for now, or tap retry." };
+        }
         // No client tool needed (or only the server-resolved web_search was used) —
         // this response is already final.
         return { text: textBlocks || "I didn't have a clear answer for that — could you rephrase?", error: null, cities: [...new Set(citiesUsed)] };
@@ -11910,7 +11938,7 @@ Ground rules:
     // no-tools call that has to synthesize an answer from what's already
     // in hand.
     try {
-      const finalBody = { model: 'claude-opus-5', max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo, fallbacks: 'default' };
+      const finalBody = { model: 'claude-sonnet-4-6', max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo, fallbacks: 'default' };
       const resp = await Promise.race([
         fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'anthropic-beta': buildBetaHeader(null) }, body: JSON.stringify(finalBody) }),
         new Promise((_, reject) => setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS))
@@ -11918,6 +11946,9 @@ Ground rules:
       const finalData = await resp.json();
       bumpLiveAiCounter();
       const finalText = finalData && finalData.content ? finalData.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
+      if (finalText && looksLikeHallucinatedToolCall(finalText)) {
+        return { text: '', error: "This looked like the AI narrating a fake tool call instead of returning real, grounded guide data — refusing to show it rather than risk a fabricated itinerary reaching a client. Use the offline Quote Builder for now, or tap retry." };
+      }
       if (finalText) return { text: finalText, error: null, cities: [...new Set(citiesUsed)] };
     } catch (e) { /* fall through to the honest error below */ }
     return { text: '', error: "This needed more steps than usual and didn't wrap up cleanly — the request itself was fine, this was on the AI's end. Tap retry." };
