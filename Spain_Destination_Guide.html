@@ -11379,7 +11379,12 @@ ${resultsBody}
 
   #ta-panel {
     position: fixed; bottom: 96px; right: 24px; z-index: 9999;
-    width: 560px; max-width: calc(100vw - 32px); height: 720px; max-height: 88vh;
+    width: 560px; max-width: calc(100vw - 32px); height: 720px;
+    /* max-height must account for the 96px bottom offset plus a top margin —
+       88vh alone let the panel's top edge go above the actual browser
+       viewport on shorter windows (confirmed via screenshot, Aug 2026),
+       clipped by the window itself rather than any internal overflow. */
+    max-height: calc(100vh - 116px);
     background: rgba(255, 253, 249, 0.97);
     backdrop-filter: blur(14px);
     border: 1px solid rgba(0,0,0,0.06); border-radius: 20px;
@@ -11548,7 +11553,7 @@ ${resultsBody}
 
   @media (max-width: 480px) {
     #ta-btn { bottom: 16px; right: 16px; width: 52px; height: 52px; font-size: 19px; }
-    #ta-panel { bottom: 78px; right: 16px; width: calc(100vw - 24px); }
+    #ta-panel { bottom: 78px; right: 16px; width: calc(100vw - 24px); max-height: calc(100vh - 98px); }
   }
 </style>
 
@@ -11887,15 +11892,27 @@ Ground rules:
     find_matching_itinerary: 'Checking real Kensington itineraries…'
   };
 
+  // Single source of truth for the model — was 'claude-opus-5', reverted to
+  // 'claude-sonnet-4-6' (see the NOTE ON MODEL CHOICE in callClaudeAI below).
+  // 'fallbacks' (server-side refusal retry, see buildBetaHeader below) is
+  // ONLY supported on Opus 5 / Fable 5 — sending it with any other model got
+  // a live 400 from Anthropic (confirmed Aug 2026) after the model was
+  // reverted but this flag wasn't re-checked. Gated on TA_MODEL here so it
+  // can't silently break the same way again if the model changes.
+  const TA_MODEL = 'claude-sonnet-4-6';
+  const TA_MODEL_SUPPORTS_FALLBACKS = TA_MODEL === 'claude-opus-5' || TA_MODEL === 'claude-fable-5';
+
   // Betas this app opts into on every live call:
   // - server-side-fallback-2026-07-01: on a safety-classifier decline,
   //   Anthropic automatically retries server-side on a fallback model instead
   //   of just handing back a refusal (see the stop_reason==='refusal' check
-  //   below, which only fires if the fallback ALSO declined).
+  //   below, which only fires if the fallback ALSO declined). Only sent when
+  //   TA_MODEL_SUPPORTS_FALLBACKS — see the note above.
   // - mcp-client-2025-11-20: required whenever mcp_servers is set (calendar/
   //   Drive) — see the note above TA_CALENDAR_MCP for why this matters.
   function buildBetaHeader(mcpServers) {
-    const betas = ['server-side-fallback-2026-07-01'];
+    const betas = [];
+    if (TA_MODEL_SUPPORTS_FALLBACKS) betas.push('server-side-fallback-2026-07-01');
     if (mcpServers && mcpServers.length) betas.push('mcp-client-2025-11-20');
     return betas.join(',');
   }
@@ -11938,13 +11955,15 @@ Ground rules:
   // front of a client; it could not be verified against live docs from the
   // environment this was written in (no network access there).
   function buildRequestHeaders(mcpServers) {
-    return {
+    const headers = {
       'Content-Type': 'application/json',
       'x-api-key': getStoredApiKey(),
       'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-      'anthropic-beta': buildBetaHeader(mcpServers)
+      'anthropic-dangerous-direct-browser-access': 'true'
     };
+    const betaHeader = buildBetaHeader(mcpServers);
+    if (betaHeader) headers['anthropic-beta'] = betaHeader; // omit entirely rather than send an empty value
+    return headers;
   }
 
   async function callClaudeAI(messages, extraSystemNote, mcpServers, progressDiv) {
@@ -11966,7 +11985,8 @@ Ground rules:
         // cause, so don't treat re-picking a model as a fix for this. Reverted
         // to 'claude-sonnet-4-6' to match what was actually live-tested;
         // looksLikeHallucinatedToolCall() above is the real safety net.
-        const body = { model: 'claude-sonnet-4-6', max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers), fallbacks: 'default' };
+        const body = { model: TA_MODEL, max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers) };
+        if (TA_MODEL_SUPPORTS_FALLBACKS) body.fallbacks = 'default';
         if (mcpServers && mcpServers.length) body.mcp_servers = mcpServers;
         // Still no AbortController/signal here — not because of the old
         // postMessage bridge (BYOK calls Anthropic directly, no relay), but
@@ -11982,13 +12002,20 @@ Ground rules:
         ]);
         clearTimeout(timeoutId);
         if (!resp.ok) {
+          // Surface Anthropic's own error message (e.g. "fallbacks: unsupported
+          // for this model") rather than just a bare status code — a 400 with
+          // no detail is very hard to diagnose from the DE's side, and this is
+          // exactly what would have named the fallbacks/model mismatch bug
+          // immediately instead of needing a live debugging round-trip.
+          let detail = '';
+          try { const errBody = await resp.json(); detail = errBody && errBody.error && errBody.error.message ? ' — ' + errBody.error.message : ''; } catch (e) { /* body wasn't JSON */ }
           if (resp.status === 401) {
-            return { text: '', error: 'Your API key was rejected (401) — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
+            return { text: '', error: 'Your API key was rejected (401)' + detail + ' — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
           }
           if (resp.status === 429) {
             return { text: '', error: 'Rate limited by Anthropic (429) — wait a moment and try again.' };
           }
-          return { text: '', error: `Anthropic returned an error (${resp.status}). Tap retry, or check your key under ⚙️.` };
+          return { text: '', error: `Anthropic returned an error (${resp.status})${detail}. Tap retry, or check your key under ⚙️.` };
         }
         data = await resp.json();
         bumpLiveAiCounter(); // only counts once the network round-trip actually completed
@@ -12057,19 +12084,22 @@ Ground rules:
     // no-tools call that has to synthesize an answer from what's already
     // in hand.
     try {
-      const finalBody = { model: 'claude-sonnet-4-6', max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo, fallbacks: 'default' };
+      const finalBody = { model: TA_MODEL, max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo };
+      if (TA_MODEL_SUPPORTS_FALLBACKS) finalBody.fallbacks = 'default';
       const resp = await Promise.race([
         fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: buildRequestHeaders(null), body: JSON.stringify(finalBody) }),
         new Promise((_, reject) => setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS))
       ]);
       if (!resp.ok) {
+        let detail = '';
+        try { const errBody = await resp.json(); detail = errBody && errBody.error && errBody.error.message ? ' — ' + errBody.error.message : ''; } catch (e) { /* body wasn't JSON */ }
         if (resp.status === 401) {
-          return { text: '', error: 'Your API key was rejected (401) — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
+          return { text: '', error: 'Your API key was rejected (401)' + detail + ' — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
         }
         if (resp.status === 429) {
           return { text: '', error: 'Rate limited by Anthropic (429) — wait a moment and try again.' };
         }
-        return { text: '', error: `Anthropic returned an error (${resp.status}). Tap retry, or check your key under ⚙️.` };
+        return { text: '', error: `Anthropic returned an error (${resp.status})${detail}. Tap retry, or check your key under ⚙️.` };
       }
       const finalData = await resp.json();
       bumpLiveAiCounter();
