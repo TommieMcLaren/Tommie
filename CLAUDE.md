@@ -161,6 +161,32 @@ client-facing sales tool, two things were done, in order:
    `tool_use` block comes back. Run this FIRST if live-AI answers ever look
    suspicious again; it's faster than debugging the full file.
 
+## Vision / image attach (Aug 2026, unverified live)
+
+A 📎 button next to the input box lets the DE attach one image (hotel/room
+photo, a client's Pinterest-style inspiration screenshot, a competing
+agency's itinerary, a menu) and ask about it — a real Claude vision call,
+not OCR or a heuristic. Deliberately scoped narrow:
+
+- **One-off, not persisted to `convoHistory`.** A base64 image is easily
+  hundreds of KB; letting that silently accumulate in the localStorage blob
+  on every conversational turn was worth avoiding. Sending an image always
+  goes through its own dedicated `callClaudeAI` call (see the `pendingImage`
+  branch at the top of `send()`), regardless of whether Conversation Mode is
+  active — the offline engine can't see images at all, so there's no
+  "offline vs live" routing decision to make here.
+- Image content block shape (`{type:'image', source:{type:'base64',
+  media_type, data}}`) is the standard, stable Messages API format and
+  wasn't flagged as a changed/drifted area anywhere I could check — but
+  genuinely **could not be verified against live docs** (no network access
+  in the environment this was written in). Same for the 5MB
+  `TA_MAX_IMAGE_BYTES` client-side ceiling — a conservative guess, not a
+  confirmed API limit. Both are the first things to check if attaching an
+  image fails or a larger file gets rejected.
+- Accepts PNG/JPEG/WebP/GIF via the file picker's `accept` attribute (no
+  drag-and-drop or clipboard-paste yet — file picker only, keeps this
+  MVP-sized).
+
 ## Trip Assistant features added (this session, same live-verification caveat)
 
 - **SMS/text-message draft button.** Every generated draft (email, outreach,

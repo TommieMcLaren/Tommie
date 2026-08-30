@@ -11522,6 +11522,17 @@ ${resultsBody}
   #ta-send { background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; border: none; border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: transform .12s ease, box-shadow .12s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   #ta-send:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
   #ta-send:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+  #ta-image-attach { background: #f3ead9; border: 1px solid rgba(0,0,0,0.07); border-radius: 50%; width: 38px; height: 38px; font-size: 15px; cursor: pointer; flex-shrink: 0; transition: background .12s ease; }
+  #ta-image-attach:hover { background: var(--gold-light); }
+  #ta-image-preview {
+    display: none; align-items: center; gap: 8px; padding: 8px 12px;
+    background: #faf6ee; border-top: 1px solid rgba(0,0,0,0.06); font-size: 12px; color: #5c5a4d;
+  }
+  #ta-image-preview.shown { display: flex; }
+  #ta-image-preview-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); }
+  #ta-image-preview-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ta-image-remove { background: none; border: none; color: #b5473f; cursor: pointer; font-size: 13px; flex-shrink: 0; }
+  .ta-msg-image { max-width: 220px; border-radius: 10px; display: block; margin-top: 6px; }
 
   #ta-convo-bar {
     display: flex; align-items: center; gap: 8px; padding: 8px 12px;
@@ -11608,8 +11619,15 @@ ${resultsBody}
     <button type="button" id="ta-text-convo-btn">💬 Just Type — Skip Voice</button>
     <span id="ta-convo-hint">Live AI, talks back — billed to your own Anthropic API key</span>
   </div>
+  <div id="ta-image-preview" hidden>
+    <img id="ta-image-preview-thumb" alt="Attached image">
+    <span id="ta-image-preview-name"></span>
+    <button type="button" id="ta-image-remove" title="Remove image">✕</button>
+  </div>
   <div id="ta-inputrow">
     <button id="ta-mic" title="Speak your request">🎤</button>
+    <button type="button" id="ta-image-attach" title="Attach an image — a hotel photo, a client's inspiration screenshot, a competitor's itinerary">📎</button>
+    <input type="file" id="ta-image-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     <textarea id="ta-input" rows="1" placeholder="Type or speak a request…"></textarea>
     <button id="ta-send">Send</button>
   </div>
@@ -11734,6 +11752,7 @@ ${resultsBody}
   // the "Start new client" link that appears once anything is remembered.
   const taState = { clientName: null, destination: null, tier: null, itinerary: null, occasion: null, lastVibes: null, cities: null, dietNeeds: null, lastScenarioPlan: null };
   let pendingResume = null; // holds { intents, text } while waiting on an ambiguous itinerary choice
+  let pendingImage = null; // { dataUrl, mediaType, base64, name } — queued via the 📎 button, sent with the next message
   let lastDraftContext = null; // { drafts } for the most recently rendered draft set — lets a follow-up like "make it warmer" regenerate them
   let lastKnowledgeContext = null; // the top guide entry from the last Q&A answer — lets "draft an email using that" reference it
   const TA_STORAGE_KEY = 'kt-trip-assistant:v1';
@@ -13542,9 +13561,43 @@ Tommie McLaren`
 
   function send() {
     const text = input.value.trim();
-    if (!text) return;
+    if (!text && !pendingImage) return;
     input.value = '';
     input.style.height = 'auto';
+
+    // An attached image always goes through this dedicated one-off path,
+    // regardless of Conversation Mode — the offline engine can't see images
+    // at all, and this is deliberately NOT folded into convoHistory (a
+    // base64 image is easily hundreds of KB; letting that silently
+    // accumulate in localStorage on every turn was worth avoiding for a
+    // "attach one photo, ask about it" feature).
+    if (pendingImage) {
+      const img = pendingImage;
+      const caption = text;
+      pendingImage = null;
+      hideImagePreview();
+      addMsg('user', escapeHtml(caption || '(no caption)') + `<img class="ta-msg-image" src="${img.dataUrl}" alt="Attached image">`, true);
+      const runImageQuestion = () => {
+        const typingDiv = showTyping();
+        const content = [
+          { type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.base64 } },
+          { type: 'text', text: caption || 'What do you think of this?' }
+        ];
+        const note = "The DE has attached an image — a hotel/room photo, a client's inspiration screenshot, a competitor's itinerary, a menu, anything. Look at what's actually in it and respond specifically to that. Connect it to this guide's own real data where genuinely relevant (a matching hotel, a similar official KT itinerary, a comparable restaurant) — but don't force a connection that isn't really there, and never invent facts about what the image shows. If it's unrelated to Spain travel, just say so honestly.";
+        callClaudeAI([{ role: 'user', content }], note, null, typingDiv).then(result => {
+          typingDiv.remove();
+          if (result.error) { addErrorWithRetry(result.error, runImageQuestion); return; }
+          addMsg('bot', escapeHtml(result.text), true);
+          renderCitiesMapMsg(result.cities);
+        }).catch(e => {
+          typingDiv.remove();
+          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runImageQuestion);
+        });
+      };
+      runImageQuestion();
+      return;
+    }
+
     addMsg('user', escapeHtml(text), true);
 
     if (convoActive) {
@@ -13629,6 +13682,54 @@ Tommie McLaren`
   input.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 90) + 'px';
+  });
+
+  // ---------- Image attach (vision) ----------
+  const imageAttachBtn = document.getElementById('ta-image-attach');
+  const imageFileInput = document.getElementById('ta-image-input');
+  const imagePreviewEl = document.getElementById('ta-image-preview');
+  const imagePreviewThumb = document.getElementById('ta-image-preview-thumb');
+  const imagePreviewName = document.getElementById('ta-image-preview-name');
+  const imageRemoveBtn = document.getElementById('ta-image-remove');
+  // Conservative, well-known ceiling for a single image on the Messages API —
+  // confirm against current docs.claude.com before assuming a larger file
+  // works; couldn't be checked live from the environment this was written in.
+  const TA_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+  function hideImagePreview() {
+    imagePreviewEl.classList.remove('shown');
+    imagePreviewThumb.src = '';
+    imagePreviewName.textContent = '';
+    imageFileInput.value = '';
+  }
+
+  if (imageAttachBtn) imageAttachBtn.addEventListener('click', () => imageFileInput.click());
+  if (imageRemoveBtn) imageRemoveBtn.addEventListener('click', () => { pendingImage = null; hideImagePreview(); });
+  if (imageFileInput) imageFileInput.addEventListener('change', () => {
+    const file = imageFileInput.files && imageFileInput.files[0];
+    if (!file) return;
+    if (file.size > TA_MAX_IMAGE_BYTES) {
+      addMsg('sys', `That image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB) — try one under 5MB.`, false);
+      imageFileInput.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result; // "data:image/jpeg;base64,...."
+      const m = typeof dataUrl === 'string' && dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+      if (!m) {
+        addMsg('sys', "Couldn't read that image — try a different file.", false);
+        imageFileInput.value = '';
+        return;
+      }
+      pendingImage = { dataUrl, mediaType: m[1], base64: m[2], name: file.name };
+      imagePreviewThumb.src = dataUrl;
+      imagePreviewName.textContent = file.name;
+      imagePreviewEl.classList.add('shown');
+      input.focus();
+    };
+    reader.onerror = () => { addMsg('sys', "Couldn't read that image — try a different file.", false); imageFileInput.value = ''; };
+    reader.readAsDataURL(file);
   });
 
   // ---------- Voice input (Web Speech API — Chrome/Edge only) ----------
