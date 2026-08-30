@@ -122,6 +122,12 @@ a client:
   `PERSONAL_ITINERARIES`** — behavior is unchanged today since the list is
   empty; this was pure scaffolding, logic-tested in Node against the real
   `KT_LIVE_ITINERARIES` data plus a synthetic personal entry.
+- **`.catch()` backstops added to every `callClaudeAI` call site.** HANDOFF
+  already documents this as the intended defense-in-depth pattern, but only
+  1 of 7 sites actually had one — the other 6 (SMS/Outlook/schedule
+  buttons, ask-AI fallback, itinerary polish, follow-up chip) would have
+  left a button stuck disabled or a spinner running forever on any
+  unexpected error inside the `.then()` body itself.
 
 ## Design decisions to preserve, not "helpfully" change
 
