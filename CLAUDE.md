@@ -91,6 +91,37 @@ a client:
   raised 20000 → 30000** to give the larger model/output room without
   hanging indefinitely — this is the one value most worth tuning based on
   real observed latency once tested live.
+- **System prompt / tool descriptions audited for model-4.6-era cruft after
+  the Opus 5 switch, on purpose** (dated pressure language, step-by-step
+  choreography, etc.) — found none worth changing. `TA_SYSTEM_PROMPT` is
+  already reasoned prose (every rule carries its "because"), not emphasis
+  spam, so it was left alone. One low-confidence note, not acted on: the
+  "call find_matching_itinerary FIRST" instruction is stated in both the
+  system prompt and that tool's own `description` — mild duplication, not
+  clearly worth the regression risk of trimming without live testing.
+
+## Trip Assistant features added (this session, same live-verification caveat)
+
+- **SMS/text-message draft button.** Every generated draft (email, outreach,
+  etc.) now has a "📱 Text version" button next to the existing Outlook-draft
+  and schedule-follow-up buttons. It calls the live AI to condense that
+  draft into a copy-paste SMS (~320 chars, no subject line) — no new
+  integration, since there's no SMS-sending platform wired up (deliberately
+  matches the Outlook button's "draft only, DE sends it themselves" rule).
+  Extracted a shared `wireCopySpeak()` helper (was inline in
+  `wireDraftButtons()`) so the injected SMS-result block's Copy/🔊 buttons
+  work without double-binding the original draft's buttons.
+- **`PERSONAL_ITINERARIES`** — an empty array, structurally parallel to
+  `KT_LIVE_ITINERARIES`, for Tommie's own go-to sample itineraries (the ones
+  he said he'll hand over to be added as data). Schema documented in the
+  comment above the const. `find_matching_itinerary` now checks both lists
+  (via the shared `scoreItinerariesByCities()` helper) and, when a personal
+  itinerary matches, returns it in its own clearly-labeled section — never
+  merged with the official KT results, per this guide's existing
+  personal-vs-official rule. **To actually use this, add entries to
+  `PERSONAL_ITINERARIES`** — behavior is unchanged today since the list is
+  empty; this was pure scaffolding, logic-tested in Node against the real
+  `KT_LIVE_ITINERARIES` data plus a synthetic personal entry.
 
 ## Design decisions to preserve, not "helpfully" change
 
