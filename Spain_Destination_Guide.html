@@ -11403,8 +11403,28 @@ ${resultsBody}
   }
   #ta-head b { font-family: 'Playfair Display', serif; font-size: 17px; letter-spacing: 0.2px; }
   #ta-head span { display: block; font-size: 11px; opacity: 0.82; margin-top: 3px; line-height: 1.4; }
-  #ta-close { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 15px; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
-  #ta-close:hover { background: rgba(255,255,255,0.3); }
+  #ta-close, #ta-settings { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 15px; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
+  #ta-close:hover, #ta-settings:hover { background: rgba(255,255,255,0.3); }
+
+  #ta-settings-panel {
+    padding: 12px 14px; background: #eef4ea; border-bottom: 1px solid rgba(0,0,0,0.06); font-size: 12px; color: #3d5c3e;
+  }
+  #ta-settings-panel p { margin: 0 0 8px; line-height: 1.5; }
+  #ta-settings-panel a { color: var(--sage-darker); font-weight: 700; }
+  #ta-apikey-input {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.12);
+    font-family: 'Lato', sans-serif; font-size: 12.5px; margin-bottom: 8px;
+  }
+  #ta-settings-actions { display: flex; gap: 8px; }
+  #ta-settings-actions button {
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 7px; font-size: 11.5px;
+    padding: 6px 12px; cursor: pointer; transition: background .12s ease; font-family: 'Lato', sans-serif; font-weight: 700;
+  }
+  #ta-settings-actions button:hover { background: var(--sage-darker); }
+  #ta-settings-actions #ta-apikey-clear { background: #b5473f; }
+  #ta-settings-actions #ta-apikey-clear:hover { background: #963a33; }
+  #ta-settings-actions #ta-apikey-close { background: none; color: #6a7d63; text-decoration: underline; text-underline-offset: 2px; }
+  #ta-apikey-status { margin: 8px 0 0; font-size: 11px; font-style: italic; opacity: 0.85; }
 
   #ta-tools {
     display: flex; gap: 8px; padding: 12px 14px; background: #faf6ee; border-bottom: 1px solid rgba(0,0,0,0.06);
@@ -11536,7 +11556,8 @@ ${resultsBody}
 
 <div id="ta-panel">
   <div id="ta-head">
-    <div><b>Trip Assistant</b><span>Drafts, live itineraries &amp; guide tools — works offline, no API key</span></div>
+    <div><b>Trip Assistant</b><span id="ta-head-subtitle">Drafts, live itineraries &amp; guide tools</span></div>
+    <button type="button" id="ta-settings" title="API key settings">⚙️</button>
     <button id="ta-close">✕</button>
   </div>
   <div id="ta-tools">
@@ -11548,6 +11569,22 @@ ${resultsBody}
   <div id="ta-context">
     <span id="ta-context-text"></span>
     <button type="button" id="ta-context-reset">Start new client</button>
+  </div>
+  <div id="ta-settings-panel" hidden>
+    <p>
+      The Trip Assistant's live-AI chat calls Anthropic's API directly from your browser
+      using your own API key — nothing is sent through Kensington or any third-party server.
+      Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>.
+      Usage is billed to your own Anthropic account (pay-per-use, separate from any Claude.ai subscription).
+      This is a shared-computer risk if you're not on your own machine — use "Clear key" below before you step away.
+    </p>
+    <input type="password" id="ta-apikey-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+    <div id="ta-settings-actions">
+      <button type="button" id="ta-apikey-save">Save key</button>
+      <button type="button" id="ta-apikey-clear">Clear key</button>
+      <button type="button" id="ta-apikey-close">Done</button>
+    </div>
+    <p id="ta-apikey-status"></p>
   </div>
   <div id="ta-msgs">
     <div class="ta-msg bot"><span>Hi! I can draft emails/SMS, pull live Kensington itineraries, answer questions from this guide (hotels, restaurants, DMC rates, exam traps — anything in here), or explain your last pick — tap a tool above, or just ask, e.g. "start the outreach email, client's name is Sarah, going to Barcelona" or "what's a good Premier hotel in Seville?"</span></div>
@@ -11562,7 +11599,7 @@ ${resultsBody}
   <div id="ta-convo-bar">
     <button type="button" id="ta-convo-btn"><span id="ta-convo-icon">🎙️</span><span id="ta-convo-label">Start Conversation</span></button>
     <button type="button" id="ta-text-convo-btn">💬 Just Type — Skip Voice</button>
-    <span id="ta-convo-hint">Live AI, talks back — uses your normal Claude usage</span>
+    <span id="ta-convo-hint">Live AI, talks back — billed to your own Anthropic API key</span>
   </div>
   <div id="ta-inputrow">
     <button id="ta-mic" title="Speak your request">🎤</button>
@@ -11598,6 +11635,39 @@ ${resultsBody}
     setTimeout(() => panel.classList.remove('open'), 180);
   });
 
+  // ---------- BYOK settings panel ----------
+  const settingsBtn = document.getElementById('ta-settings');
+  const settingsPanel = document.getElementById('ta-settings-panel');
+  const apiKeyInput = document.getElementById('ta-apikey-input');
+  const apiKeyStatus = document.getElementById('ta-apikey-status');
+  const headSubtitleEl = document.getElementById('ta-head-subtitle');
+
+  function refreshApiKeyUI() {
+    const key = getStoredApiKey();
+    const has = !!key;
+    apiKeyInput.value = has ? key : '';
+    apiKeyStatus.textContent = has ? '✓ Key saved in this browser.' : 'No key saved yet — live AI chat is disabled until you add one.';
+    headSubtitleEl.textContent = has
+      ? 'Drafts, live itineraries & guide tools — live AI on'
+      : 'Drafts, live itineraries & guide tools — add your API key to enable live AI';
+  }
+
+  settingsBtn.addEventListener('click', () => {
+    settingsPanel.hidden = !settingsPanel.hidden;
+    if (!settingsPanel.hidden) refreshApiKeyUI();
+  });
+  document.getElementById('ta-apikey-save').addEventListener('click', () => {
+    setStoredApiKey(apiKeyInput.value);
+    refreshApiKeyUI();
+  });
+  document.getElementById('ta-apikey-clear').addEventListener('click', () => {
+    setStoredApiKey('');
+    refreshApiKeyUI();
+  });
+  document.getElementById('ta-apikey-close').addEventListener('click', () => { settingsPanel.hidden = true; });
+
+  refreshApiKeyUI(); // run once on load so the subtitle reflects key presence immediately
+
   chipsEl.querySelectorAll('.ta-chip').forEach(chip => {
     chip.addEventListener('click', () => { input.value = chip.dataset.fill; send(); });
   });
@@ -11613,6 +11683,26 @@ ${resultsBody}
   let lastKnowledgeContext = null; // the top guide entry from the last Q&A answer — lets "draft an email using that" reference it
   const TA_STORAGE_KEY = 'kt-trip-assistant:v1';
   const TA_ARCHIVE_KEY = 'kt-trip-assistant:archive:v1';
+  // BYOK: the DE's own Anthropic API key, kept in localStorage only — never
+  // in taState/archive (those persist client conversation state and get
+  // written together elsewhere; keeping this key out of that object is what
+  // stops it from ever leaking into that structure), never logged, never
+  // sent anywhere but the x-api-key header on calls straight to
+  // api.anthropic.com.
+  const TA_APIKEY_STORAGE_KEY = 'kt-trip-assistant:anthropic-key:v1';
+
+  function getStoredApiKey() {
+    try { return localStorage.getItem(TA_APIKEY_STORAGE_KEY) || ''; }
+    catch (e) { return ''; }
+  }
+
+  function setStoredApiKey(key) {
+    try {
+      if (key) localStorage.setItem(TA_APIKEY_STORAGE_KEY, key.trim());
+      else localStorage.removeItem(TA_APIKEY_STORAGE_KEY);
+      return true;
+    } catch (e) { return false; }
+  }
 
   // ============================================================
   // Live AI layer — calls the real Claude API via this artifact's
@@ -11838,7 +11928,30 @@ Ground rules:
     return /<function_calls>|<invoke[\s>]|<\/invoke>|<tool_call[\s>]|<\/tool_call>/i.test(text || '');
   }
 
+  // BYOK (Aug 2026): the DE's own key, direct-to-Anthropic. Replaces the old
+  // claude.ai-artifact postMessage bridge entirely — see HANDOFF.md/CLAUDE.md
+  // for why that bridge was dropped (couldn't be reliably tested, and turned
+  // out to silently drop this file's custom tools rather than error).
+  // anthropic-dangerous-direct-browser-access opts into Anthropic's CORS
+  // allowance for calling the API straight from a browser with a real key —
+  // confirm this header name against docs.claude.com before relying on it in
+  // front of a client; it could not be verified against live docs from the
+  // environment this was written in (no network access there).
+  function buildRequestHeaders(mcpServers) {
+    return {
+      'Content-Type': 'application/json',
+      'x-api-key': getStoredApiKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'anthropic-beta': buildBetaHeader(mcpServers)
+    };
+  }
+
   async function callClaudeAI(messages, extraSystemNote, mcpServers, progressDiv) {
+    const apiKey = getStoredApiKey();
+    if (!apiKey) {
+      return { text: '', error: 'Live AI chat needs your Anthropic API key. Tap ⚙️ above to add one — get a key at console.anthropic.com.' };
+    }
     const system = TA_SYSTEM_PROMPT + (extraSystemNote ? '\n\n' + extraSystemNote : '');
     let convo = messages.slice();
     let citiesUsed = [];
@@ -11855,22 +11968,28 @@ Ground rules:
         // looksLikeHallucinatedToolCall() above is the real safety net.
         const body = { model: 'claude-sonnet-4-6', max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers), fallbacks: 'default' };
         if (mcpServers && mcpServers.length) body.mcp_servers = mcpServers;
-        // No AbortController/signal here on purpose — this environment relays
-        // fetch() to api.anthropic.com across a postMessage bridge (the artifact
-        // can't call it directly), and postMessage can only carry structured-
-        // cloneable data. An AbortSignal isn't cloneable, so attaching one broke
-        // every request instantly with a DataCloneError, not just slow ones.
-        // Racing against a plain timer gets the same "don't hang forever"
-        // behavior without touching fetch's own options.
+        // Still no AbortController/signal here — not because of the old
+        // postMessage bridge (BYOK calls Anthropic directly, no relay), but
+        // because the existing Promise.race timeout already does the job and
+        // there's no reason to touch working timeout logic for this change.
         const resp = await Promise.race([
           fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'anthropic-beta': buildBetaHeader(mcpServers) },
+            headers: buildRequestHeaders(mcpServers),
             body: JSON.stringify(body)
           }),
           new Promise((_, reject) => { timeoutId = setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS); })
         ]);
         clearTimeout(timeoutId);
+        if (!resp.ok) {
+          if (resp.status === 401) {
+            return { text: '', error: 'Your API key was rejected (401) — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
+          }
+          if (resp.status === 429) {
+            return { text: '', error: 'Rate limited by Anthropic (429) — wait a moment and try again.' };
+          }
+          return { text: '', error: `Anthropic returned an error (${resp.status}). Tap retry, or check your key under ⚙️.` };
+        }
         data = await resp.json();
         bumpLiveAiCounter(); // only counts once the network round-trip actually completed
         if (!data) {
@@ -11897,7 +12016,7 @@ Ground rules:
         // Anything unexpected — including a bug in this code, not just a network
         // failure — lands here now instead of silently hanging the UI forever
         // with no error and no way to know something actually broke.
-        return { text: '', error: "Couldn't reach the live AI layer. Most likely cause: this needs to be open as an actual Claude artifact (with \"Create AI-powered artifacts\" on in Settings) — a plain downloaded HTML file opened directly in a browser can't call Claude this way. If that's not it, something broke unexpectedly: " + (e && e.message ? e.message : String(e)) };
+        return { text: '', error: "Couldn't reach Anthropic's API — check your internet connection, or your key under ⚙️. " + (e && e.message ? e.message : String(e)) };
       }
       if (!clientToolUses.length) {
         if (looksLikeHallucinatedToolCall(textBlocks)) {
@@ -11940,9 +12059,18 @@ Ground rules:
     try {
       const finalBody = { model: 'claude-sonnet-4-6', max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo, fallbacks: 'default' };
       const resp = await Promise.race([
-        fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'anthropic-beta': buildBetaHeader(null) }, body: JSON.stringify(finalBody) }),
+        fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: buildRequestHeaders(null), body: JSON.stringify(finalBody) }),
         new Promise((_, reject) => setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS))
       ]);
+      if (!resp.ok) {
+        if (resp.status === 401) {
+          return { text: '', error: 'Your API key was rejected (401) — check it under ⚙️ Settings, or generate a new one at console.anthropic.com.' };
+        }
+        if (resp.status === 429) {
+          return { text: '', error: 'Rate limited by Anthropic (429) — wait a moment and try again.' };
+        }
+        return { text: '', error: `Anthropic returned an error (${resp.status}). Tap retry, or check your key under ⚙️.` };
+      }
       const finalData = await resp.json();
       bumpLiveAiCounter();
       const finalText = finalData && finalData.content ? finalData.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim() : '';
