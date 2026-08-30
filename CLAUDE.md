@@ -187,6 +187,31 @@ not OCR or a heuristic. Deliberately scoped narrow:
   drag-and-drop or clipboard-paste yet — file picker only, keeps this
   MVP-sized).
 
+## Proactive client memory (Aug 2026)
+
+`searchArchive`/`presentHistorySearch` already existed as a PULL-based
+lookup — the DE had to remember to ask "what did I discuss with X before."
+Added `maybeSurfaceClientHistory()`, hooked into `handleResult()` right
+where a client name gets extracted: when a genuinely NEW name (not just a
+re-mention of the current `taState.clientName`) matches a past archived
+session, Jarvis now surfaces it unprompted with a "Show me" action, instead
+of the DE having to think to ask. Fires once per name per page session
+(`taSurfacedHistoryFor`) so it doesn't repeat the nudge on every message.
+Scoped to the offline/typed-input path only, where the name-extraction
+infrastructure already lives — Conversation Mode doesn't run
+`extractClientName` at all, so this doesn't fire there. Logic-tested in
+Node against a synthetic archive entry: first mention finds the match,
+second mention same session is correctly deduped, an unknown name correctly
+finds nothing.
+
+**Next logical step, not yet built:** the same proactive pattern applied to
+the Outlook/calendar MCP connector (unanswered client emails, quotes going
+stale) — deliberately held off since that connector's behavior under BYOK
+(does it still carry the DE's M365 login the way it did inside the old
+claude.ai bridge?) hasn't been confirmed live yet. Confirm the existing
+Outlook-draft/calendar-follow-up buttons work first before building more on
+that foundation.
+
 ## Trip Assistant features added (this session, same live-verification caveat)
 
 - **SMS/text-message draft button.** Every generated draft (email, outreach,

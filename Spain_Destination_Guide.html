@@ -11753,6 +11753,7 @@ ${resultsBody}
   const taState = { clientName: null, destination: null, tier: null, itinerary: null, occasion: null, lastVibes: null, cities: null, dietNeeds: null, lastScenarioPlan: null };
   let pendingResume = null; // holds { intents, text } while waiting on an ambiguous itinerary choice
   let pendingImage = null; // { dataUrl, mediaType, base64, name } — queued via the 📎 button, sent with the next message
+  const taSurfacedHistoryFor = new Set(); // client names already nudged-about this page session — don't repeat the prompt
   let lastDraftContext = null; // { drafts } for the most recently rendered draft set — lets a follow-up like "make it warmer" regenerate them
   let lastKnowledgeContext = null; // the top guide entry from the last Q&A answer — lets "draft an email using that" reference it
   const TA_STORAGE_KEY = 'kt-trip-assistant:v1';
@@ -13448,6 +13449,10 @@ Tommie McLaren`
     const extractedDest = extractDestination(text);
     const extractedTier = extractTier(text);
     const extractedOccasion = extractOccasion(text);
+    // Check BEFORE overwriting taState.clientName — only nudge on a name
+    // that's actually new to this conversation, not every message where the
+    // same name gets re-extracted from context.
+    if (extractedName && extractedName !== taState.clientName) maybeSurfaceClientHistory(extractedName);
     if (extractedName) taState.clientName = extractedName;
     if (extractedDest) taState.destination = extractedDest;
     if (extractedTier) taState.tier = extractedTier;
@@ -14329,6 +14334,28 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       </div>`;
     }).join('');
     addMsg('bot', html, true);
+  }
+
+  // Proactive memory: when a client name is mentioned that matches a past
+  // archived session, surface it unprompted instead of requiring the DE to
+  // remember to ask "what did I discuss with X before" — searchArchive/
+  // presentHistorySearch above already existed as a pull-based lookup; this
+  // is what makes it feel like Jarvis actually remembers, not just logs.
+  // Fires once per client name per page session (taSurfacedHistoryFor).
+  function maybeSurfaceClientHistory(name) {
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (taSurfacedHistoryFor.has(key)) return;
+    taSurfacedHistoryFor.add(key);
+    const matches = searchArchive(name);
+    if (!matches.length) return;
+    const latest = matches[0];
+    const when = new Date(latest.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const what = latest.itineraryTitle || latest.destination || 'a trip';
+    const html = `💡 I found a past conversation with <b>${escapeHtml(name)}</b> from ${escapeHtml(when)} — ${escapeHtml(what)}.<div class="ta-rec-actions"><button type="button" class="ta-rec-confirm" data-action="show-client-history">Show me</button></div>`;
+    const div = addMsg('bot', html, true);
+    const btn = div.querySelector('[data-action="show-client-history"]');
+    if (btn) btn.addEventListener('click', () => { btn.disabled = true; btn.textContent = 'Showing…'; presentHistorySearch(searchArchive(name)); });
   }
 
   restoreState();
