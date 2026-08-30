@@ -11629,7 +11629,7 @@ Ground rules:
 - Keep spoken/conversational replies concise (2-4 sentences) unless the DE is asking for a full draft or itinerary — this may be read aloud.`;
 
   const TA_TOOLS = [
-    { type: 'web_search_20250305', name: 'web_search' },
+    { type: 'web_search_20260209', name: 'web_search' },
     {
       name: 'search_guide',
       description: "Search this Spain destination guide's own knowledge base — hotels, restaurants, tours, DMC tariffs, weather, visa rules, exam prep, email templates, etc. Use this before answering anything guide-specific.",
@@ -11707,16 +11707,20 @@ Ground rules:
       return `### ${city}\nHotels:\n${hotels}\nRestaurants:\n${restaurants}\nTours:\n${tours}\nWeather: ${weather}`;
     }).join('\n\n');
   }
-  // The connected Outlook/Microsoft 365 calendar, passed as an MCP server
-  // so the model can call outlook_calendar_search directly (resolved
-  // server-side by Anthropic, same as web_search — no client-side loop
-  // needed). Only attached for calls that actually need it (see
-  // checkFollowUps below), not every message, to keep routine use cheap.
+  // The connected Outlook/Microsoft 365 calendar, passed as an MCP server so
+  // the model can call outlook_calendar_search / outlook_create_draft
+  // directly. The MCP connector requires TWO things together: this entry in
+  // mcp_servers, AND a matching {type:'mcp_toolset', mcp_server_name:'microsoft-365'}
+  // entry in `tools` (see buildTools() below), plus the mcp-client-2025-11-20
+  // beta header (see buildBetaHeader() below). Omitting the mcp_toolset entry
+  // is a hard validation error, not a silent no-op — that entry was missing
+  // until now, which is almost certainly why calendar/Drive never worked
+  // end-to-end (see HANDOFF.md). Only attached for calls that actually need
+  // it (see checkFollowUps below), not every message, to keep routine use cheap.
   const TA_CALENDAR_MCP = { type: 'url', url: 'https://microsoft365.mcp.claude.com/mcp', name: 'microsoft-365' };
-  // Google Drive — wired the same way as calendar, but unlike calendar I
-  // couldn't test-call this one directly from the chat (no Drive tool
-  // surfaced there), so this is best-effort based on the connector URL
-  // rather than something I've confirmed actually returns real files.
+  // Google Drive — wired the same way as calendar, and now structurally
+  // correct per the MCP connector's requirements above, but still
+  // unconfirmed live (no Drive tool available to test-call with directly).
   const TA_DRIVE_MCP = { type: 'url', url: 'https://drivemcp.googleapis.com/mcp/v1', name: 'google-drive' };
 
   // Pulls client names this DE has actually discussed, from the same
@@ -11752,12 +11756,37 @@ Ground rules:
     if (el) el.textContent = `Live AI, talks back — ${taLiveAiCallCount} call${taLiveAiCallCount === 1 ? '' : 's'} this session`;
   }
 
-  const TA_REQUEST_TIMEOUT_MS = 20000;
+  // Bumped from 20s: Opus 5 (upgraded from Sonnet 4.6 for answer quality) with
+  // a higher max_tokens ceiling can legitimately take longer on a full
+  // multi-city itinerary, especially with thinking. Still finite — this
+  // isn't "wait forever," just recalibrated for a slower, smarter model.
+  const TA_REQUEST_TIMEOUT_MS = 30000;
   const TA_ROUND_LABELS = {
     search_guide: 'Searching this guide…',
     get_city_data: 'Pulling hotel/restaurant/tour data…',
     find_matching_itinerary: 'Checking real Kensington itineraries…'
   };
+
+  // Betas this app opts into on every live call:
+  // - server-side-fallback-2026-07-01: on a safety-classifier decline,
+  //   Anthropic automatically retries server-side on a fallback model instead
+  //   of just handing back a refusal (see the stop_reason==='refusal' check
+  //   below, which only fires if the fallback ALSO declined).
+  // - mcp-client-2025-11-20: required whenever mcp_servers is set (calendar/
+  //   Drive) — see the note above TA_CALENDAR_MCP for why this matters.
+  function buildBetaHeader(mcpServers) {
+    const betas = ['server-side-fallback-2026-07-01'];
+    if (mcpServers && mcpServers.length) betas.push('mcp-client-2025-11-20');
+    return betas.join(',');
+  }
+
+  // The MCP connector requires every server in mcp_servers to be referenced
+  // by exactly one mcp_toolset entry in `tools`, or the API rejects the
+  // whole request — this pairing was missing before.
+  function buildTools(mcpServers) {
+    if (!mcpServers || !mcpServers.length) return TA_TOOLS;
+    return TA_TOOLS.concat(mcpServers.map(s => ({ type: 'mcp_toolset', mcp_server_name: s.name })));
+  }
 
   async function callClaudeAI(messages, extraSystemNote, mcpServers, progressDiv) {
     const system = TA_SYSTEM_PROMPT + (extraSystemNote ? '\n\n' + extraSystemNote : '');
@@ -11768,7 +11797,7 @@ Ground rules:
       let timeoutId;
       let clientToolUses, textBlocks;
       try {
-        const body = { model: 'claude-sonnet-4-6', max_tokens: 1200, system, messages: convo, tools: TA_TOOLS };
+        const body = { model: 'claude-opus-5', max_tokens: 4096, system, messages: convo, tools: buildTools(mcpServers), fallbacks: 'default' };
         if (mcpServers && mcpServers.length) body.mcp_servers = mcpServers;
         // No AbortController/signal here on purpose — this environment relays
         // fetch() to api.anthropic.com across a postMessage bridge (the artifact
@@ -11780,7 +11809,7 @@ Ground rules:
         const resp = await Promise.race([
           fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'anthropic-beta': buildBetaHeader(mcpServers) },
             body: JSON.stringify(body)
           }),
           new Promise((_, reject) => { timeoutId = setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS); })
@@ -11788,8 +11817,19 @@ Ground rules:
         clearTimeout(timeoutId);
         data = await resp.json();
         bumpLiveAiCounter(); // only counts once the network round-trip actually completed
-        if (!data || !data.content) {
-          return { text: '', error: (data && data.error && data.error.message) || "The AI layer didn't return a usable response — try again." };
+        if (!data) {
+          return { text: '', error: "The AI layer didn't return a usable response — try again." };
+        }
+        if (data.stop_reason === 'refusal') {
+          // Safety classifiers declined this request even after the automatic
+          // server-side fallback already tried a second model — this is a
+          // real decline, not a bug, so say so plainly instead of a generic
+          // "no answer" message.
+          const category = data.stop_details && data.stop_details.category;
+          return { text: '', error: `This request was declined${category ? ' (category: ' + category + ')' : ''} — try rephrasing it, or handle this one manually.` };
+        }
+        if (!data.content) {
+          return { text: '', error: (data.error && data.error.message) || "The AI layer didn't return a usable response — try again." };
         }
         clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary'));
         textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
@@ -11839,9 +11879,9 @@ Ground rules:
     // no-tools call that has to synthesize an answer from what's already
     // in hand.
     try {
-      const finalBody = { model: 'claude-sonnet-4-6', max_tokens: 1200, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo };
+      const finalBody = { model: 'claude-opus-5', max_tokens: 4096, system: system + '\n\nThis is the final round — no more tool calls are available. Answer now using whatever information you already gathered above, even if incomplete; note plainly what you were not able to confirm rather than leaving the DE with nothing.', messages: convo, fallbacks: 'default' };
       const resp = await Promise.race([
-        fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finalBody) }),
+        fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'anthropic-beta': buildBetaHeader(null) }, body: JSON.stringify(finalBody) }),
         new Promise((_, reject) => setTimeout(() => reject({ name: 'ClientTimeout' }), TA_REQUEST_TIMEOUT_MS))
       ]);
       const finalData = await resp.json();

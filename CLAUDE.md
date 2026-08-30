@@ -53,12 +53,44 @@ documented:
   used for actual service-tier claims; the one "Deluxe" hit in the file is a
   hotel room-category name, not an invented service tier.
 
-**Open item worth a look:** both `Spain_Destination_Guide.html` and
-`diagnostic-tools/api-test.html` hardcode `model: 'claude-sonnet-4-6'` in the
-API request body. That's not a currently-documented Anthropic model ID —
-confirm the correct current model string (or whether the artifact bridge
-ignores/overrides it server-side) before assuming live AI calls are hitting
-the intended model.
+## Live-AI upgrade (this session, unverified live)
+
+Made to answer "make Jarvis as smart and useful as possible" — all pass
+`node --check` and Node-level logic tests, but **none of this has been
+exercised in a real claude.ai artifact preview yet** (this environment can't
+make that call itself). Verify all of it there before trusting it in front of
+a client:
+
+- **Model bumped `claude-sonnet-4-6` → `claude-opus-5`** in both request
+  bodies in `callClaudeAI` (the tool-use loop and the final no-tools
+  synthesis call) and in `diagnostic-tools/api-test.html`. This is the
+  current recommended default model for anything prioritizing quality.
+- **`web_search` tool type bumped** `web_search_20250305` →
+  `web_search_20260209` (dynamic filtering, supported on Opus 5).
+- **Likely root-cause fix for calendar/Outlook/Drive MCP never working
+  end-to-end:** the MCP connector requires every server in `mcp_servers` to
+  be paired with a matching `{type:'mcp_toolset', mcp_server_name}` entry in
+  `tools`, plus the `mcp-client-2025-11-20` beta header — neither was present
+  before. Without it, the API rejects the request outright rather than
+  degrading gracefully, which fits HANDOFF's "TA_DRIVE_MCP never successfully
+  test-called" and the personal-recommendations layer never being observed
+  live. Added `buildTools()` / `buildBetaHeader()` helpers in the same
+  `<script>` block as `callClaudeAI` to wire this correctly. **This is the
+  single highest-priority thing to confirm live** — open the Trip Assistant
+  panel, trigger the Outlook-draft or calendar follow-up path, and check it
+  actually calls through instead of erroring.
+- **Refusal handling added:** `stop_reason === 'refusal'` is now checked
+  explicitly (a safety-classifier decline returns `content: []`, which the
+  old `!data.content` check didn't catch since `[]` is truthy in JS — it
+  would have silently fallen through to "I didn't have a clear answer,
+  could you rephrase?"). Paired with `fallbacks: 'default'` +
+  `server-side-fallback-2026-07-01`, which retries a decline on a fallback
+  model server-side before giving up.
+- **`max_tokens` raised 1200 → 4096** — 1200 was tight for a full day-by-day
+  multi-city itinerary and risked silent truncation. **`TA_REQUEST_TIMEOUT_MS`
+  raised 20000 → 30000** to give the larger model/output room without
+  hanging indefinitely — this is the one value most worth tuning based on
+  real observed latency once tested live.
 
 ## Design decisions to preserve, not "helpfully" change
 
@@ -74,8 +106,8 @@ the intended model.
 - Voice input (listening) is confirmed blocked in the in-app preview iframe
   (mic permission denied at the hosting-frame level). Untested: whether a
   "pop out to full tab" view gets normal top-level mic permissions.
-- `TA_DRIVE_MCP` (Google Drive MCP) is wired but has never been successfully
-  test-called.
+- `TA_DRIVE_MCP` (Google Drive MCP) is wired and now structurally correct
+  (see "Live-AI upgrade" below) but still never successfully test-called live.
 - The round-cap-to-7 fix and personal-recommendations layer are logic-tested
   but not yet observed end-to-end in a live model response in the actual app.
 
