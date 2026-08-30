@@ -22,7 +22,7 @@ relearn this the hard way" list still applies verbatim.
 Use the diagnostic tools FIRST whenever something in the live-AI or voice
 layer breaks, before touching the 14k-line main file.
 
-## Architecture (see HANDOFF.md for full detail)
+## Architecture (see HANDOFF.md for original design history)
 
 Two deliberately separate layers:
 1. **Offline rule-based engine** — structured per-city data (`QB_HOTELS`,
@@ -31,11 +31,21 @@ Two deliberately separate layers:
    works with no network.
 2. **Live AI layer** (`callClaudeAI`) — real Claude API calls with tools
    (`search_guide`, `get_city_data`, `find_matching_itinerary`, native
-   `web_search`, Outlook draft creation). Only reachable via specific entry
-   points (direct-entry button, escalation button, itinerary polish, voice).
-   **Only works when this file is viewed as a live Claude artifact** — a
-   downloaded/local copy has no API bridge and the offline engine is the only
-   thing that runs.
+   `web_search`, Outlook/calendar via MCP). Reachable via the direct-entry
+   button, escalation button, itinerary polish, and voice.
+
+**As of Aug 2026, layer 2 is BYOK (bring-your-own-key), not the claude.ai
+artifact bridge HANDOFF.md describes.** The DE pastes their own Anthropic
+API key into the ⚙️ Settings panel inside the Trip Assistant; it's stored in
+`localStorage` and sent as `x-api-key` directly to `api.anthropic.com` (with
+`anthropic-dangerous-direct-browser-access: true`), billed to the DE's own
+Anthropic account. This means the file now works as a genuinely standalone
+page in **any** browser — no claude.ai chat window, no "Create AI-powered
+artifacts" setting, no artifact-preview-vs-publish confusion. HANDOFF.md's
+postMessage-bridge material (constraint #1 and #2 in particular) describes
+the *previous* architecture; it's kept for history, but no longer describes
+how `callClaudeAI`'s `fetch()` actually reaches Anthropic. See "BYOK
+migration" below for what changed and why.
 
 ## Verified state (last checked when this file was written)
 
@@ -61,10 +71,13 @@ exercised in a real claude.ai artifact preview yet** (this environment can't
 make that call itself). Verify all of it there before trusting it in front of
 a client:
 
-- **Model bumped `claude-sonnet-4-6` → `claude-opus-5`** in both request
-  bodies in `callClaudeAI` (the tool-use loop and the final no-tools
-  synthesis call) and in `diagnostic-tools/api-test.html`. This is the
-  current recommended default model for anything prioritizing quality.
+- **Model bumped `claude-sonnet-4-6` → `claude-opus-5`**, then **reverted
+  back to `claude-sonnet-4-6`** after live testing (see "BYOK migration"
+  below) — the fake-tool-call bug reproduced under both models, so this
+  wasn't the fix either way. Current state: `claude-sonnet-4-6` in both
+  request bodies and in `diagnostic-tools/api-test.html`, matching what's
+  actually been live-tested. Revisit once BYOK is confirmed working live —
+  Opus 5 may well be worth it now that tool-calling should genuinely work.
 - **`web_search` tool type bumped** `web_search_20250305` →
   `web_search_20260209` (dynamic filtering, supported on Opus 5).
 - **Likely root-cause fix for calendar/Outlook/Drive MCP never working
@@ -99,6 +112,54 @@ a client:
   "call find_matching_itinerary FIRST" instruction is stated in both the
   system prompt and that tool's own `description` — mild duplication, not
   clearly worth the regression risk of trimming without live testing.
+
+## BYOK migration (Aug 2026) — why the bridge got dropped
+
+Live testing (via a real claude.ai chat conversation, the only place the old
+architecture could be exercised at all) surfaced a serious bug: Jarvis's
+custom tools (`search_guide`/`get_city_data`/`find_matching_itinerary`)
+never actually fired. The model narrated a **fake** tool call as plain text
+instead — `<function_calls><invoke name="...">` once, then
+`<tool_call>{"tool":...}</tool_call>` on a retry, under two different
+models. A different invented notation each attempt is the tell: a real
+`tool_use` block mishandled by this file's own parsing would fail the same
+way every time, not reinvent its syntax — so the model was freestyling
+from the tool descriptions in its own system prompt with no real
+tool-calling channel open. Leading (unconfirmed, since it can't be tested
+from this environment) hypothesis: the AI-powered-artifacts bridge forwards
+`web_search` and `mcp_toolset` entries but silently drops this guide's own
+custom tools rather than erroring.
+
+Given a hallucinated itinerary is the single worst failure mode for a
+client-facing sales tool, two things were done, in order:
+
+1. **`looksLikeHallucinatedToolCall(text)`** — a regex safety net matching
+   the observed fake-tool-call patterns, checked at both places
+   `callClaudeAI()` would otherwise hand a "final" answer to the DE. If
+   matched, it refuses to display the response and returns an honest error
+   instead. This stays regardless of root cause — it's cheap insurance, not
+   a fix.
+2. **BYOK** — replaces the whole bridge with direct browser calls to
+   `api.anthropic.com` using the DE's own API key (see the Architecture
+   section above). This makes the custom-tool-dropping question moot: there
+   is no bridge left to drop anything, and the real API demonstrably
+   supports custom tools. The MCP-connector fix from the section above
+   (`buildTools()`/`buildBetaHeader()` pairing `mcp_servers` with
+   `mcp_toolset` entries) is **still required and unaffected** — that's a
+   general Anthropic API requirement, not something specific to the old
+   bridge.
+
+**What's still unverified, in priority order:**
+1. That BYOK actually works end-to-end with a real key — pending live test.
+2. The exact name/behavior of `anthropic-dangerous-direct-browser-access` —
+   couldn't be checked against live docs from this environment (no network
+   access here). Confirm against docs.claude.com before trusting it in
+   front of a client.
+3. `diagnostic-tools/api-test.html` now has a second test ("Test Custom
+   Tool-Calling") that isolates exactly this question — sends one custom
+   tool the model is instructed to call, and reports whether a real
+   `tool_use` block comes back. Run this FIRST if live-AI answers ever look
+   suspicious again; it's faster than debugging the full file.
 
 ## Trip Assistant features added (this session, same live-verification caveat)
 
@@ -163,6 +224,9 @@ a client:
   change in a copy of `diagnostic-tools/api-test.html` before editing the
   main file — this is how the AbortSignal regression got caught and fixed
   fast instead of becoming a multi-day mystery.
-- This app can only be manually verified end-to-end (live AI layer) inside a
-  live claude.ai artifact preview with "Create AI-powered artifacts" enabled;
-  a local `file://` open only exercises the offline engine.
+- As of the BYOK migration, the live-AI layer can be tested by opening the
+  file directly in any browser (`file://` is fine) and entering a real
+  Anthropic API key via the Trip Assistant's ⚙️ Settings panel — the old
+  "must be a live claude.ai artifact" requirement no longer applies. Never
+  put a real key in a git commit, a chat message, or anywhere other than
+  that Settings input.
