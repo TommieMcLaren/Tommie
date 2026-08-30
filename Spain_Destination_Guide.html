@@ -11431,23 +11431,6 @@ ${resultsBody}
   #ta-settings-actions #ta-apikey-close { background: none; color: #6a7d63; text-decoration: underline; text-underline-offset: 2px; }
   #ta-apikey-status { margin: 8px 0 0; font-size: 11px; font-style: italic; opacity: 0.85; }
 
-  #ta-tools {
-    display: flex; gap: 8px; padding: 12px 14px; background: #faf6ee; border-bottom: 1px solid rgba(0,0,0,0.06);
-  }
-  #ta-tools button {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
-    padding: 8px 4px 6px; font-size: 10.5px; color: #5c5a4d; cursor: pointer; font-family: 'Lato', sans-serif;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-  }
-  #ta-tools button span {
-    font-size: 15px; width: 26px; height: 26px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--gold-light);
-  }
-  #ta-tools button:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.09); background: #fffdf8; }
-
   #ta-context {
     display: none; align-items: center; gap: 8px; padding: 8px 14px;
     background: #eef4ea; border-bottom: 1px solid rgba(0,0,0,0.06); font-size: 11.5px; color: #3d5c3e;
@@ -11460,14 +11443,14 @@ ${resultsBody}
   }
 
   #ta-msgs { flex: 1; overflow-y: auto; padding: 14px 14px 6px; }
-  .ta-msg { margin-bottom: 13px; font-size: 14.5px; line-height: 1.6; white-space: pre-wrap; animation: ta-rise .18s ease; }
+  .ta-msg { margin-bottom: 16px; font-size: 16px; line-height: 1.65; white-space: pre-wrap; animation: ta-rise .18s ease; }
   @keyframes ta-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .ta-msg.user { text-align: right; }
-  .ta-msg.user span { background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; padding: 9px 13px; border-radius: 14px 14px 3px 14px; display: inline-block; max-width: 88%; text-align: left; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
-  .ta-msg.bot span { background: #f3ead9; color: #2a2a22; padding: 11px 13px; border-radius: 14px 14px 14px 3px; display: inline-block; max-width: 97%; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .ta-msg.user span { background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; padding: 12px 16px; border-radius: 16px 16px 4px 16px; display: inline-block; max-width: 92%; text-align: left; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+  .ta-msg.bot span { background: #f3ead9; color: #2a2a22; padding: 14px 17px; border-radius: 16px 16px 16px 4px; display: inline-block; max-width: 98%; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .ta-msg.sys span { background: transparent; color: #8a8776; font-style: italic; font-size: 12.5px; padding: 2px 0; display: inline-block; }
 
-  .ta-typing { display: inline-flex; gap: 3px; padding: 11px 13px; background: #f3ead9; border-radius: 14px 14px 14px 3px; }
+  .ta-typing { display: inline-flex; gap: 3px; padding: 14px 17px; background: #f3ead9; border-radius: 16px 16px 16px 4px; }
   .ta-typing span { width: 6px; height: 6px; border-radius: 50%; background: #a39b7f; animation: ta-bounce 1s infinite ease-in-out; }
   .ta-typing span:nth-child(2) { animation-delay: .15s; }
   .ta-typing span:nth-child(3) { animation-delay: .3s; }
@@ -11564,12 +11547,6 @@ ${resultsBody}
     <div><b>Trip Assistant</b><span id="ta-head-subtitle">Drafts, live itineraries &amp; guide tools</span></div>
     <button type="button" id="ta-settings" title="API key settings">⚙️</button>
     <button id="ta-close">✕</button>
-  </div>
-  <div id="ta-tools">
-    <button type="button" id="ta-tool-search" title="Search this guide (Ctrl+K)"><span>🔍</span>Search</button>
-    <button type="button" id="ta-tool-tip" title="Show a random study tip"><span>🎲</span>Tip</button>
-    <button type="button" id="ta-tool-explain" title="Explain more about the last thing you tapped"><span>🔎</span>Explain</button>
-    <button type="button" id="ta-tool-why" title="Reopen the reasoning bubble for your last pick"><span>💭</span>Why</button>
   </div>
   <div id="ta-context">
     <span id="ta-context-text"></span>
@@ -13085,14 +13062,14 @@ Tommie McLaren`
     // sending integration on purpose (same "draft only, DE sends it" rule as
     // the Outlook button below) — the result is just copy-paste text.
     container.querySelectorAll('.ta-sms-btn').forEach(smsbtn => {
-      smsbtn.addEventListener('click', () => {
+      const runSms = () => {
         const target = document.getElementById(smsbtn.dataset.target);
         const fullText = target.textContent;
         smsbtn.disabled = true; const origLabel = smsbtn.textContent; smsbtn.textContent = 'Condensing…';
         const note = `Condense the following client email into a short SMS/text message the DE can copy-paste and send from their own phone — this app has no SMS-sending integration, so only produce the text, never claim to have sent anything. Keep it under about 320 characters (roughly two text segments). No subject line, no "Hi [Name]," email formatting — write it the way a person actually texts: warm, brief, professional, matching Kensington's voice. Preserve only the essential fact(s) — a key date, price, or the next step — and drop the rest. Reply with ONLY the text message itself, nothing else.\n\nSource email:\n${fullText}`;
         callClaudeAI([{ role: 'user', content: 'Give me a text-message version of this.' }], note, null).then(result => {
           smsbtn.disabled = false; smsbtn.textContent = origLabel;
-          if (result.error) { addMsg('bot', escapeHtml(result.error), true); return; }
+          if (result.error) { addErrorWithRetry(result.error, runSms); return; }
           const draftBlock = smsbtn.closest('.ta-draft-block');
           const existing = draftBlock.nextElementSibling;
           if (existing && existing.classList.contains('ta-sms-result')) existing.remove();
@@ -13113,16 +13090,17 @@ Tommie McLaren`
           // but a bug in this .then() body (or in wireCopySpeak/DOM code)
           // shouldn't leave the button stuck on "Condensing…" forever.
           smsbtn.disabled = false; smsbtn.textContent = origLabel;
-          addMsg('bot', escapeHtml("Something unexpected broke while condensing that: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
+          addErrorWithRetry("Something unexpected broke while condensing that: " + (e && e.message ? e.message : String(e)), runSms);
         });
-      });
+      };
+      smsbtn.addEventListener('click', runSms);
     });
     // Creates a real Outlook draft via the live AI — deliberately scoped to
     // outlook_create_draft only (never outlook_send_draft), so this can
     // never send anything on its own. Recipients are left blank; the DE
     // fills those in and reviews in Outlook before sending.
     container.querySelectorAll('.ta-outlook-btn').forEach(obtn => {
-      obtn.addEventListener('click', () => {
+      const runOutlook = () => {
         const target = document.getElementById(obtn.dataset.target);
         const fullText = target.textContent;
         const m = fullText.match(/^Subject:\s*(.+)\n\n([\s\S]*)$/);
@@ -13132,19 +13110,21 @@ Tommie McLaren`
         const note = `Create a draft in the DE's Outlook Drafts folder using outlook_create_draft ONLY (never outlook_send_draft — nothing should be sent). Use this exact subject and body, converting line breaks to simple HTML paragraphs — do not rewrite, paraphrase, add, or remove any content. Leave recipients (to/cc/bcc) blank; the DE will fill those in and review before sending.\nSubject: ${subject || '(no subject given — write a short, reasonable one based on the body)'}\nBody:\n${body}`;
         callClaudeAI([{ role: 'user', content: 'Create this as an Outlook draft.' }], note, [TA_CALENDAR_MCP]).then(result => {
           obtn.disabled = false; obtn.textContent = origLabel;
-          addMsg('bot', escapeHtml(result.error || result.text), true);
+          if (result.error) { addErrorWithRetry(result.error, runOutlook); return; }
+          addMsg('bot', escapeHtml(result.text), true);
         }).catch(e => {
           obtn.disabled = false; obtn.textContent = origLabel;
-          addMsg('bot', escapeHtml("Something unexpected broke while saving that draft: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
+          addErrorWithRetry("Something unexpected broke while saving that draft: " + (e && e.message ? e.message : String(e)), runOutlook);
         });
-      });
+      };
+      obtn.addEventListener('click', runOutlook);
     });
     // Schedules a follow-up event — asks how many days out via a plain
     // browser prompt (simple, reliable, no extra UI to build), computes
     // the actual date in JS rather than trusting the model's date math,
     // then creates ONE event via outlook_create_event.
     container.querySelectorAll('.ta-schedule-btn').forEach(schbtn => {
-      schbtn.addEventListener('click', () => {
+      const runSchedule = () => {
         const daysStr = window.prompt('Schedule a follow-up in how many days?', '3');
         if (daysStr === null) return;
         const days = Math.max(0, parseInt(daysStr) || 3);
@@ -13158,12 +13138,14 @@ Tommie McLaren`
         const note = `Create ONE calendar event using outlook_create_event: subject "Follow up — ${escapeHtml(clientLabel)}", date ${dateStr}, time 10:00, 30 minutes long, showAs 'busy', no attendees. Body: a one-line reminder referencing "${refSubject}". If the signed-in user's timezone isn't otherwise known, use a reasonable default (e.g. America/Toronto). After creating it, briefly confirm the date back to the DE.`;
         callClaudeAI([{ role: 'user', content: 'Schedule this follow-up.' }], note, [TA_CALENDAR_MCP]).then(result => {
           schbtn.disabled = false; schbtn.textContent = origLabel;
-          addMsg('bot', escapeHtml(result.error || result.text), true);
+          if (result.error) { addErrorWithRetry(result.error, runSchedule); return; }
+          addMsg('bot', escapeHtml(result.text), true);
         }).catch(e => {
           schbtn.disabled = false; schbtn.textContent = origLabel;
-          addMsg('bot', escapeHtml("Something unexpected broke while scheduling that: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
+          addErrorWithRetry("Something unexpected broke while scheduling that: " + (e && e.message ? e.message : String(e)), runSchedule);
         });
-      });
+      };
+      schbtn.addEventListener('click', runSchedule);
     });
   }
 
@@ -13310,16 +13292,26 @@ Tommie McLaren`
 
     if (convoActive) {
       if (CONVO_STOP_RE.test(text)) { stopConversationMode(); return; }
-      const typingDiv = showTyping();
-      convoRespond(text, typingDiv).then(({ text: replyText, cities }) => {
-        typingDiv.remove();
-        addMsg('bot', escapeHtml(replyText), true);
-        renderCitiesMapMsg(cities);
-        speakText(replyText);
-      }).catch(e => {
-        typingDiv.remove();
-        addMsg('bot', escapeHtml("Something unexpected broke: " + (e && e.message ? e.message : String(e)) + ". Tap the button to try again."), true);
-      });
+      // convoRespond() unconditionally pushes the user turn onto convoHistory
+      // before it knows whether the call will fail — on error, pop that
+      // unanswered turn back off before retrying, or a retry would push the
+      // same text a second time and leave two consecutive user turns in the
+      // history sent to Claude.
+      const runConvoSend = () => {
+        const typingDiv = showTyping();
+        convoRespond(text, typingDiv).then(({ text: replyText, cities, error }) => {
+          typingDiv.remove();
+          if (error) { convoHistory.pop(); addErrorWithRetry(replyText, runConvoSend); return; }
+          addMsg('bot', escapeHtml(replyText), true);
+          renderCitiesMapMsg(cities);
+          speakText(replyText);
+        }).catch(e => {
+          typingDiv.remove();
+          convoHistory.pop();
+          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runConvoSend);
+        });
+      };
+      runConvoSend();
       return;
     }
 
@@ -13381,27 +13373,6 @@ Tommie McLaren`
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 90) + 'px';
   });
-
-  // ---------- Consolidated tools: these delegate to the original,
-  // already-working buttons/overlays (now visually hidden) rather than
-  // reimplementing search / tips / explain-more / why-this-pick from
-  // scratch. Clicking a hidden button still fires its real click handler.
-  function delegateClick(id) {
-    const el = document.getElementById(id);
-    if (el) el.click();
-  }
-  const toolSearch = document.getElementById('ta-tool-search');
-  const toolTip = document.getElementById('ta-tool-tip');
-  const toolExplain = document.getElementById('ta-tool-explain');
-  const toolWhy = document.getElementById('ta-tool-why');
-  if (toolSearch) toolSearch.addEventListener('click', () => { closeBtn.click(); delegateClick('quickSearchBtn'); });
-  if (toolTip) toolTip.addEventListener('click', () => {
-    addMsg('user', '🎲 Random Tip', false);
-    const typingDiv = showTyping();
-    setTimeout(() => { typingDiv.remove(); showRandomTipInChat(); }, 260);
-  });
-  if (toolExplain) toolExplain.addEventListener('click', () => { closeBtn.click(); delegateClick('tell-me-more-btn'); });
-  if (toolWhy) toolWhy.addEventListener('click', () => { closeBtn.click(); delegateClick('why-reopen-btn'); });
 
   // ---------- Voice input (Web Speech API — Chrome/Edge only) ----------
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -13493,7 +13464,7 @@ Tommie McLaren`
     const result = await callClaudeAI(convoHistory, convoContextNote(), null, progressDiv);
     const replyText = result.error ? result.error : result.text;
     if (!result.error) convoHistory.push({ role: 'assistant', content: replyText });
-    return { text: replyText, cities: result.cities || [] };
+    return { text: replyText, cities: result.cities || [], error: !!result.error };
   }
 
   function convoListenOnce() {
@@ -13674,28 +13645,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     }).catch(() => { /* ambient check — fail silently, the manual chip is still there */ });
   }
 
-  // ---------- Native "Random Tip" (was a delegate-click into a separate
-  // modal overlay; now answers right inside the conversation). Reuses the
-  // `studyTips` array built by the guide's own tip feature — that array is
-  // a top-level `const` in an earlier <script> tag, and top-level
-  // let/const declarations are shared across <script> tags on a page, so
-  // it's readable here without recomputing the same scan.
-  function showRandomTipInChat() {
-    if (typeof studyTips === 'undefined' || !studyTips.length) {
-      addMsg('bot', "No tips found yet — keep building out the guide!", false);
-      return;
-    }
-    const tip = studyTips[Math.floor(Math.random() * studyTips.length)];
-    let html = `<div class="ta-draft-block"><div class="ta-draft-label">🎲 Study Tip</div><div style="margin-top:4px; font-size:13.5px; line-height:1.5;">${escapeHtml(tip.text)}</div>`;
-    if (tip.id && document.getElementById(tip.id)) {
-      html += `<div style="margin-top:8px;"><a href="#" class="ta-jump-link" data-target="${tip.id}" style="color:var(--gold-text); font-weight:700; font-size:12.5px;">📍 Jump to this in the guide →</a></div>`;
-    }
-    html += `</div>`;
-    const botDiv = addMsg('bot', html, true);
-    wireJumpLinks(botDiv);
-  }
-
-  // Shared by the tip card and the knowledge-answer cards below — scrolls
+  // Shared by the knowledge-answer cards below — scrolls
   // to and briefly highlights the referenced heading in the guide itself.
   function wireJumpLinks(container) {
     container.querySelectorAll('.ta-jump-link').forEach(link => {
