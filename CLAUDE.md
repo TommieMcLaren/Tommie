@@ -641,6 +641,62 @@ card:
   section-based profile layout reads in a real browser haven't been
   seen outside this environment — check those first.
 
+## Client Tracker: real intake questionnaire, lead-temp tabs, TMT sync flag (Aug 2026, unverified live)
+
+Three asks that landed close together, all extending the profile view
+rather than the compact card (keeping the earlier declutter work intact):
+
+- **Client intake fields, ported from the DE's own script verbatim** —
+  the exact questions the DE asks new clients (Client Details, Trip
+  Vision, Hotel Preferences, Transfers, Restaurants, Other — ~24 fields
+  in total), not a paraphrase. In the Add/Edit form these live in
+  `<details>`/`<summary>` collapsible sections (`.ct-form-section`)
+  rather than one long flat form — plain HTML disclosure widgets, no
+  JS framework needed, and each section's `<summary>` gets a live
+  "N filled" badge (`ctUpdateSectionBadges()`) computed from whichever
+  client is being edited, so the DE can see what's already been asked
+  without opening every section on a partially-interviewed client. In
+  the profile view, each section (built via the small `ctRow()`/
+  `ctSection()` helpers) only renders at all if at least one of its
+  fields has something in it, and within a rendered section only the
+  filled fields show as rows — same "don't show what's empty"
+  discipline as the rest of this panel. Stored as flat keys on the
+  client object (`travelerAges`, `flexibleDates`, `hotelStyle`, etc.),
+  matching this file's existing convention rather than nesting a
+  sub-object — keeps `|| ''` fallbacks working the same way everywhere.
+- **Lead-temperature tabs** — Hot Lead / Warm Lead / Check Back Later /
+  Cold Lead (the fourth added as the natural complement to the three
+  the DE asked for), as a `#ct-tabs` row of pill buttons above the
+  list, independent of the existing Status dropdown filter. Deliberately
+  a **second filter axis, not a replacement**: Status is where a client
+  sits in the booking pipeline (Inquiry → Booked → Closed), lead temp is
+  how urgently they're worth chasing right now — a client can be
+  "Quote sent" and "Hot Lead" at the same time. Tab counts reflect the
+  search/status filter already applied (not a fixed total), so they
+  answer "how many of what I'm looking at right now are Hot." Shown as
+  a colored flag on both the card and the profile header, next to the
+  existing status flag.
+- **TMT-sync checkbox** — "I've updated TMT with the latest notes"
+  next to the TMT Link field, stored as `tmtUpdated`. Shown in the
+  profile's Trip section as a small ✓/⚠ note next to the TMT link
+  itself ("notes synced" vs. "notes not yet synced") rather than its
+  own section — it's a status *of* the TMT link, not a separate fact
+  about the client, so it reads better attached to that row.
+- Logic-tested in Node: `ctUpdateSectionBadges()` against a synthetic
+  client with a mix of filled/empty fields per section (counts came
+  back correct, including that a "No" answer still counts as filled —
+  it means the DE asked and got an answer, same as a "Yes" would);
+  `ctRow()`/`ctSection()` against an XSS probe (`<script>` in a select
+  value, an `onerror=` payload in a text field) — inert; the tab-count
+  computation against four synthetic clients; and a full profile render
+  with every new field populated plus the two dedicated XSS payloads
+  above, all still inert in the combined output.
+- **Unverified live**: the `<details>` disclosure styling (the ▸/▾
+  marker, badge placement), how ~24 additional fields feel to fill out
+  in one form even when collapsed, and the tab row's wrapping behavior
+  on a narrower window — none of this has been seen in a real browser
+  from this environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

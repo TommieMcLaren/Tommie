@@ -14578,21 +14578,60 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
   #ct-add-btn:hover { background: var(--sage-darker); }
 
+  #ct-tabs { display: flex; gap: 8px; padding: 12px 26px 0; flex-shrink: 0; flex-wrap: wrap; }
+  #ct-tabs[hidden] { display: none; }
+  .ct-tab {
+    background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft);
+    font-family: 'Lato', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    border-radius: 20px; padding: 7px 13px; display: inline-flex; align-items: center; gap: 6px;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .ct-tab:hover { border-color: var(--gold); color: var(--dark); }
+  .ct-tab.active { background: var(--sage-dark); border-color: var(--sage-dark); color: #fff; }
+  .ct-tab-count {
+    font-size: 10.5px; font-weight: 700; background: rgba(0,0,0,0.08); border-radius: 20px; padding: 1px 7px;
+  }
+  .ct-tab.active .ct-tab-count { background: rgba(255,255,255,0.25); }
+  .ct-tab-count:empty { display: none; }
+
   #ct-form-panel {
     background: #fff; border: 1px solid var(--ct-line); border-radius: 12px;
     padding: 18px 20px; margin: 16px 26px 0; display: none; flex-shrink: 0;
   }
   #ct-form-panel.open { display: block; }
   #ct-form-title { font-size: 15px; font-weight: 700; margin: 0 0 14px; color: var(--sage-darker); font-family: 'Playfair Display', serif; }
-  #ct-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .ct-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
   .ct-field-full { grid-column: 1 / -1; }
-  #ct-form-grid label { display: block; font-size: 11.5px; color: var(--ct-ink-soft); margin-bottom: 4px; font-weight: 600; }
-  #ct-form-grid input, #ct-form-grid select, #ct-form-grid textarea {
+  .ct-form-grid label { display: block; font-size: 11.5px; color: var(--ct-ink-soft); margin-bottom: 4px; font-weight: 600; }
+  .ct-form-grid input, .ct-form-grid select, .ct-form-grid textarea {
     width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--ct-line); border-radius: 7px;
     font-family: 'Lato', sans-serif; font-size: 13.5px; color: var(--dark); background: #fffdf9;
   }
-  #ct-form-grid input:focus, #ct-form-grid select:focus, #ct-form-grid textarea:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
-  #ct-form-grid textarea { resize: vertical; min-height: 60px; }
+  .ct-form-grid input:focus, .ct-form-grid select:focus, .ct-form-grid textarea:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
+  .ct-form-grid textarea { resize: vertical; min-height: 60px; }
+  .ct-form-grid-sub { margin-top: 10px; }
+
+  .ct-form-section {
+    border: 1px solid var(--ct-line); border-radius: 10px; margin-top: 12px; padding: 0 14px;
+  }
+  .ct-form-section[open] { padding-bottom: 14px; }
+  .ct-form-section summary {
+    cursor: pointer; padding: 11px 0; font-size: 13px; font-weight: 700; color: var(--sage-darker);
+    font-family: 'Playfair Display', serif; list-style: none; display: flex; align-items: center; gap: 8px;
+  }
+  .ct-form-section summary::-webkit-details-marker { display: none; }
+  .ct-form-section summary::before { content: '▸'; color: var(--ct-ink-soft); font-size: 11px; transition: transform .12s ease; }
+  .ct-form-section[open] summary::before { transform: rotate(90deg); }
+  .ct-section-badge {
+    font-family: 'Lato', sans-serif; font-weight: 400; font-size: 10.5px; color: var(--ct-ink-soft);
+    background: var(--ct-closed-soft); border-radius: 20px; padding: 1px 8px;
+  }
+  .ct-section-badge:empty { display: none; }
+  .ct-form-notes-wrap { margin-top: 14px; }
+
+  #ct-f-tmtupdated-row { display: flex; align-items: center; gap: 7px; margin-top: 6px; }
+  #ct-f-tmtupdated-row label { margin: 0; font-weight: 400; font-size: 12px; color: var(--ct-ink-soft); }
+  #ct-f-tmtupdated { width: auto; margin: 0; }
   #ct-form-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
   #ct-form-actions button {
     font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
@@ -14629,6 +14668,10 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   .ct-flag.status.booked { background: #eef4ea; color: var(--sage-darker); }
   .ct-flag.status.closed { background: var(--ct-closed-soft); color: var(--ct-closed); }
   .ct-flag.overdue { background: #F0D2C6; color: var(--ct-overdue); }
+  .ct-flag.temp.hot { background: #F7DFD3; color: #B4502A; }
+  .ct-flag.temp.warm { background: var(--ct-gold-soft); color: var(--gold-text); }
+  .ct-flag.temp.checkback { background: #E4E9F0; color: #3d5470; }
+  .ct-flag.temp.cold { background: #E7ECEF; color: #5c7080; }
   .ct-meta-line { font-size: 12px; color: var(--ct-ink-soft); margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--ct-line); }
   .ct-outlook-btn {
     background: #eef4ea; border: 1px solid var(--sage-dark); color: var(--sage-darker);
@@ -14668,6 +14711,9 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   .ct-profile-row a:hover { text-decoration: underline; }
   .ct-profile-notes { font-size: 13.5px; line-height: 1.65; color: var(--dark); white-space: pre-wrap; margin: 0; }
   .ct-profile-cta { margin-top: 8px; }
+  .ct-tmt-sync { font-size: 11px; font-weight: 700; margin-left: 6px; }
+  .ct-tmt-sync.ok { color: var(--sage-darker); }
+  .ct-tmt-sync.pending { color: var(--ct-overdue); }
 
   #ct-status-msg { font-size: 12px; color: var(--ct-ink-soft); text-align: center; padding: 8px 26px 14px; flex-shrink: 0; }
 
@@ -14704,9 +14750,16 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     </select>
     <button type="button" id="ct-add-btn">+ Add client</button>
   </div>
+  <div id="ct-tabs">
+    <button type="button" class="ct-tab active" data-temp="">All<span class="ct-tab-count"></span></button>
+    <button type="button" class="ct-tab" data-temp="Hot Lead">🔥 Hot Lead<span class="ct-tab-count"></span></button>
+    <button type="button" class="ct-tab" data-temp="Warm Lead">🌤️ Warm Lead<span class="ct-tab-count"></span></button>
+    <button type="button" class="ct-tab" data-temp="Check Back Later">🕐 Check Back Later<span class="ct-tab-count"></span></button>
+    <button type="button" class="ct-tab" data-temp="Cold Lead">❄️ Cold Lead<span class="ct-tab-count"></span></button>
+  </div>
   <div id="ct-form-panel">
     <p id="ct-form-title">Add client</p>
-    <div id="ct-form-grid">
+    <div class="ct-form-grid">
       <div class="ct-field-full">
         <label for="ct-f-name">Client name</label>
         <input type="text" id="ct-f-name" placeholder="Sarah Thompson">
@@ -14724,6 +14777,16 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         </select>
       </div>
       <div>
+        <label for="ct-f-leadtemp">Lead category</label>
+        <select id="ct-f-leadtemp">
+          <option value="">— Not set —</option>
+          <option value="Hot Lead">🔥 Hot Lead</option>
+          <option value="Warm Lead">🌤️ Warm Lead</option>
+          <option value="Check Back Later">🕐 Check Back Later</option>
+          <option value="Cold Lead">❄️ Cold Lead</option>
+        </select>
+      </div>
+      <div>
         <label for="ct-f-destination">Destination / trip</label>
         <input type="text" id="ct-f-destination" placeholder="Spain — Madrid, Barcelona">
       </div>
@@ -14736,6 +14799,10 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       <div>
         <label for="ct-f-tmtlink">TMT Link</label>
         <input type="text" id="ct-f-tmtlink" placeholder="https://...">
+        <div id="ct-f-tmtupdated-row">
+          <input type="checkbox" id="ct-f-tmtupdated">
+          <label for="ct-f-tmtupdated">I've updated TMT with the latest notes</label>
+        </div>
       </div>
       <div>
         <label for="ct-f-phone">Phone</label>
@@ -14753,9 +14820,129 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         <label for="ct-f-next">Next follow-up</label>
         <input type="date" id="ct-f-next">
       </div>
+    </div>
+
+    <details class="ct-form-section" id="ct-sec-client" open>
+      <summary>Client Details <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div>
+          <label for="ct-f-travelerages">Traveler ages</label>
+          <input type="text" id="ct-f-travelerages" placeholder="2 adults, kids 8 &amp; 11">
+        </div>
+        <div>
+          <label for="ct-f-traveldates">Travel dates</label>
+          <input type="text" id="ct-f-traveldates" placeholder="June 10–20, 2027">
+        </div>
+        <div>
+          <label for="ct-f-flexibledates">Flexible on dates</label>
+          <select id="ct-f-flexibledates">
+            <option value="">Not asked yet</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <div>
+          <label for="ct-f-budget">Budget</label>
+          <input type="text" id="ct-f-budget" placeholder="$8,000–10,000 per person">
+        </div>
+        <div>
+          <label for="ct-f-specialoccasion">Special occasion</label>
+          <input type="text" id="ct-f-specialoccasion" placeholder="25th anniversary">
+        </div>
+        <div>
+          <label for="ct-f-homestate">Home state / province</label>
+          <input type="text" id="ct-f-homestate" placeholder="Ontario">
+        </div>
+      </div>
+    </details>
+
+    <details class="ct-form-section" id="ct-sec-vision">
+      <summary>Trip Vision <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div class="ct-field-full">
+          <label for="ct-f-tripvision">What are we hoping to do/experience</label>
+          <textarea id="ct-f-tripvision" placeholder="Slow-paced, food-focused, art &amp; architecture..."></textarea>
+        </div>
+        <div>
+          <label for="ct-f-pace">Pace</label>
+          <select id="ct-f-pace">
+            <option value="">Not asked yet</option>
+            <option>Relaxed</option>
+            <option>Balanced</option>
+            <option>Packed</option>
+          </select>
+        </div>
+        <div>
+          <label for="ct-f-pasttrips">Past trips to this destination</label>
+          <input type="text" id="ct-f-pasttrips" placeholder="First time / been before, stayed at...">
+        </div>
+      </div>
+    </details>
+
+    <details class="ct-form-section" id="ct-sec-hotel">
+      <summary>Hotel Preferences <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div><label for="ct-f-hotelstyle">Style</label><input type="text" id="ct-f-hotelstyle" placeholder="Boutique, historic, modern..."></div>
+        <div><label for="ct-f-hotelview">View</label><input type="text" id="ct-f-hotelview" placeholder="City, courtyard, sea..."></div>
+        <div><label for="ct-f-hotellocation">Location</label><input type="text" id="ct-f-hotellocation" placeholder="Walkable old town, quiet street..."></div>
+        <div><label for="ct-f-elevator">Elevator proximity</label><input type="text" id="ct-f-elevator" placeholder="Close to elevator preferred"></div>
+        <div><label for="ct-f-floor">Floor preference</label><input type="text" id="ct-f-floor" placeholder="Higher floor, away from street"></div>
+        <div><label for="ct-f-bedding">Bedding</label><input type="text" id="ct-f-bedding" placeholder="King bed, two doubles..."></div>
+        <div><label for="ct-f-roomcategory">Room category</label><input type="text" id="ct-f-roomcategory" placeholder="Deluxe, suite..."></div>
+        <div><label for="ct-f-allergies">Allergies</label><input type="text" id="ct-f-allergies" placeholder="Feather pillows, fragrance..."></div>
+        <div><label for="ct-f-loyalty">Loyalty number</label><input type="text" id="ct-f-loyalty" placeholder="Marriott Bonvoy #..."></div>
+      </div>
+    </details>
+
+    <details class="ct-form-section" id="ct-sec-transfers">
+      <summary>Transfers <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div>
+          <label for="ct-f-privatetransfer">Private transfer</label>
+          <select id="ct-f-privatetransfer"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+        </div>
+        <div>
+          <label for="ct-f-train">Train</label>
+          <select id="ct-f-train"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+        </div>
+        <div>
+          <label for="ct-f-rentalcar">Rental car</label>
+          <select id="ct-f-rentalcar"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+        </div>
+      </div>
+    </details>
+
+    <details class="ct-form-section" id="ct-sec-restaurants">
+      <summary>Restaurants <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div><label for="ct-f-cuisine">Cuisine preferences</label><input type="text" id="ct-f-cuisine" placeholder="Seafood, tapas, avoids spicy..."></div>
+        <div>
+          <label for="ct-f-dresscode">Dress code comfort</label>
+          <select id="ct-f-dresscode"><option value="">Not asked yet</option><option>Casual</option><option>Upscale</option><option>Either</option></select>
+        </div>
+        <div>
+          <label for="ct-f-specialres">Special reservations wanted</label>
+          <select id="ct-f-specialres"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+        </div>
+        <div><label for="ct-f-dietary">Dietary restrictions</label><input type="text" id="ct-f-dietary" placeholder="Vegetarian, gluten-free, kosher..."></div>
+      </div>
+    </details>
+
+    <details class="ct-form-section" id="ct-sec-other">
+      <summary>Other <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div>
+          <label for="ct-f-insurance">Travel insurance</label>
+          <select id="ct-f-insurance"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+        </div>
+        <div class="ct-field-full"><label for="ct-f-mobility">Mobility / accessibility needs</label><input type="text" id="ct-f-mobility" placeholder="Wheelchair accessible rooms, limited walking..."></div>
+      </div>
+    </details>
+
+    <div class="ct-form-grid ct-form-notes-wrap">
       <div class="ct-field-full">
         <label for="ct-f-notes">Notes</label>
-        <textarea id="ct-f-notes" placeholder="Trip details, budget, preferences..."></textarea>
+        <textarea id="ct-f-notes" placeholder="Anything else worth remembering..."></textarea>
       </div>
     </div>
     <div id="ct-form-actions">
@@ -14865,6 +15052,26 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     return '';
   }
 
+  function ctTempClass(temp) {
+    if (temp === 'Hot Lead') return 'hot';
+    if (temp === 'Warm Lead') return 'warm';
+    if (temp === 'Check Back Later') return 'checkback';
+    if (temp === 'Cold Lead') return 'cold';
+    return '';
+  }
+
+  // Small helper so the many optional profile fields (intake questions,
+  // hotel/restaurant/transfer prefs, etc.) don't each need their own
+  // near-identical if-block — a row only renders when the value is
+  // actually filled in, and a whole section only renders when at least
+  // one of its rows does.
+  function ctRow(label, value) {
+    return value ? `<div class="ct-profile-row"><b>${ctEscapeHtml(label)}:</b> ${ctEscapeHtml(value)}</div>` : '';
+  }
+  function ctSection(title, rowsHtml) {
+    return rowsHtml ? `<div class="ct-profile-section"><h4>${ctEscapeHtml(title)}</h4>${rowsHtml}</div>` : '';
+  }
+
   function ctLoadData() {
     try {
       const raw = localStorage.getItem(CT_STORAGE_KEY);
@@ -14895,17 +15102,70 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     document.getElementById('ct-form-title').textContent = client ? 'Edit client' : 'Add client';
     document.getElementById('ct-f-name').value = client ? client.name : '';
     document.getElementById('ct-f-status').value = client ? client.status : 'Inquiry';
+    document.getElementById('ct-f-leadtemp').value = client ? (client.leadTemp || '') : '';
     document.getElementById('ct-f-destination').value = client ? (client.destination || '') : '';
     document.getElementById('ct-f-itinerary').value = client ? (client.itineraryId || '') : '';
     document.getElementById('ct-f-tmtlink').value = client ? (client.tmtLink || '') : '';
+    document.getElementById('ct-f-tmtupdated').checked = client ? !!client.tmtUpdated : false;
     document.getElementById('ct-f-phone').value = client ? (client.phone || '') : '';
     document.getElementById('ct-f-email').value = client ? (client.email || '') : '';
     document.getElementById('ct-f-last').value = client ? (client.lastContact || '') : '';
     document.getElementById('ct-f-next').value = client ? (client.nextFollowUp || '') : '';
     document.getElementById('ct-f-notes').value = client ? (client.notes || '') : '';
+    // Client-intake fields — same "questions I ask new clients" script
+    // the DE actually uses, ported in verbatim rather than reworded.
+    document.getElementById('ct-f-travelerages').value = client ? (client.travelerAges || '') : '';
+    document.getElementById('ct-f-traveldates').value = client ? (client.travelDates || '') : '';
+    document.getElementById('ct-f-flexibledates').value = client ? (client.flexibleDates || '') : '';
+    document.getElementById('ct-f-budget').value = client ? (client.budget || '') : '';
+    document.getElementById('ct-f-specialoccasion').value = client ? (client.specialOccasion || '') : '';
+    document.getElementById('ct-f-homestate').value = client ? (client.homeState || '') : '';
+    document.getElementById('ct-f-tripvision').value = client ? (client.tripVision || '') : '';
+    document.getElementById('ct-f-pace').value = client ? (client.pace || '') : '';
+    document.getElementById('ct-f-pasttrips').value = client ? (client.pastTrips || '') : '';
+    document.getElementById('ct-f-hotelstyle').value = client ? (client.hotelStyle || '') : '';
+    document.getElementById('ct-f-hotelview').value = client ? (client.hotelView || '') : '';
+    document.getElementById('ct-f-hotellocation').value = client ? (client.hotelLocation || '') : '';
+    document.getElementById('ct-f-elevator').value = client ? (client.elevatorProximity || '') : '';
+    document.getElementById('ct-f-floor').value = client ? (client.floorPreference || '') : '';
+    document.getElementById('ct-f-bedding').value = client ? (client.bedding || '') : '';
+    document.getElementById('ct-f-roomcategory').value = client ? (client.roomCategory || '') : '';
+    document.getElementById('ct-f-allergies').value = client ? (client.allergies || '') : '';
+    document.getElementById('ct-f-loyalty').value = client ? (client.loyaltyNumber || '') : '';
+    document.getElementById('ct-f-privatetransfer').value = client ? (client.privateTransfer || '') : '';
+    document.getElementById('ct-f-train').value = client ? (client.train || '') : '';
+    document.getElementById('ct-f-rentalcar').value = client ? (client.rentalCar || '') : '';
+    document.getElementById('ct-f-cuisine').value = client ? (client.cuisinePreferences || '') : '';
+    document.getElementById('ct-f-dresscode').value = client ? (client.dressCode || '') : '';
+    document.getElementById('ct-f-specialres').value = client ? (client.specialReservations || '') : '';
+    document.getElementById('ct-f-dietary').value = client ? (client.dietaryRestrictions || '') : '';
+    document.getElementById('ct-f-insurance').value = client ? (client.travelInsurance || '') : '';
+    document.getElementById('ct-f-mobility').value = client ? (client.mobilityNeeds || '') : '';
     document.getElementById('ct-err-name').style.display = 'none';
     document.getElementById('ct-form-panel').classList.add('open');
     document.getElementById('ct-f-name').focus();
+    ctUpdateSectionBadges(client);
+  }
+
+  // Lets the DE see at a glance which of the collapsed intake sections
+  // already have something in them, before expanding — "3 filled"
+  // rather than having to open every section on a client that was only
+  // partially interviewed.
+  function ctUpdateSectionBadges(client) {
+    const sections = {
+      'ct-sec-client': ['travelerAges', 'travelDates', 'flexibleDates', 'budget', 'specialOccasion', 'homeState'],
+      'ct-sec-vision': ['tripVision', 'pace', 'pastTrips'],
+      'ct-sec-hotel': ['hotelStyle', 'hotelView', 'hotelLocation', 'elevatorProximity', 'floorPreference', 'bedding', 'roomCategory', 'allergies', 'loyaltyNumber'],
+      'ct-sec-transfers': ['privateTransfer', 'train', 'rentalCar'],
+      'ct-sec-restaurants': ['cuisinePreferences', 'dressCode', 'specialReservations', 'dietaryRestrictions'],
+      'ct-sec-other': ['travelInsurance', 'mobilityNeeds']
+    };
+    Object.entries(sections).forEach(([sectionId, fields]) => {
+      const badge = document.querySelector(`#${sectionId} .ct-section-badge`);
+      if (!badge) return;
+      const count = client ? fields.filter(f => client[f] && String(client[f]).trim()).length : 0;
+      badge.textContent = count ? `${count} filled` : '';
+    });
   }
 
   function ctCloseForm() {
@@ -14922,14 +15182,43 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const data = {
       name,
       status: document.getElementById('ct-f-status').value,
+      leadTemp: document.getElementById('ct-f-leadtemp').value,
       destination: document.getElementById('ct-f-destination').value.trim(),
       itineraryId: document.getElementById('ct-f-itinerary').value,
       tmtLink: document.getElementById('ct-f-tmtlink').value.trim(),
+      tmtUpdated: document.getElementById('ct-f-tmtupdated').checked,
       phone: document.getElementById('ct-f-phone').value.trim(),
       email: document.getElementById('ct-f-email').value.trim(),
       lastContact: document.getElementById('ct-f-last').value,
       nextFollowUp: document.getElementById('ct-f-next').value,
-      notes: document.getElementById('ct-f-notes').value.trim()
+      notes: document.getElementById('ct-f-notes').value.trim(),
+      travelerAges: document.getElementById('ct-f-travelerages').value.trim(),
+      travelDates: document.getElementById('ct-f-traveldates').value.trim(),
+      flexibleDates: document.getElementById('ct-f-flexibledates').value,
+      budget: document.getElementById('ct-f-budget').value.trim(),
+      specialOccasion: document.getElementById('ct-f-specialoccasion').value.trim(),
+      homeState: document.getElementById('ct-f-homestate').value.trim(),
+      tripVision: document.getElementById('ct-f-tripvision').value.trim(),
+      pace: document.getElementById('ct-f-pace').value,
+      pastTrips: document.getElementById('ct-f-pasttrips').value.trim(),
+      hotelStyle: document.getElementById('ct-f-hotelstyle').value.trim(),
+      hotelView: document.getElementById('ct-f-hotelview').value.trim(),
+      hotelLocation: document.getElementById('ct-f-hotellocation').value.trim(),
+      elevatorProximity: document.getElementById('ct-f-elevator').value.trim(),
+      floorPreference: document.getElementById('ct-f-floor').value.trim(),
+      bedding: document.getElementById('ct-f-bedding').value.trim(),
+      roomCategory: document.getElementById('ct-f-roomcategory').value.trim(),
+      allergies: document.getElementById('ct-f-allergies').value.trim(),
+      loyaltyNumber: document.getElementById('ct-f-loyalty').value.trim(),
+      privateTransfer: document.getElementById('ct-f-privatetransfer').value,
+      train: document.getElementById('ct-f-train').value,
+      rentalCar: document.getElementById('ct-f-rentalcar').value,
+      cuisinePreferences: document.getElementById('ct-f-cuisine').value.trim(),
+      dressCode: document.getElementById('ct-f-dresscode').value,
+      specialReservations: document.getElementById('ct-f-specialres').value,
+      dietaryRestrictions: document.getElementById('ct-f-dietary').value.trim(),
+      travelInsurance: document.getElementById('ct-f-insurance').value,
+      mobilityNeeds: document.getElementById('ct-f-mobility').value.trim()
     };
     if (ctEditingId) {
       const idx = ctClients.findIndex(c => c.id === ctEditingId);
@@ -15042,6 +15331,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         <div class="ct-name-row">
           <span class="ct-client-name">${ctEscapeHtml(c.name)}</span>
           <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
+          ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
           ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
         </div>
         <p class="ct-meta-line">${lastText} · ${followText}</p>
@@ -15076,12 +15366,58 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     }
     if (c.tmtLink) {
       const href = ctSafeHref(c.tmtLink);
-      tripRows.push(`<div class="ct-profile-row">🔗 ${href ? `<a href="${href}" target="_blank" rel="noopener">Open TMT record ↗</a>` : 'TMT link on file (not a valid URL)'}</div>`);
+      const syncNote = c.tmtUpdated ? '<span class="ct-tmt-sync ok">✓ notes synced</span>' : '<span class="ct-tmt-sync pending">⚠ notes not yet synced</span>';
+      tripRows.push(`<div class="ct-profile-row">🔗 ${href ? `<a href="${href}" target="_blank" rel="noopener">Open TMT record ↗</a>` : 'TMT link on file (not a valid URL)'} ${syncNote}</div>`);
     }
 
     const contactRows = [];
     if (c.phone) contactRows.push(`<div class="ct-profile-row">📞 <a href="tel:${ctEscapeHtml(c.phone.replace(/[^\d+()\-\s]/g, ''))}">${ctEscapeHtml(c.phone)}</a></div>`);
     if (c.email) contactRows.push(`<div class="ct-profile-row">✉️ <a href="mailto:${ctEscapeHtml(c.email)}">${ctEscapeHtml(c.email)}</a></div>`);
+
+    const clientDetailsRows = [
+      ctRow('Traveler ages', c.travelerAges),
+      ctRow('Travel dates', c.travelDates),
+      ctRow('Flexible on dates', c.flexibleDates),
+      ctRow('Budget', c.budget),
+      ctRow('Special occasion', c.specialOccasion),
+      ctRow('Home state/province', c.homeState)
+    ].join('');
+
+    const visionRows = [
+      ctRow('Hoping to do/experience', c.tripVision),
+      ctRow('Pace', c.pace),
+      ctRow('Past trips here', c.pastTrips)
+    ].join('');
+
+    const hotelRows = [
+      ctRow('Style', c.hotelStyle),
+      ctRow('View', c.hotelView),
+      ctRow('Location', c.hotelLocation),
+      ctRow('Elevator proximity', c.elevatorProximity),
+      ctRow('Floor preference', c.floorPreference),
+      ctRow('Bedding', c.bedding),
+      ctRow('Room category', c.roomCategory),
+      ctRow('Allergies', c.allergies),
+      ctRow('Loyalty number', c.loyaltyNumber)
+    ].join('');
+
+    const transferRows = [
+      ctRow('Private transfer', c.privateTransfer),
+      ctRow('Train', c.train),
+      ctRow('Rental car', c.rentalCar)
+    ].join('');
+
+    const restaurantRows = [
+      ctRow('Cuisine preferences', c.cuisinePreferences),
+      ctRow('Dress code comfort', c.dressCode),
+      ctRow('Special reservations wanted', c.specialReservations),
+      ctRow('Dietary restrictions', c.dietaryRestrictions)
+    ].join('');
+
+    const otherRows = [
+      ctRow('Travel insurance', c.travelInsurance),
+      ctRow('Mobility/accessibility needs', c.mobilityNeeds)
+    ].join('');
 
     const showOutlookBtn = !!c.nextFollowUp && c.status !== 'Closed';
 
@@ -15089,6 +15425,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       <div class="ct-profile-head">
         <span class="ct-profile-name">${ctEscapeHtml(c.name)}</span>
         <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
+        ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
         ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
       </div>
       ${tripRows.length ? `<div class="ct-profile-section"><h4>Trip</h4>${tripRows.join('')}</div>` : ''}
@@ -15098,6 +15435,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         <div class="ct-profile-row">Last contact: ${lastText}</div>
         <div class="ct-profile-row">Next follow-up: ${followText}</div>
       </div>
+      ${ctSection('Client Details', clientDetailsRows)}
+      ${ctSection('Trip Vision', visionRows)}
+      ${ctSection('Hotel Preferences', hotelRows)}
+      ${ctSection('Transfers', transferRows)}
+      ${ctSection('Restaurants', restaurantRows)}
+      ${ctSection('Other', otherRows)}
       ${c.notes ? `<div class="ct-profile-section"><h4>Notes</h4><p class="ct-profile-notes">${ctEscapeHtml(c.notes)}</p></div>` : ''}
       ${showOutlookBtn ? `<div class="ct-profile-cta"><button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button></div>` : ''}
     `;
@@ -15111,6 +15454,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   function ctOpenDetail(id) {
     ctDetailId = id;
     document.getElementById('ct-toolbar').hidden = true;
+    document.getElementById('ct-tabs').hidden = true;
     document.getElementById('ct-list').hidden = true;
     ctRenderDetail();
     document.getElementById('ct-detail').hidden = false;
@@ -15120,14 +15464,21 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     ctDetailId = null;
     document.getElementById('ct-detail').hidden = true;
     document.getElementById('ct-toolbar').hidden = false;
+    document.getElementById('ct-tabs').hidden = false;
     document.getElementById('ct-list').hidden = false;
   }
+
+  // Lead-temperature tabs (All / Hot / Warm / Check Back Later / Cold) —
+  // a second, independent filter dimension alongside the status dropdown:
+  // status is where a client sits in the booking pipeline, this is how
+  // urgently they're worth chasing right now.
+  let ctActiveTempTab = '';
 
   function ctRender() {
     const search = document.getElementById('ct-search').value.trim().toLowerCase();
     const statusFilter = document.getElementById('ct-status-filter').value;
 
-    let filtered = ctClients.filter(c => {
+    let preTempFiltered = ctClients.filter(c => {
       const matchesSearch = !search
         || c.name.toLowerCase().includes(search)
         || (c.notes || '').toLowerCase().includes(search)
@@ -15137,6 +15488,23 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       const matchesStatus = !statusFilter || c.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
+
+    // Tab counts reflect the search/status filter already applied, so
+    // they answer "how many of what I'm currently looking at are Hot",
+    // not a fixed total that ignores the rest of the toolbar.
+    const tabCounts = { '': preTempFiltered.length };
+    ['Hot Lead', 'Warm Lead', 'Check Back Later', 'Cold Lead'].forEach(t => {
+      tabCounts[t] = preTempFiltered.filter(c => c.leadTemp === t).length;
+    });
+    document.querySelectorAll('.ct-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.temp === ctActiveTempTab);
+      const count = tabCounts[tab.dataset.temp] || 0;
+      tab.querySelector('.ct-tab-count').textContent = count ? String(count) : '';
+    });
+
+    const filtered = ctActiveTempTab
+      ? preTempFiltered.filter(c => c.leadTemp === ctActiveTempTab)
+      : preTempFiltered;
 
     const list = document.getElementById('ct-list');
 
@@ -15259,6 +15627,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   document.getElementById('ct-save-btn').addEventListener('click', ctHandleSave);
   document.getElementById('ct-search').addEventListener('input', ctRender);
   document.getElementById('ct-status-filter').addEventListener('change', ctRender);
+  document.querySelectorAll('.ct-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      ctActiveTempTab = tab.dataset.temp;
+      ctRender();
+    });
+  });
   document.getElementById('ct-f-name').addEventListener('input', () => {
     document.getElementById('ct-err-name').style.display = 'none';
   });
