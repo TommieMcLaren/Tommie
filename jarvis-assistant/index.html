@@ -1948,7 +1948,9 @@
     };
     recognizer.onerror = function (ev) {
       stopListening();
-      var msg = "Voice input error (" + ev.error + ").";
+      var msg = (ev.error === "not-allowed" || ev.error === "service-not-allowed")
+        ? "Microphone access is blocked for this page. Check your browser's site permissions, allow the microphone, then try again."
+        : "Voice input error (" + ev.error + ").";
       addBubble("assistant", msg, { retry: function () { startListening(); } });
       if (state.speakReplies) speak("I had trouble hearing that.");
     };
@@ -1968,6 +1970,17 @@
   var wakeRecognizer = null;
   var wakeArmed = false;
   var wakeArmTimeout = null;
+  var wakeFailStreak = 0;
+  var WAKE_MAX_FAIL_STREAK = 3;
+
+  function disableWakeWordWithMessage(msg) {
+    state.wakeWordEnabled = false;
+    saveState();
+    $("wakeWordToggle").checked = false;
+    stopWakeWordListening();
+    addBubble("assistant", msg);
+    if (state.speakReplies) speak(msg);
+  }
 
   function startWakeWordListening() {
     if (!Recognition || !state.wakeWordEnabled || listening || wakeRecognizer) return;
@@ -1975,7 +1988,12 @@
     wakeRecognizer.lang = "en-US";
     wakeRecognizer.continuous = true;
     wakeRecognizer.interimResults = true;
+    var startedAt = Date.now();
+    var gotResultThisRun = false;
+    var deniedThisRun = false;
     wakeRecognizer.onresult = function (ev) {
+      gotResultThisRun = true;
+      wakeFailStreak = 0;
       var latest = ev.results[ev.results.length - 1];
       if (!latest.isFinal) return;
       var transcript = latest[0].transcript.toLowerCase();
@@ -2000,12 +2018,23 @@
         wakeArmTimeout = setTimeout(function () { wakeArmed = false; if (hudState === "listening") setHudState("idle", "idle"); }, 8000);
       }
     };
-    wakeRecognizer.onerror = function () {};
+    wakeRecognizer.onerror = function (ev) {
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") deniedThisRun = true;
+    };
     wakeRecognizer.onend = function () {
       wakeRecognizer = null;
+      if (deniedThisRun) {
+        disableWakeWordWithMessage("Microphone access is blocked for this page, so the wake word can't listen. Check your browser's site permissions, allow the microphone, then turn the wake word back on in Settings.");
+        return;
+      }
+      wakeFailStreak = gotResultThisRun || (Date.now() - startedAt >= 1500) ? 0 : wakeFailStreak + 1;
+      if (wakeFailStreak >= WAKE_MAX_FAIL_STREAK) {
+        disableWakeWordWithMessage("The wake word kept failing to start, so I've turned it off rather than keep asking for mic access. You can still use the mic button any time, and try the wake word again later.");
+        return;
+      }
       if (state.wakeWordEnabled && !listening) setTimeout(startWakeWordListening, 500);
     };
-    try { wakeRecognizer.start(); } catch (e) { wakeRecognizer = null; }
+    try { wakeRecognizer.start(); } catch (e) { wakeRecognizer = null; wakeFailStreak++; if (wakeFailStreak >= WAKE_MAX_FAIL_STREAK) disableWakeWordWithMessage("The wake word couldn't start, so I've turned it off. You can still use the mic button any time."); }
   }
   function stopWakeWordListening() {
     if (wakeRecognizer) { try { wakeRecognizer.onend = null; wakeRecognizer.stop(); } catch (e) {} wakeRecognizer = null; }
@@ -2015,7 +2044,7 @@
   $("wakeWordToggle").addEventListener("change", function () {
     state.wakeWordEnabled = this.checked;
     saveState();
-    if (state.wakeWordEnabled) { addToolNote('Wake word on — say "Jarvis" to start talking.'); startWakeWordListening(); }
+    if (state.wakeWordEnabled) { wakeFailStreak = 0; addToolNote('Wake word on — say "Jarvis" to start talking.'); startWakeWordListening(); }
     else { stopWakeWordListening(); addToolNote("Wake word off."); }
   });
 
