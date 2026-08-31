@@ -548,6 +548,52 @@ detail. Two changes, both scoped to `#ct-*`:
   especially on a laptop-sized screen where `min(1080px, 100%)` matters
   most.
 
+## Client Tracker: Itinerary dropdown + TMT Link (Aug 2026, unverified live)
+
+Two more fields, confirmed with the DE before building (TMT is an
+internal system the DE links out to, not something to invent a
+placeholder for):
+
+- **Itinerary** — a `<select>` populated from the real `KT_LIVE_ITINERARIES`
+  data (plus a "Personal picks" `<optgroup>` if `PERSONAL_ITINERARIES`
+  ever gets populated — see "Trip Assistant features added" above),
+  built once at load via `ctPopulateItineraryOptions()`. Stores the
+  itinerary's `id`, not its title, so a later title edit in
+  `KT_LIVE_ITINERARIES` doesn't silently orphan what's saved — resolved
+  back to the full itinerary object via `ctFindItinerary(id)` wherever
+  it's displayed. Deliberately kept as a **separate field from
+  Destination/trip**, not a replacement — Destination stays free text
+  for clients who don't map cleanly onto one of the 16 official
+  itineraries, Itinerary is the formal link to one that does.
+  `KT_LIVE_ITINERARIES`/`PERSONAL_ITINERARIES` are true globals here
+  (declared as top-level `const` in an earlier, non-IIFE `<script>` tag —
+  see "Working in this file" below on script-tag scoping), so no
+  `window.__ta*`-style export was needed to reach them from the tracker's
+  own IIFE, unlike `callClaudeAI`.
+- **TMT Link** — a free-typed URL to whatever internal system (booking/
+  quoting tool) the DE actually uses; this file has no way to know what
+  TMT is beyond "a link the DE pastes in," so it's stored and rendered
+  as-is, not validated against any real TMT URL shape. Rendered as a
+  "🔗 TMT" link on the card **only when it passes `ctSafeHref()`** — the
+  same http(s)-only rule `renderMarkdownLite()` already applies to
+  itinerary-response links — since this one field is free-typed by the
+  DE rather than sourced from this file's own trusted data, and a
+  pasted `javascript:` string landing in a real `href` would be a real
+  XSS opening. An invalid value still displays, just as plain text
+  ("not a valid link") instead of a clickable one.
+- Both fields also feed `ctAddToOutlook()`'s event body (itinerary title
+  and TMT link each get their own line) so the calendar event carries
+  the same context the card does.
+- Logic-tested in Node: a valid itinerary + valid TMT link both render
+  as real anchors; a `javascript:alert(1)` TMT link renders as inert
+  text with no `href="javascript:` anywhere in the output; an unknown/
+  stale `itineraryId` (e.g. after an itinerary is removed from
+  `KT_LIVE_ITINERARIES`) renders nothing for that field rather than
+  throwing.
+- **Unverified live**: the itinerary `<select>` actually populating
+  correctly in a real browser, and how a genuine TMT URL looks/behaves
+  once clicked, haven't been seen outside this environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

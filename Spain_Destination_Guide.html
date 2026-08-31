@@ -14627,6 +14627,8 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   .ct-flag.overdue { background: #F0D2C6; color: var(--ct-overdue); }
   .ct-detail-row { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; }
   .ct-detail-item { font-size: 12px; color: var(--ct-ink-soft); display: inline-flex; align-items: center; gap: 4px; }
+  a.ct-detail-item { color: var(--sage-darker); font-weight: 600; text-decoration: none; }
+  a.ct-detail-item:hover { text-decoration: underline; }
   .ct-meta-line { font-size: 12px; color: var(--ct-ink-soft); margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--ct-line); }
   .ct-notes { font-size: 12.5px; color: var(--ct-ink-soft); margin-top: 6px; line-height: 1.55; }
   .ct-card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
@@ -14705,6 +14707,16 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         <input type="text" id="ct-f-destination" placeholder="Spain — Madrid, Barcelona">
       </div>
       <div>
+        <label for="ct-f-itinerary">Itinerary</label>
+        <select id="ct-f-itinerary">
+          <option value="">— Not selected —</option>
+        </select>
+      </div>
+      <div>
+        <label for="ct-f-tmtlink">TMT Link</label>
+        <input type="text" id="ct-f-tmtlink" placeholder="https://...">
+      </div>
+      <div>
         <label for="ct-f-phone">Phone</label>
         <input type="text" id="ct-f-phone" placeholder="(555) 555-1234">
       </div>
@@ -14749,6 +14761,54 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
 
   function ctEscapeHtml(s) {
     return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  // Only ever render a URL as a clickable href if it's plain http(s) —
+  // same rule renderMarkdownLite() uses for links in the itinerary
+  // pop-out. tmtLink is free-typed by the DE, so this is the thing
+  // standing between a pasted "javascript:..." string and a live href;
+  // an invalid/non-http value just doesn't get linkified.
+  function ctSafeHref(url) {
+    if (!url) return '';
+    const trimmed = String(url).trim();
+    return /^https?:\/\//i.test(trimmed) ? ctEscapeHtml(trimmed) : '';
+  }
+
+  // KT_LIVE_ITINERARIES / PERSONAL_ITINERARIES are top-level consts
+  // declared in an earlier, non-IIFE <script> tag, so they're real
+  // globals here — no window export needed (unlike callClaudeAI etc.,
+  // which live inside the Trip Assistant's own IIFE). Guarded with
+  // typeof checks anyway, matching this file's existing defensive
+  // pattern for the same data elsewhere (see find_matching_itinerary).
+  function ctFindItinerary(id) {
+    if (!id) return null;
+    const live = typeof KT_LIVE_ITINERARIES !== 'undefined' ? KT_LIVE_ITINERARIES : [];
+    const personal = typeof PERSONAL_ITINERARIES !== 'undefined' ? PERSONAL_ITINERARIES : [];
+    return live.find(it => it.id === id) || personal.find(it => it.id === id) || null;
+  }
+
+  function ctPopulateItineraryOptions() {
+    const sel = document.getElementById('ct-f-itinerary');
+    if (!sel) return;
+    const live = typeof KT_LIVE_ITINERARIES !== 'undefined' ? KT_LIVE_ITINERARIES : [];
+    const personal = typeof PERSONAL_ITINERARIES !== 'undefined' ? PERSONAL_ITINERARIES : [];
+    live.forEach(it => {
+      const opt = document.createElement('option');
+      opt.value = it.id;
+      opt.textContent = it.duration ? `${it.title} — ${it.duration}` : it.title;
+      sel.appendChild(opt);
+    });
+    if (personal.length) {
+      const grp = document.createElement('optgroup');
+      grp.label = 'Personal picks';
+      personal.forEach(it => {
+        const opt = document.createElement('option');
+        opt.value = it.id;
+        opt.textContent = it.duration ? `${it.title} — ${it.duration}` : it.title;
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    }
   }
 
   function ctTodayISO() {
@@ -14805,6 +14865,8 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     document.getElementById('ct-f-name').value = client ? client.name : '';
     document.getElementById('ct-f-status').value = client ? client.status : 'Inquiry';
     document.getElementById('ct-f-destination').value = client ? (client.destination || '') : '';
+    document.getElementById('ct-f-itinerary').value = client ? (client.itineraryId || '') : '';
+    document.getElementById('ct-f-tmtlink').value = client ? (client.tmtLink || '') : '';
     document.getElementById('ct-f-phone').value = client ? (client.phone || '') : '';
     document.getElementById('ct-f-email').value = client ? (client.email || '') : '';
     document.getElementById('ct-f-last').value = client ? (client.lastContact || '') : '';
@@ -14830,6 +14892,8 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       name,
       status: document.getElementById('ct-f-status').value,
       destination: document.getElementById('ct-f-destination').value.trim(),
+      itineraryId: document.getElementById('ct-f-itinerary').value,
+      tmtLink: document.getElementById('ct-f-tmtlink').value.trim(),
       phone: document.getElementById('ct-f-phone').value.trim(),
       email: document.getElementById('ct-f-email').value.trim(),
       lastContact: document.getElementById('ct-f-last').value,
@@ -14905,6 +14969,9 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const end = new Date(start.getTime() + 30 * 60000);
     const bodyLines = ['Kensington Tours client follow-up.'];
     if (client.destination) bodyLines.push('', `Destination: ${client.destination}`);
+    const itinerary = ctFindItinerary(client.itineraryId);
+    if (itinerary) bodyLines.push('', `Itinerary: ${itinerary.title}`);
+    if (client.tmtLink) bodyLines.push('', `TMT: ${client.tmtLink}`);
     if (client.notes) bodyLines.push('', client.notes);
     const body = bodyLines.join('\n');
     const params = new URLSearchParams({
@@ -14932,6 +14999,19 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const showOutlookBtn = !!c.nextFollowUp && c.status !== 'Closed';
     const details = [];
     if (c.destination) details.push(`<span class="ct-detail-item">🌍 ${ctEscapeHtml(c.destination)}</span>`);
+    const itinerary = ctFindItinerary(c.itineraryId);
+    if (itinerary) {
+      const itinHref = ctSafeHref(itinerary.link);
+      details.push(itinHref
+        ? `<a class="ct-detail-item" href="${itinHref}" target="_blank" rel="noopener">🧭 ${ctEscapeHtml(itinerary.title)}</a>`
+        : `<span class="ct-detail-item">🧭 ${ctEscapeHtml(itinerary.title)}</span>`);
+    }
+    if (c.tmtLink) {
+      const tmtHref = ctSafeHref(c.tmtLink);
+      details.push(tmtHref
+        ? `<a class="ct-detail-item" href="${tmtHref}" target="_blank" rel="noopener">🔗 TMT</a>`
+        : `<span class="ct-detail-item">🔗 TMT (not a valid link)</span>`);
+    }
     if (c.phone) details.push(`<span class="ct-detail-item">📞 ${ctEscapeHtml(c.phone)}</span>`);
     if (c.email) details.push(`<span class="ct-detail-item">✉️ ${ctEscapeHtml(c.email)}</span>`);
 
@@ -15121,6 +15201,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     // Already granted: nothing to do, the button just reflects status.
   });
 
+  ctPopulateItineraryOptions();
   ctLoadData();
   ctRefreshNotifyUI();
   ctCheckDueReminders();
