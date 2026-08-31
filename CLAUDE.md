@@ -450,15 +450,40 @@ instead of needing its own.
   bucket, and the card renderer against an XSS probe (`<script>` in a
   client name, an `onerror=` payload in notes) — both came back as inert
   escaped text, not live markup.
-- **Unverified live, same caveat as everything else in this section**: the
-  actual "Add to Outlook" call has not been exercised against a real
-  Outlook account from this environment — check that first, along with how
-  the panel looks/behaves in a real browser at various widths.
-- **"Add to Outlook" confirmed broken live (Aug 2026), root cause not yet
-  found.** DE reported it didn't work; no error text was captured yet, so
-  the actual failure mode (auth, MCP wiring, something else) is still
-  unconfirmed — see "Still open" below for the leading theory and how to
-  get the diagnostic info needed to actually fix it.
+- **"Add to Outlook" was MCP-based, confirmed broken live, root cause now
+  found and fixed (Aug 2026).** DE's actual error: `Anthropic returned an
+  error (400) — Authentication error while communicating with MCP server.
+  Please check your authorization token.` That pins it exactly: the
+  Messages API's `mcp_servers` connector requires its own
+  `authorization_token` per server (a real Microsoft OAuth access token
+  for `microsoft365.mcp.claude.com`) — completely separate from the
+  Anthropic API key BYOK provides. The model/header/`mcp_toolset` wiring
+  (see "Live-AI upgrade" above) was correct the whole time; the missing
+  piece was a token this file never had and, as a static file with no
+  backend, has no real way to obtain — that would need a registered
+  Azure AD app plus a hosted HTTPS OAuth redirect endpoint, neither of
+  which fits "single file, no build step, no server."
+  **Fixed by replacing the MCP call entirely**, not by chasing the OAuth
+  token: `ctAddToOutlook()` now opens Outlook Web's own "New event"
+  compose screen in a new tab via a pre-filled deep link
+  (`outlook.office.com/calendar/0/deeplink/compose?...`) — subject, date/
+  time (30 min, local time computed directly from `Date` getters, not
+  `toISOString()`, to avoid a UTC-offset bug), and notes as the body, all
+  URL-encoded via `URLSearchParams` (also closes off any XSS risk from a
+  client name/notes containing markup — it's a URL, not HTML). No OAuth,
+  no server, works today from `file://`. Costs one extra click (the DE
+  taps Save in the opened tab) where the MCP version would've been zero —
+  but that's consistent with this file's own "draft only, DE reviews
+  before it's final" Outlook rule everywhere else, so it's not really a
+  step down in spirit even though it's one more click in practice.
+  **Unverified live**: the exact deep-link parameter names are the
+  widely-used Outlook Web compose pattern, not confirmed against current
+  Microsoft docs from this environment (no network access here) — if the
+  tab opens to the wrong page, an error, or blank fields, that's the
+  first thing to check. The Trip Assistant's own "Schedule follow-up" and
+  Outlook-draft buttons hit this exact same root cause and are still
+  broken — same fix pattern (a compose deep link instead of the MCP call)
+  would apply there too, not yet done since it wasn't what was asked.
 - **Browser-notification reminders added** as a same-tab-only stand-in
   while Outlook is broken. New 🔕/🔔/🚫 bell button in `#ct-head` —
   `Notification.requestPermission()` (must fire from the click itself, a
@@ -501,23 +526,18 @@ instead of needing its own.
   (see "Live-AI upgrade" below) but still never successfully test-called live.
 - The round-cap-to-7 fix and personal-recommendations layer are logic-tested
   but not yet observed end-to-end in a live model response in the actual app.
-- **Outlook MCP calls (Client Tracker's "Add to Outlook" and the Trip
-  Assistant's "Schedule follow-up"/draft buttons) confirmed broken live —
-  root cause not yet diagnosed.** Leading theory, unconfirmed: this file's
-  `TA_CALENDAR_MCP` points at Anthropic's hosted remote MCP connector
-  (`microsoft365.mcp.claude.com`), and hosted remote connectors normally
-  require a one-time OAuth consent flow linking the DE's own Microsoft 365
-  account — separate from, and in addition to, the Anthropic API key BYOK
-  covers. A plain `fetch()` with just `x-api-key` has no way to complete
-  that consent step, which would explain a consistent failure rather than
-  an intermittent one. **Not yet confirmed** — need the actual error
-  surfaced by `ctSetStatus()`/`addErrorWithRetry()` (or the DevTools
-  Network tab response body for the `api.anthropic.com/v1/messages` call)
-  to know if this is really an MCP-auth issue vs. something else (bad
-  `mcp_toolset` pairing, a expired/wrong beta header, a plain network
-  error). Get that error text before changing any of the MCP wiring code —
-  guessing at a fix here without it risks the same "reverted the model
-  twice, wasn't the model" dead end as the Aug 2026 tool-calling bug.
+- **Root cause of the Outlook MCP failures confirmed (Aug 2026)**: the
+  DE's actual error — `Authentication error while communicating with MCP
+  server. Please check your authorization token.` — confirmed the `mcp_
+  servers` connector needs its own Microsoft OAuth `authorization_token`,
+  which this file has no way to obtain without a hosted OAuth redirect
+  endpoint. Client Tracker's "Add to Outlook" is fixed (see "Client
+  Tracker panel" above) via an Outlook Web compose deep link instead of
+  the MCP call. **The Trip Assistant's own "Schedule follow-up" and
+  Outlook-draft buttons hit this exact same error and are still broken**
+  — same fix pattern would apply (a compose/mail deep link instead of
+  `outlook_create_event`/`outlook_create_draft`), not yet done since the
+  DE hasn't asked for that one yet.
 
 ## Working in this file
 

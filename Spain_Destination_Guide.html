@@ -14830,43 +14830,50 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     return groups;
   }
 
-  // Creates a real Outlook calendar event for this client's next
-  // follow-up — same outlook_create_event MCP pattern already used by
-  // the Trip Assistant's "Schedule follow-up" button (push only; this
-  // never reads or modifies anything already on the calendar). Reuses
-  // callClaudeAI via the window.__ta* exports set up above rather than
-  // duplicating the fetch/streaming/auth logic here.
-  function ctAddToOutlook(client, btn) {
-    if (!window.__taCallClaudeAI) {
-      ctSetStatus("Trip Assistant script didn't load — can't reach Outlook from here.");
-      return;
-    }
-    if (!window.__taHasApiKey()) {
-      ctSetStatus('Add your Anthropic API key in the Trip Assistant (✨ → ⚙️) first — that key is what reaches Outlook too.');
-      return;
-    }
-    const origLabel = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Adding…';
-    const noteBody = client.notes ? ` Note: ${client.notes}` : '';
-    const note = `Create ONE calendar event using outlook_create_event: subject "Follow up — ${client.name}", date ${client.nextFollowUp}, time 10:00, 30 minutes long, showAs 'busy', no attendees. Body: a one-line reminder that this is a Kensington Tours client follow-up.${noteBody} If the signed-in user's timezone isn't otherwise known, use a reasonable default (e.g. America/Toronto). After creating it, briefly confirm the date back.`;
-    window.__taCallClaudeAI([{ role: 'user', content: 'Schedule this client follow-up in Outlook.' }], note, [window.__taCalendarMcp])
-      .then(result => {
-        if (result.error) {
-          btn.disabled = false;
-          btn.textContent = origLabel;
-          ctSetStatus(result.error);
-          return;
-        }
-        btn.textContent = '✓ Added';
-        ctSetStatus(`Added "${client.name}" to Outlook for ${ctFormatDate(client.nextFollowUp)}.`);
-        setTimeout(() => { btn.disabled = false; btn.textContent = origLabel; }, 2500);
-      })
-      .catch(e => {
-        btn.disabled = false;
-        btn.textContent = origLabel;
-        ctSetStatus("Something unexpected broke: " + (e && e.message ? e.message : String(e)));
-      });
+  // REPLACED the MCP-based version (Aug 2026) after confirming live why
+  // it 400'd: "Authentication error while communicating with MCP server."
+  // The Messages API's mcp_servers connector requires its OWN
+  // authorization_token per server — a real Microsoft OAuth access
+  // token for microsoft365.mcp.claude.com, entirely separate from the
+  // Anthropic API key BYOK provides (see the MCP Connector docs: each
+  // mcp_servers entry takes {type, url, name, authorization_token}).
+  // Getting that token for real needs a registered Azure AD app plus a
+  // hosted HTTPS OAuth redirect endpoint — neither fits a single static
+  // file with no backend and no build step, so this was never going to
+  // work under BYOK no matter how the request was shaped; the model/
+  // header wiring was correct, the missing piece was the token itself.
+  //
+  // Instead: open Outlook Web's own "New event" compose screen with
+  // everything pre-filled via URL parameters — no OAuth, no server,
+  // works today from a plain file:// page. One extra click (Save) where
+  // the MCP version would have been zero, but that's consistent with
+  // this file's own "draft only, DE reviews before it's final" rule for
+  // every other Outlook feature (see "Design decisions to preserve").
+  // Deep-link param shape is the widely-used Outlook Web compose
+  // pattern, not verified against live Microsoft docs from this
+  // environment (no network access here) — if the tab opens to the
+  // wrong page or empty fields, that's the first thing to check.
+  function ctLocalIso(d) {
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+  }
+
+  function ctAddToOutlook(client) {
+    const start = new Date(client.nextFollowUp + 'T10:00:00');
+    const end = new Date(start.getTime() + 30 * 60000);
+    const body = client.notes
+      ? `Kensington Tours client follow-up.\n\n${client.notes}`
+      : 'Kensington Tours client follow-up.';
+    const params = new URLSearchParams({
+      path: '/calendar/action/compose',
+      rru: 'addevent',
+      subject: `Follow up — ${client.name}`,
+      startdt: ctLocalIso(start),
+      enddt: ctLocalIso(end),
+      body
+    });
+    window.open(`https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`, '_blank', 'noopener');
+    ctSetStatus(`Opened Outlook in a new tab for "${client.name}" — check it and tap Save to add the event.`);
   }
 
   function ctCardHTML(c) {
