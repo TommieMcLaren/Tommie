@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS</title>
+<style>
+  :root {
+    --bg: #05080c;
+    --panel: #0b1119;
+    --panel2: #101823;
+    --border: #1b2635;
+    --accent: #4fd1ff;
+    --accent-dim: #1e5c6e;
+    --accent2: #8b7bff;
+    --text: #e6f1ff;
+    --muted: #7d93ad;
+    --danger: #ff6b6b;
+    --good: #3fe0a5;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  body {
+    display: grid;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 16px;
+    background: linear-gradient(180deg, var(--panel), var(--bg));
+    border-bottom: 1px solid var(--border);
+  }
+  header .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; letter-spacing: 3px; font-size: 15px;
+  }
+  .pulse-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted);
+    box-shadow: 0 0 0 0 rgba(79,209,255,.6);
+  }
+  .pulse-dot.online { background: var(--good); animation: pulse 2s infinite; }
+  .pulse-dot.busy { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(79,209,255,.5); }
+    70% { box-shadow: 0 0 0 8px rgba(79,209,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(79,209,255,0); }
+  }
+  header .spacer { flex: 1; }
+  header .icon-btn, .icon-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 14px;
+  }
+  header .icon-btn:hover, .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .layout { display: grid; grid-template-columns: 240px 1fr; height: 100%; overflow: hidden; }
+  nav.sidebar {
+    background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 12px 8px; gap: 4px; overflow-y: auto;
+  }
+  nav.sidebar button {
+    display: flex; align-items: center; gap: 10px;
+    background: transparent; border: none; color: var(--muted);
+    text-align: left; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  }
+  nav.sidebar button:hover { background: var(--panel2); color: var(--text); }
+  nav.sidebar button.active { background: var(--panel2); color: var(--accent); }
+  nav.sidebar .badge {
+    margin-left: auto; background: var(--accent-dim); color: var(--accent);
+    border-radius: 10px; font-size: 11px; padding: 1px 7px;
+  }
+  main.views { position: relative; overflow: hidden; }
+  .view { display: none; flex-direction: column; height: 100%; }
+  .view.active { display: flex; }
+
+  /* Chat view */
+  #banner {
+    display: none; align-items: center; gap: 10px;
+    background: rgba(79,209,255,.08); border-bottom: 1px solid var(--border);
+    padding: 10px 16px; font-size: 13px; color: var(--accent);
+  }
+  #banner.show { display: flex; }
+  #banner button { margin-left: auto; }
+  #chatLog { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 74%; padding: 12px 14px; border-radius: 12px; line-height: 1.5; font-size: 14.5px; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--accent-dim); border: 1px solid #2a7c94; }
+  .msg.assistant { align-self: flex-start; background: var(--panel2); border: 1px solid var(--border); }
+  .msg.system-note { align-self: center; color: var(--muted); font-size: 12px; background: transparent; border: 1px dashed var(--border); }
+  .msg.tool { align-self: flex-start; color: var(--muted); font-size: 12px; background: transparent; border: 1px dashed var(--border); padding: 6px 10px; }
+  .msg .retry-btn {
+    display: inline-block; margin-top: 8px; background: var(--danger); color: #200; border: none;
+    padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  .typing { align-self: flex-start; color: var(--muted); font-size: 13px; padding: 4px 14px; }
+  #composer {
+    display: flex; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--border); background: var(--panel);
+  }
+  #composer input[type=text] {
+    flex: 1; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 12px 14px; font-size: 14.5px; outline: none;
+  }
+  #composer input[type=text]:focus { border-color: var(--accent); }
+  #composer button {
+    background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent);
+    border-radius: 10px; padding: 0 16px; cursor: pointer; font-size: 15px;
+  }
+  #composer button:disabled { opacity: .4; cursor: not-allowed; }
+  #micBtn.listening { background: var(--danger); border-color: var(--danger); color: #200; animation: pulse 1s infinite; }
+
+  /* Generic panel view (Tasks/Notes/Settings) */
+  .panel { padding: 20px; overflow-y: auto; flex: 1; }
+  .panel h2 { margin: 0 0 4px; font-size: 18px; }
+  .panel .hint { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .row input, .row select {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 10px; font-size: 13.5px;
+  }
+  .row input[type=text], .row input[type=password] { flex: 1; min-width: 160px; }
+  .card-list { display: flex; flex-direction: column; gap: 8px; }
+  .card {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px;
+  }
+  .card.done { opacity: .5; text-decoration: line-through; }
+  .card .body { flex: 1; }
+  .card .title { font-size: 14px; }
+  .card .meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .card .tag { display: inline-block; background: var(--accent-dim); color: var(--accent); font-size: 10.5px; border-radius: 6px; padding: 1px 6px; margin-right: 6px; }
+  .card button { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+  .card button:hover { color: var(--danger); border-color: var(--danger); }
+  .card button.complete:hover { color: var(--good); border-color: var(--good); }
+  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+
+  fieldset { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; padding: 14px; }
+  legend { color: var(--accent); font-size: 12.5px; padding: 0 6px; }
+  label.field { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
+  fieldset input, fieldset select { width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 10px; font-size: 13.5px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+  .btn-primary { background: var(--accent); color: #04222b; border: none; border-radius: 8px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-size: 13.5px; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 8px; padding: 9px 14px; cursor: pointer; font-size: 13.5px; }
+  .status-line { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.sidebar { position: fixed; z-index: 20; left: -240px; top: 56px; bottom: 0; transition: left .2s; width: 220px; }
+    nav.sidebar.open { left: 0; }
+    .msg { max-width: 88%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="pulse-dot" id="statusDot"></span> J.A.R.V.I.S.</div>
+  <button class="icon-btn" id="navToggle" title="Menu" style="display:none;">&#9776;</button>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="settingsShortcut" title="Settings">&#9881;&#65039;</button>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <button data-view="chat" class="active">&#128172; Chat</button>
+    <button data-view="tasks">&#9989; Tasks <span class="badge" id="taskBadge">0</span></button>
+    <button data-view="notes">&#128221; Notes <span class="badge" id="noteBadge">0</span></button>
+    <button data-view="settings">&#9881;&#65039; Settings</button>
+  </nav>
+
+  <main class="views">
+
+    <section class="view active" id="view-chat">
+      <div id="banner"><span id="bannerText"></span><button class="icon-btn" id="bannerAction">Show me</button></div>
+      <div id="chatLog"></div>
+      <div id="composer">
+        <button id="micBtn" title="Voice input">&#127908;</button>
+        <input type="text" id="textInput" placeholder="Ask Jarvis anything, or give it a task to remember..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-tasks">
+      <div class="panel">
+        <h2>Tasks</h2>
+        <div class="hint">Things Jarvis is tracking for you. Ask in chat ("remind me to call the vet tomorrow") or add one directly.</div>
+        <div class="row">
+          <input type="text" id="newTaskTitle" placeholder="New task...">
+          <input type="text" id="newTaskDue" placeholder="Due (optional, e.g. 2026-09-05)" style="max-width:220px;">
+          <button class="btn-primary" id="addTaskBtn">Add</button>
+        </div>
+        <div class="card-list" id="taskList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-notes">
+      <div class="panel">
+        <h2>Notes</h2>
+        <div class="hint">Long-term memory Jarvis can recall in future conversations, even after reloading the page.</div>
+        <div class="row">
+          <input type="text" id="newNoteText" placeholder="New note...">
+          <input type="text" id="newNoteTag" placeholder="Tag (optional)" style="max-width:160px;">
+          <button class="btn-primary" id="addNoteBtn">Add</button>
+        </div>
+        <div class="card-list" id="noteList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-settings">
+      <div class="panel">
+        <h2>Settings</h2>
+        <div class="hint">Everything here (including your API key) is stored only in this browser's local storage. Nothing is sent anywhere except directly to api.anthropic.com when you send a message.</div>
+
+        <fieldset>
+          <legend>Anthropic API</legend>
+          <label class="field">API key</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+          <label class="field">Model</label>
+          <select id="modelSelect">
+            <option value="claude-sonnet-5">Claude Sonnet 5 (recommended)</option>
+            <option value="claude-opus-5">Claude Opus 5 (most capable, slower)</option>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fastest)</option>
+          </select>
+          <div class="toggle-row">
+            <span>Enable web search tool (beta)</span>
+            <input type="checkbox" id="webSearchToggle" style="width:auto;">
+          </div>
+          <div class="status-line" id="apiStatusLine"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>About you</legend>
+          <label class="field">What should Jarvis call you?</label>
+          <input type="text" id="userNameInput" placeholder="Your name">
+        </fieldset>
+
+        <fieldset>
+          <legend>Voice</legend>
+          <label class="field">Spoken voice</label>
+          <select id="voiceSelect"></select>
+          <label class="field">Rate: <span id="rateVal">1.0</span></label>
+          <input type="range" id="rateSlider" min="0.5" max="1.8" step="0.05" value="1">
+          <label class="field">Pitch: <span id="pitchVal">1.0</span></label>
+          <input type="range" id="pitchSlider" min="0" max="2" step="0.1" value="1">
+          <div class="toggle-row">
+            <span>Speak replies aloud</span>
+            <input type="checkbox" id="speakToggle" style="width:auto;">
+          </div>
+          <button class="icon-btn" id="previewVoiceBtn" style="margin-top:10px;">Preview voice</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Danger zone</legend>
+          <button class="btn-danger" id="clearMemoryBtn">Clear all memory (tasks, notes, chat history)</button>
+        </fieldset>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Constants ----------
+  var STORAGE_KEY = "jarvis_state_v1";
+  var MAX_TOOL_ROUNDS = 6;
+  var IDLE_TIMEOUT_MS = 45000;
+  var ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+  var ANTHROPIC_VERSION = "2023-06-01";
+
+  var TOOLS = [
+    {
+      name: "get_current_datetime",
+      description: "Get the current date and time on the user's device. Always call this before interpreting any relative date/time reference (today, tomorrow, next Friday, in 2 hours) so due dates are computed correctly.",
+      input_schema: { type: "object", properties: {} }
+    },
+    {
+      name: "add_task",
+      description: "Add a new task or reminder to the user's persistent task list.",
+      input_schema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Short description of the task." },
+          due: { type: "string", description: "Optional ISO 8601 date or datetime this task is due, e.g. 2026-09-02 or 2026-09-02T14:00. Compute from get_current_datetime, never guess." }
+        },
+        required: ["title"]
+      }
+    },
+    {
+      name: "list_tasks",
+      description: "List the user's tasks so you know their ids and current state before completing or deleting one.",
+      input_schema: {
+        type: "object",
+        properties: { include_done: { type: "boolean", description: "Include already-completed tasks. Default false." } }
+      }
+    },
+    {
+      name: "complete_task",
+      description: "Mark a task as done.",
+      input_schema: {
+        type: "object",
+        properties: {
+          task_id: { type: "string" },
+          title_match: { type: "string", description: "Fallback: a substring of the task title if you don't have its id yet. Call list_tasks first if unsure." }
+        }
+      }
+    },
+    {
+      name: "delete_task",
+      description: "Permanently delete a task. Confirm with the user first if more than one task could match.",
+      input_schema: {
+        type: "object",
+        properties: { task_id: { type: "string" }, title_match: { type: "string" } }
+      }
+    },
+    {
+      name: "add_note",
+      description: "Save a note or fact to long-term memory so it can be recalled in future conversations, even after the page reloads.",
+      input_schema: {
+        type: "object",
+        properties: {
+          text: { type: "string" },
+          tag: { type: "string", description: "Optional short category label, e.g. preferences, contacts, ideas." }
+        },
+        required: ["text"]
+      }
+    },
+    {
+      name: "list_notes",
+      description: "Search or list saved notes, optionally filtered by tag or a text query.",
+      input_schema: {
+        type: "object",
+        properties: { tag: { type: "string" }, query: { type: "string", description: "Substring to search for in note text." } }
+      }
+    },
+    {
+      name: "delete_note",
+      description: "Permanently delete a saved note. Confirm with the user first if more than one note could match.",
+      input_schema: {
+        type: "object",
+        properties: { note_id: { type: "string" }, query: { type: "string" } }
+      }
+    }
+  ];
+
+  var NATIVE_WEB_SEARCH_TOOL = { type: "web_search_20250305", name: "web_search", max_uses: 5 };
+
+  // ---------- State ----------
+  var state = loadState();
+
+  function defaultState() {
+    return {
+      apiKey: "",
+      model: "claude-sonnet-5",
+      webSearchEnabled: false,
+      userName: "",
+      voiceURI: "",
+      rate: 1,
+      pitch: 1,
+      speakReplies: false,
+      tasks: [],
+      notes: [],
+      messages: [],
+      surfacedBanner: false
+    };
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      var d = defaultState();
+      for (var k in d) if (!(k in parsed)) parsed[k] = d[k];
+      return parsed;
+    } catch (e) {
+      console.warn("Jarvis: could not load saved state, starting fresh.", e);
+      return defaultState();
+    }
+  }
+
+  var saveTimer = null;
+  function saveState() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      catch (e) { console.warn("Jarvis: could not save state.", e); }
+    }, 150);
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  // ---------- DOM refs ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var chatLog = $("chatLog");
+  var textInput = $("textInput");
+  var sendBtn = $("sendBtn");
+  var micBtn = $("micBtn");
+  var statusDot = $("statusDot");
+
+  // ---------- View switching ----------
+  document.querySelectorAll("nav.sidebar button[data-view]").forEach(function (btn) {
+    btn.addEventListener("click", function () { showView(btn.getAttribute("data-view")); });
+  });
+  $("settingsShortcut").addEventListener("click", function () { showView("settings"); });
+  function showView(name) {
+    document.querySelectorAll(".view").forEach(function (v) { v.classList.remove("active"); });
+    document.querySelectorAll("nav.sidebar button[data-view]").forEach(function (b) { b.classList.remove("active"); });
+    $("view-" + name).classList.add("active");
+    var navBtn = document.querySelector('nav.sidebar button[data-view="' + name + '"]');
+    if (navBtn) navBtn.classList.add("active");
+    $("sidebar").classList.remove("open");
+  }
+
+  // ---------- Chat rendering ----------
+  function addBubble(role, text, opts) {
+    opts = opts || {};
+    var div = document.createElement("div");
+    div.className = "msg " + role;
+    div.textContent = text;
+    if (opts.retry) {
+      var btn = document.createElement("button");
+      btn.className = "retry-btn";
+      btn.textContent = "Retry";
+      btn.onclick = opts.retry;
+      div.appendChild(document.createElement("br"));
+      div.appendChild(btn);
+    }
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return div;
+  }
+
+  function addToolNote(text) {
+    var div = document.createElement("div");
+    div.className = "msg tool";
+    div.textContent = text;
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  function renderHistory() {
+    chatLog.innerHTML = "";
+    state.messages.forEach(function (m) {
+      if (m.role === "user" || m.role === "assistant") {
+        var text = extractText(m.content);
+        if (text) addBubble(m.role, text);
+      }
+    });
+    if (state.messages.length === 0) {
+      addBubble("system-note", "Hi" + (state.userName ? ", " + state.userName : "") + ". I'm Jarvis — ask me anything, or tell me what to remember or remind you about.");
+    }
+  }
+
+  function extractText(content) {
+    if (typeof content === "string") return content;
+    if (!Array.isArray(content)) return "";
+    return content.filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("\n").trim();
+  }
+
+  // ---------- Tools (local execution) ----------
+  function findTask(input) {
+    if (input.task_id) {
+      var byId = state.tasks.find(function (t) { return t.id === input.task_id; });
+      if (byId) return byId;
+    }
+    if (input.title_match) {
+      var q = input.title_match.toLowerCase();
+      var matches = state.tasks.filter(function (t) { return t.title.toLowerCase().indexOf(q) !== -1; });
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) return { ambiguous: matches };
+    }
+    return null;
+  }
+
+  function findNote(input) {
+    if (input.note_id) {
+      var byId = state.notes.find(function (n) { return n.id === input.note_id; });
+      if (byId) return byId;
+    }
+    if (input.query) {
+      var q = input.query.toLowerCase();
+      var matches = state.notes.filter(function (n) { return n.text.toLowerCase().indexOf(q) !== -1; });
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) return { ambiguous: matches };
+    }
+    return null;
+  }
+
+  function executeTool(name, input) {
+    input = input || {};
+    switch (name) {
+      case "get_current_datetime": {
+        var now = new Date();
+        return { now_iso: now.toISOString(), now_local: now.toString(), day_of_week: now.toLocaleDateString(undefined, { weekday: "long" }) };
+      }
+      case "add_task": {
+        var task = { id: uid(), title: input.title, due: input.due || null, done: false, createdAt: new Date().toISOString() };
+        state.tasks.push(task);
+        saveState(); renderTasks();
+        return { ok: true, task: task };
+      }
+      case "list_tasks": {
+        var list = state.tasks.filter(function (t) { return input.include_done ? true : !t.done; });
+        return { tasks: list };
+      }
+      case "complete_task": {
+        var found = findTask(input);
+        if (!found) return { ok: false, error: "No matching task found." };
+        if (found.ambiguous) return { ok: false, error: "Multiple tasks match — ask the user which one.", candidates: found.ambiguous };
+        found.done = true;
+        saveState(); renderTasks();
+        return { ok: true, task: found };
+      }
+      case "delete_task": {
+        var target = findTask(input);
+        if (!target) return { ok: false, error: "No matching task found." };
+        if (target.ambiguous) return { ok: false, error: "Multiple tasks match — ask the user which one.", candidates: target.ambiguous };
+        state.tasks = state.tasks.filter(function (t) { return t.id !== target.id; });
+        saveState(); renderTasks();
+        return { ok: true };
+      }
+      case "add_note": {
+        var note = { id: uid(), text: input.text, tag: input.tag || null, createdAt: new Date().toISOString() };
+        state.notes.push(note);
+        saveState(); renderNotes();
+        return { ok: true, note: note };
+      }
+      case "list_notes": {
+        var notes = state.notes.slice();
+        if (input.tag) notes = notes.filter(function (n) { return n.tag && n.tag.toLowerCase() === input.tag.toLowerCase(); });
+        if (input.query) {
+          var q2 = input.query.toLowerCase();
+          notes = notes.filter(function (n) { return n.text.toLowerCase().indexOf(q2) !== -1; });
+        }
+        return { notes: notes };
+      }
+      case "delete_note": {
+        var targetNote = findNote(input);
+        if (!targetNote) return { ok: false, error: "No matching note found." };
+        if (targetNote.ambiguous) return { ok: false, error: "Multiple notes match — ask the user which one.", candidates: targetNote.ambiguous };
+        state.notes = state.notes.filter(function (n) { return n.id !== targetNote.id; });
+        saveState(); renderNotes();
+        return { ok: true };
+      }
+      default:
+        return { ok: false, error: "Unknown tool: " + name };
+    }
+  }
+
+  // ---------- Tasks / Notes panels ----------
+  function renderTasks() {
+    var wrap = $("taskList");
+    wrap.innerHTML = "";
+    var open = state.tasks.filter(function (t) { return !t.done; });
+    $("taskBadge").textContent = open.length;
+    if (state.tasks.length === 0) { wrap.innerHTML = '<div class="empty">No tasks yet.</div>'; return; }
+    state.tasks.slice().reverse().forEach(function (t) {
+      var card = document.createElement("div");
+      card.className = "card" + (t.done ? " done" : "");
+      var meta = t.due ? ("Due " + t.due) : "No due date";
+      card.innerHTML =
+        '<div class="body"><div class="title"></div><div class="meta"></div></div>' +
+        '<button class="complete" title="' + (t.done ? "Mark not done" : "Mark done") + '">' + (t.done ? "↩" : "✓") + '</button>' +
+        '<button class="del" title="Delete">✕</button>';
+      card.querySelector(".title").textContent = t.title;
+      card.querySelector(".meta").textContent = meta;
+      card.querySelector(".complete").onclick = function () { t.done = !t.done; saveState(); renderTasks(); };
+      card.querySelector(".del").onclick = function () { state.tasks = state.tasks.filter(function (x) { return x.id !== t.id; }); saveState(); renderTasks(); };
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderNotes() {
+    var wrap = $("noteList");
+    wrap.innerHTML = "";
+    $("noteBadge").textContent = state.notes.length;
+    if (state.notes.length === 0) { wrap.innerHTML = '<div class="empty">No notes yet.</div>'; return; }
+    state.notes.slice().reverse().forEach(function (n) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        '<div class="body"><div class="title"></div><div class="meta"></div></div>' +
+        '<button class="del" title="Delete">✕</button>';
+      var titleEl = card.querySelector(".title");
+      if (n.tag) { var tagEl = document.createElement("span"); tagEl.className = "tag"; tagEl.textContent = n.tag; titleEl.appendChild(tagEl); }
+      titleEl.appendChild(document.createTextNode(n.text));
+      card.querySelector(".meta").textContent = new Date(n.createdAt).toLocaleString();
+      card.querySelector(".del").onclick = function () { state.notes = state.notes.filter(function (x) { return x.id !== n.id; }); saveState(); renderNotes(); };
+      wrap.appendChild(card);
+    });
+  }
+
+  $("addTaskBtn").addEventListener("click", function () {
+    var title = $("newTaskTitle").value.trim();
+    if (!title) return;
+    state.tasks.push({ id: uid(), title: title, due: $("newTaskDue").value.trim() || null, done: false, createdAt: new Date().toISOString() });
+    $("newTaskTitle").value = ""; $("newTaskDue").value = "";
+    saveState(); renderTasks();
+  });
+  $("addNoteBtn").addEventListener("click", function () {
+    var text = $("newNoteText").value.trim();
+    if (!text) return;
+    state.notes.push({ id: uid(), text: text, tag: $("newNoteTag").value.trim() || null, createdAt: new Date().toISOString() });
+    $("newNoteText").value = ""; $("newNoteTag").value = "";
+    saveState(); renderNotes();
+  });
+
+  // ---------- Settings panel ----------
+  function initSettingsUI() {
+    $("apiKeyInput").value = state.apiKey;
+    $("modelSelect").value = state.model;
+    $("webSearchToggle").checked = state.webSearchEnabled;
+    $("userNameInput").value = state.userName;
+    $("rateSlider").value = state.rate; $("rateVal").textContent = state.rate.toFixed(2);
+    $("pitchSlider").value = state.pitch; $("pitchVal").textContent = state.pitch.toFixed(1);
+    $("speakToggle").checked = state.speakReplies;
+    updateApiStatusLine();
+  }
+
+  function updateApiStatusLine() {
+    $("apiStatusLine").textContent = state.apiKey
+      ? "API key saved locally in this browser."
+      : "No API key set — Jarvis can't talk to Claude until you add one.";
+  }
+
+  $("apiKeyInput").addEventListener("change", function () { state.apiKey = this.value.trim(); saveState(); updateApiStatusLine(); });
+  $("modelSelect").addEventListener("change", function () { state.model = this.value; saveState(); });
+  $("webSearchToggle").addEventListener("change", function () { state.webSearchEnabled = this.checked; saveState(); });
+  $("userNameInput").addEventListener("change", function () { state.userName = this.value.trim(); saveState(); });
+  $("speakToggle").addEventListener("change", function () { state.speakReplies = this.checked; saveState(); });
+  $("rateSlider").addEventListener("input", function () { state.rate = parseFloat(this.value); $("rateVal").textContent = state.rate.toFixed(2); saveState(); });
+  $("pitchSlider").addEventListener("input", function () { state.pitch = parseFloat(this.value); $("pitchVal").textContent = state.pitch.toFixed(1); saveState(); });
+
+  $("clearMemoryBtn").addEventListener("click", function () {
+    if (!confirm("This permanently deletes all tasks, notes, and chat history stored in this browser. Continue?")) return;
+    state.tasks = []; state.notes = []; state.messages = [];
+    saveState(); renderTasks(); renderNotes(); renderHistory();
+  });
+
+  // ---------- Voices ----------
+  var availableVoices = [];
+  function populateVoices() {
+    availableVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+    var sel = $("voiceSelect");
+    sel.innerHTML = "";
+    if (availableVoices.length === 0) {
+      var opt = document.createElement("option");
+      opt.textContent = "No voices available in this browser";
+      sel.appendChild(opt);
+      return;
+    }
+    availableVoices.forEach(function (v) {
+      var opt = document.createElement("option");
+      opt.value = v.voiceURI;
+      opt.textContent = v.name + " (" + v.lang + ")";
+      sel.appendChild(opt);
+    });
+    sel.value = state.voiceURI || availableVoices[0].voiceURI;
+    if (!state.voiceURI) { state.voiceURI = sel.value; saveState(); }
+  }
+  if (window.speechSynthesis) {
+    populateVoices();
+    window.speechSynthesis.onvoiceschanged = populateVoices;
+  }
+  $("voiceSelect").addEventListener("change", function () { state.voiceURI = this.value; saveState(); });
+  $("previewVoiceBtn").addEventListener("click", function () { speak("This is what I'll sound like."); });
+
+  function speak(text) {
+    if (!window.speechSynthesis || !text) return;
+    window.speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(text);
+    var voice = availableVoices.find(function (v) { return v.voiceURI === state.voiceURI; });
+    if (voice) utter.voice = voice;
+    utter.rate = state.rate; utter.pitch = state.pitch;
+    window.speechSynthesis.speak(utter);
+  }
+
+  function maybeSpeak(text) {
+    if (!state.speakReplies) return;
+    var spoken = text.length > 500 ? (text.slice(0, 480).replace(/\s+\S*$/, "") + "... more in the chat.") : text;
+    speak(spoken);
+  }
+
+  // ---------- Voice input ----------
+  var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognizer = null;
+  var listening = false;
+
+  function startListening() {
+    if (!Recognition) { addToolNote("Voice input isn't supported in this browser."); return; }
+    if (listening) { stopListening(); return; }
+    recognizer = new Recognition();
+    recognizer.lang = "en-US";
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
+    listening = true;
+    micBtn.classList.add("listening");
+    recognizer.onresult = function (ev) {
+      var transcript = ev.results[0][0].transcript;
+      textInput.value = transcript;
+      stopListening();
+      send();
+    };
+    recognizer.onerror = function (ev) {
+      stopListening();
+      var msg = "Voice input error (" + ev.error + ").";
+      addBubble("assistant", msg, { retry: function () { startListening(); } });
+      if (state.speakReplies) speak("I had trouble hearing that.");
+    };
+    recognizer.onend = function () { stopListening(); };
+    try { recognizer.start(); } catch (e) { stopListening(); }
+  }
+  function stopListening() {
+    listening = false;
+    micBtn.classList.remove("listening");
+    if (recognizer) { try { recognizer.stop(); } catch (e) {} }
+  }
+  micBtn.addEventListener("click", startListening);
+
+  // ---------- Proactive banner (due/overdue tasks) ----------
+  function checkDueBanner() {
+    var now = new Date();
+    var due = state.tasks.filter(function (t) {
+      if (t.done || !t.due) return false;
+      var d = new Date(t.due);
+      return !isNaN(d.getTime()) && d <= now;
+    });
+    if (due.length === 0) return;
+    $("bannerText").textContent = due.length === 1
+      ? ("You have 1 task due: “" + due[0].title + "”")
+      : ("You have " + due.length + " tasks due or overdue.");
+    $("banner").classList.add("show");
+  }
+  $("bannerAction").addEventListener("click", function () { showView("tasks"); $("banner").classList.remove("show"); });
+
+  // ---------- System prompt ----------
+  function buildSystemPrompt() {
+    var lines = [];
+    lines.push("You are Jarvis, a personal AI assistant running entirely inside the user's web browser.");
+    lines.push("All memory (tasks, notes, conversation history) is stored only in this browser's local storage on this device. You have no access to the user's files, other applications, or the operating system itself — if asked to do something outside that scope, say so plainly rather than pretending to do it.");
+    if (state.userName) lines.push("The user's name is " + state.userName + ". Address them by name occasionally, not every message.");
+    lines.push("Always call get_current_datetime before resolving a relative date or time reference (today, tomorrow, next Friday, in two hours) — never guess the current date.");
+    lines.push("Use add_task / list_tasks / complete_task / delete_task for anything reminder- or to-do-shaped. Use add_note / list_notes / delete_note for facts, preferences, and things worth remembering long-term.");
+    lines.push("Never invent a task_id or note_id. If you don't already have one from earlier in this conversation, call list_tasks or list_notes first.");
+    lines.push("Before calling delete_task or delete_note, make sure the match is unambiguous; if more than one item could match, ask the user which one they mean instead of guessing.");
+    if (state.webSearchEnabled) lines.push("You have a real-time web search tool. Use it for anything time-sensitive or outside your training data, and mention when you used it.");
+    lines.push("Keep replies conversational and reasonably concise — they may be read aloud.");
+    return lines.join(" ");
+  }
+
+  // ---------- Streaming ----------
+  function streamAnthropicMessages(messages, onDelta) {
+    var tools = TOOLS.slice();
+    if (state.webSearchEnabled) tools.push(NATIVE_WEB_SEARCH_TOOL);
+
+    var controller = new AbortController();
+    var idleTimer = null;
+    function resetIdle() {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(function () { controller.abort(); }, IDLE_TIMEOUT_MS);
+    }
+    resetIdle();
+
+    return fetch(ANTHROPIC_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": state.apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: state.model,
+        max_tokens: 4096,
+        system: buildSystemPrompt(),
+        messages: messages,
+        tools: tools,
+        stream: true
+      })
+    }).then(function (resp) {
+      if (!resp.ok) {
+        return resp.text().then(function (t) {
+          clearTimeout(idleTimer);
+          throw new Error("API error " + resp.status + ": " + t.slice(0, 300));
+        });
+      }
+      var reader = resp.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = "";
+      var blocks = [];
+      var stopReason = null;
+
+      function processEvent(eventBlock) {
+        var lines = eventBlock.split("\n");
+        var eventType = null, dataStr = "";
+        lines.forEach(function (line) {
+          if (line.indexOf("event:") === 0) eventType = line.slice(6).trim();
+          else if (line.indexOf("data:") === 0) dataStr += line.slice(5).trim();
+        });
+        if (!dataStr) return;
+        var data;
+        try { data = JSON.parse(dataStr); } catch (e) { return; }
+
+        if (eventType === "error" || data.type === "error") {
+          throw new Error((data.error && data.error.message) || "Stream error");
+        }
+        if (data.type === "content_block_start") {
+          blocks[data.index] = data.content_block.type === "tool_use"
+            ? { type: "tool_use", id: data.content_block.id, name: data.content_block.name, input: "", _partial: true }
+            : { type: "text", text: "" };
+        } else if (data.type === "content_block_delta") {
+          var block = blocks[data.index];
+          if (!block) return;
+          if (data.delta.type === "text_delta") {
+            block.text += data.delta.text;
+            onDelta(block.text);
+          } else if (data.delta.type === "input_json_delta") {
+            block.input += data.delta.partial_json;
+          }
+        } else if (data.type === "content_block_stop") {
+          var b = blocks[data.index];
+          if (b && b._partial) {
+            try { b.input = b.input ? JSON.parse(b.input) : {}; } catch (e) { b.input = {}; }
+            delete b._partial;
+          }
+        } else if (data.type === "message_delta") {
+          if (data.delta && data.delta.stop_reason) stopReason = data.delta.stop_reason;
+        }
+      }
+
+      function pump() {
+        return reader.read().then(function (result) {
+          if (result.done) {
+            clearTimeout(idleTimer);
+            return { content: blocks.filter(Boolean), stop_reason: stopReason };
+          }
+          resetIdle();
+          buffer += decoder.decode(result.value, { stream: true });
+          var parts = buffer.split("\n\n");
+          buffer = parts.pop();
+          parts.forEach(processEvent);
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function (err) {
+      clearTimeout(idleTimer);
+      if (err.name === "AbortError") throw new Error("Jarvis lost the connection (idle timeout). Please try again.");
+      throw err;
+    });
+  }
+
+  // ---------- Conversation turn (with tool loop) ----------
+  function runConversationTurn() {
+    var rounds = 0;
+
+    function step() {
+      rounds++;
+      var typingEl = addTypingIndicator();
+      return streamAnthropicMessages(state.messages, function (partialText) {
+        typingEl.textContent = "Jarvis is typing…";
+      }).then(function (result) {
+        removeTypingIndicator(typingEl);
+
+        if (result.stop_reason === "refusal") {
+          addBubble("assistant", "I'm not able to help with that one.");
+          state.messages.push({ role: "assistant", content: result.content });
+          saveState();
+          return;
+        }
+
+        state.messages.push({ role: "assistant", content: result.content });
+        var text = extractText(result.content);
+        if (text) { addBubble("assistant", text); maybeSpeak(text); }
+
+        var toolUses = result.content.filter(function (b) { return b.type === "tool_use"; });
+        if (toolUses.length === 0 || rounds >= MAX_TOOL_ROUNDS) {
+          saveState();
+          return;
+        }
+
+        var toolResults = toolUses.map(function (tu) {
+          addToolNote("⚙️ " + tu.name + (tu.input && Object.keys(tu.input).length ? " " + JSON.stringify(tu.input) : ""));
+          var output;
+          try { output = executeTool(tu.name, tu.input); }
+          catch (e) { output = { ok: false, error: String(e && e.message || e) }; }
+          return { type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(output) };
+        });
+        state.messages.push({ role: "user", content: toolResults });
+        saveState();
+        return step();
+      }).catch(function (err) {
+        removeTypingIndicator(typingEl);
+        var message = "Something went wrong: " + (err && err.message ? err.message : String(err));
+        addBubble("assistant", message, { retry: function () { runConversationTurn(); } });
+        if (state.speakReplies) speak("Sorry, I ran into a problem.");
+      });
+    }
+    return step();
+  }
+
+  function addTypingIndicator() {
+    var div = document.createElement("div");
+    div.className = "typing";
+    div.textContent = "Jarvis is thinking…";
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return div;
+  }
+  function removeTypingIndicator(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+
+  // ---------- Send ----------
+  function send() {
+    var text = textInput.value.trim();
+    if (!text) return;
+    if (!state.apiKey) {
+      addBubble("system-note", "Add your Anthropic API key in Settings before chatting with Jarvis.");
+      showView("settings");
+      return;
+    }
+    textInput.value = "";
+    sendBtn.disabled = true;
+    statusDot.className = "pulse-dot busy";
+    addBubble("user", text);
+    state.messages.push({ role: "user", content: [{ type: "text", text: text }] });
+    saveState();
+    runConversationTurn()
+      .catch(function (e) { console.error("Jarvis: unexpected error in conversation turn.", e); })
+      .then(function () {
+        sendBtn.disabled = false;
+        statusDot.className = "pulse-dot online";
+      });
+  }
+  sendBtn.addEventListener("click", send);
+  textInput.addEventListener("keydown", function (e) { if (e.key === "Enter") send(); });
+
+  // ---------- Mobile nav ----------
+  function updateNavToggleVisibility() {
+    $("navToggle").style.display = window.innerWidth <= 720 ? "inline-block" : "none";
+  }
+  window.addEventListener("resize", updateNavToggleVisibility);
+  $("navToggle").addEventListener("click", function () { $("sidebar").classList.toggle("open"); });
+  updateNavToggleVisibility();
+
+  // ---------- Init ----------
+  initSettingsUI();
+  renderTasks();
+  renderNotes();
+  renderHistory();
+  checkDueBanner();
+  statusDot.className = "pulse-dot online";
+})();
+</script>
+</body>
+</html>
