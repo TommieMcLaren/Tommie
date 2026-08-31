@@ -13954,19 +13954,42 @@ Tommie McLaren`
     return out.join('\n');
   }
 
-  const itineraryOverlay = document.getElementById('ta-itinerary-overlay');
-  const itineraryModalBody = document.getElementById('ta-itinerary-modal-body');
+  // BUG FOUND VIA LIVE TESTING (Aug 2026): #ta-itinerary-overlay's markup
+  // lives much later in the file than this <script> tag. Scripts execute
+  // in document order, so document.getElementById('ta-itinerary-overlay')
+  // called here — at this script's parse time — always returned null,
+  // long before that HTML existed in the DOM. Caching that null in a
+  // const meant "View full details" (and the close button, and
+  // backdrop-click) silently did nothing on every single click, forever
+  // — this is why it looked fine (the button rendered) but never worked.
+  // Fixed by looking these up fresh at call time instead of caching them:
+  // by the time a user can actually click anything, the whole page
+  // (including markup below this script tag) has long since loaded.
+  function getItineraryOverlay() { return document.getElementById('ta-itinerary-overlay'); }
+  function getItineraryModalBody() { return document.getElementById('ta-itinerary-modal-body'); }
   function openItineraryModal(fullText) {
-    if (!itineraryOverlay || !itineraryModalBody) return;
-    itineraryModalBody.innerHTML = renderMarkdownLite(fullText);
-    itineraryOverlay.classList.add('open');
+    const overlay = getItineraryOverlay();
+    const body = getItineraryModalBody();
+    if (!overlay || !body) return;
+    body.innerHTML = renderMarkdownLite(fullText);
+    overlay.classList.add('open');
   }
   function closeItineraryModal() {
-    if (itineraryOverlay) itineraryOverlay.classList.remove('open');
+    const overlay = getItineraryOverlay();
+    if (overlay) overlay.classList.remove('open');
   }
-  const itineraryCloseBtn = document.getElementById('ta-itinerary-close');
-  if (itineraryCloseBtn) itineraryCloseBtn.addEventListener('click', closeItineraryModal);
-  if (itineraryOverlay) itineraryOverlay.addEventListener('click', e => { if (e.target === itineraryOverlay) closeItineraryModal(); });
+  // The close button and backdrop-click listeners can't be looked up
+  // fresh the same way (there's nothing to attach an event listener TO
+  // until the element exists) — deferred to DOMContentLoaded, which is
+  // guaranteed to fire only after the entire document (including
+  // #ta-itinerary-overlay further down) has been parsed, regardless of
+  // where in the file this script tag itself sits.
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = getItineraryOverlay();
+    const closeBtn = document.getElementById('ta-itinerary-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeItineraryModal);
+    if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) closeItineraryModal(); });
+  });
 
   // Shared by every live-AI display site (Conversation Mode, the "Actually
   // think this through" escalation): shows the short SUMMARY line (see

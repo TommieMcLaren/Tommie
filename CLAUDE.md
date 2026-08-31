@@ -391,6 +391,33 @@ full detail available on demand rather than always dumped inline.
   and how the "📋 View full details" button looks against the real KT
   itinerary output haven't been seen in a real browser from this
   environment — check these first if the pop-out looks or behaves oddly.
+- **Confirmed broken live, root cause found and fixed (Aug 2026):** the
+  button rendered fine but clicking it did nothing — no error, no modal.
+  Root cause: `#ta-itinerary-overlay`'s markup lives near line 15677,
+  well after the `<script>` tag (line ~11656) that looked it up via
+  `document.getElementById('ta-itinerary-overlay')`. Scripts execute in
+  document order, so at that script's parse time the browser hadn't
+  parsed that `<div>` yet — the lookup returned `null`, and caching it
+  in a top-level `const` meant it stayed `null` forever, silently
+  no-opping the open button, the close button, and backdrop-click alike.
+  This is the general hazard of this file's "one script tag, HTML for a
+  later feature sometimes lives further down the page" layout — a
+  top-level `const someEl = document.getElementById(...)` is only safe
+  when that element's markup is guaranteed to already be above it in the
+  file. Fixed by switching `openItineraryModal`/`closeItineraryModal` to
+  look up the overlay/body fresh on every call instead of caching them,
+  and deferring the close-button/backdrop-click listener wiring to
+  `DOMContentLoaded` (guaranteed to fire only after the *entire*
+  document has been parsed, regardless of where in the file the script
+  tag sits) since those need a real element to attach a listener to, not
+  just a lookup at click time. Swept the rest of the file for the same
+  pattern (a top-level `const` capturing `getElementById` on an id whose
+  markup appears later in the document) and found no other instances —
+  the other two hits were false positives (lookups inside functions that
+  only run on user interaction, well after full page load, which is
+  safe). **This was the first real bug live testing actually caught in
+  this feature** — everything else about it (the markdown rendering,
+  the XSS discipline) checked out fine once it could actually open.
 
 ## Client Tracker panel (Aug 2026, unverified live)
 
