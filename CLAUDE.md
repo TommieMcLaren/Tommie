@@ -506,6 +506,48 @@ instead of needing its own.
   second same-day check correctly doesn't re-fire, and permission not
   granted correctly no-ops.
 
+## Client Tracker: bigger screen, more fields (Aug 2026, unverified live)
+
+Direct response to feedback that the panel felt cramped and thin on
+detail. Two changes, both scoped to `#ct-*`:
+
+- **Small anchored corner box → full centered modal.** `#ct-panel` used to
+  be `position: fixed` in the bottom-left corner at 420×640px — cramped
+  once there's more than a couple of clients, and inconsistent with how
+  every other "big tool" in this file presents itself. Restructured to
+  match the existing overlay+modal pattern already used by
+  `#quote-builder-overlay`/`#dashboard-overlay`/`#ta-itinerary-overlay`:
+  a new `#ct-overlay` (fixed, full-screen backdrop, `z-index: 10000` —
+  above `#ct-btn` and `#ta-panel`'s 9999 so the trigger button doesn't
+  poke through when open) centers `#ct-panel`, now sized
+  `min(1080px, 100%) × min(780px, 100%)`. Backdrop click closes it,
+  same as the itinerary pop-out. `#ct-btn` (the small 📋 trigger) is
+  unchanged — only what it opens changed.
+- **Three new client fields**: Destination/trip, Phone, Email — real
+  gaps for a travel-agency contact tracker that only had status/dates/
+  notes before. Rendered as a `.ct-detail-row` of small icon-prefixed
+  items on each card (🌍/📞/✉️), only showing whichever fields are
+  actually filled in. Folded into search (`ctRender`'s filter) and into
+  `ctAddToOutlook`'s event body (destination gets its own line) — not
+  added to the Outlook Web deep link's own fields (subject/date/body
+  only), since those don't have a natural home for phone/email.
+- **Cards now lay out in a responsive grid** (`.ct-group-cards`,
+  `repeat(auto-fill, minmax(340px, 1fr))`) inside each urgency group,
+  instead of one narrow stacked column — the wider modal means 2-3 cards
+  now sit side by side, which is most of what "cleaner, more detailed"
+  actually meant in practice: less scrolling, more information visible
+  at once, same grouping/search/filter/notify/Outlook logic untouched.
+- Logic-tested in Node: the new fields' card rendering against an XSS
+  probe (`<script>` in destination, an `onerror=` payload in phone, a
+  stray `<script>` in email) — all three came back as inert escaped
+  text via the existing `ctEscapeHtml()`, same discipline as every other
+  user-entered field in this panel.
+- **Unverified live, same caveat as the rest of this panel**: the modal
+  sizing/backdrop/responsive-grid behavior hasn't been seen in a real
+  browser at various widths from this environment — check that first,
+  especially on a laptop-sized screen where `min(1080px, 100%)` matters
+  most.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

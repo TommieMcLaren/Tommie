@@ -1508,7 +1508,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-panel { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -14525,127 +14525,143 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
   #ct-btn:hover { transform: scale(1.08) rotate(4deg); box-shadow: 0 8px 26px rgba(40,30,10,0.4), 0 0 0 3px rgba(255,255,255,0.6) inset; }
 
+  #ct-overlay {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(10, 14, 11, 0.72);
+    display: none; align-items: center; justify-content: center; padding: 28px;
+    opacity: 0; transition: opacity .18s ease;
+  }
+  #ct-overlay.open { display: flex; }
+  #ct-overlay.open.shown { opacity: 1; }
+  #ct-overlay.open.shown #ct-panel { transform: translateY(0) scale(1); }
+
   #ct-panel {
     --ct-ink-soft: #6b7568; --ct-line: var(--border);
     --ct-overdue: #9C3B24; --ct-overdue-soft: #F7E8E2;
     --ct-closed: #8a8776; --ct-closed-soft: #efeadd;
     --ct-gold-soft: #f3ead9;
-    position: fixed; bottom: 96px; left: 24px; z-index: 9998;
-    width: 420px; max-width: calc(100vw - 32px); height: 640px;
-    max-height: calc(100vh - 116px);
-    background: rgba(255, 253, 249, 0.97);
-    backdrop-filter: blur(14px);
-    border: 1px solid rgba(0,0,0,0.06); border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(10,20,12,0.28), 0 2px 8px rgba(10,20,12,0.08);
-    display: none; flex-direction: column; overflow: hidden;
+    width: min(1080px, 100%); height: min(780px, 100%);
+    background: #fffdf9;
+    border-radius: 20px;
+    box-shadow: 0 30px 80px rgba(10,20,12,0.35), 0 2px 8px rgba(10,20,12,0.1);
+    display: flex; flex-direction: column; overflow: hidden;
     font-family: 'Lato', sans-serif; color: var(--dark);
-    opacity: 0; transform: translateY(14px) scale(0.98);
-    transition: opacity .18s ease, transform .18s cubic-bezier(.2,.9,.3,1.2);
+    transform: translateY(14px) scale(0.98);
+    transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
-  #ct-panel.open { display: flex; }
-  #ct-panel.open.shown { opacity: 1; transform: translateY(0) scale(1); }
 
   #ct-head {
     background: linear-gradient(135deg, var(--gold), var(--gold-text));
-    color: #fff; padding: 16px 18px; display: flex; align-items: flex-start; justify-content: space-between;
+    color: #fff; padding: 20px 26px; display: flex; align-items: flex-start; justify-content: space-between;
+    flex-shrink: 0;
   }
-  #ct-head b { font-family: 'Playfair Display', serif; font-size: 17px; letter-spacing: 0.2px; }
-  #ct-head span { display: block; font-size: 11px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
-  #ct-close, #ct-notify-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 15px; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
+  #ct-head b { font-family: 'Playfair Display', serif; font-size: 21px; letter-spacing: 0.2px; }
+  #ct-head span { display: block; font-size: 12.5px; opacity: 0.88; margin-top: 4px; line-height: 1.4; }
+  #ct-close, #ct-notify-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 16px; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
   #ct-close:hover, #ct-notify-btn:hover { background: rgba(255,255,255,0.3); }
   #ct-notify-btn.on { background: rgba(255,255,255,0.32); }
 
-  #ct-toolbar { display: flex; gap: 8px; padding: 12px 14px 0; flex-shrink: 0; }
+  #ct-toolbar { display: flex; gap: 10px; padding: 16px 26px 0; flex-shrink: 0; }
   #ct-search {
-    flex: 1; min-width: 100px; padding: 8px 11px; border: 1px solid var(--ct-line);
-    border-radius: 7px; font-size: 13.5px; font-family: 'Lato', sans-serif; background: #fff;
+    flex: 1; min-width: 100px; padding: 9px 13px; border: 1px solid var(--ct-line);
+    border-radius: 8px; font-size: 14px; font-family: 'Lato', sans-serif; background: #fff;
   }
   #ct-search:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
   #ct-status-filter {
-    padding: 8px 8px; border: 1px solid var(--ct-line); border-radius: 7px;
-    background: #fff; font-family: 'Lato', sans-serif; font-size: 12.5px; color: var(--dark);
+    padding: 9px 10px; border: 1px solid var(--ct-line); border-radius: 8px;
+    background: #fff; font-family: 'Lato', sans-serif; font-size: 13.5px; color: var(--dark);
   }
   #ct-add-btn {
-    background: var(--sage-dark); color: #fff; border: none; border-radius: 7px;
-    padding: 8px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13.5px; font-weight: 700; cursor: pointer; flex-shrink: 0;
     font-family: 'Lato', sans-serif; transition: background .12s ease;
   }
   #ct-add-btn:hover { background: var(--sage-darker); }
 
   #ct-form-panel {
-    background: #fff; border: 1px solid var(--ct-line); border-radius: 10px;
-    padding: 12px 14px; margin: 12px 14px 0; display: none; flex-shrink: 0;
+    background: #fff; border: 1px solid var(--ct-line); border-radius: 12px;
+    padding: 18px 20px; margin: 16px 26px 0; display: none; flex-shrink: 0;
   }
   #ct-form-panel.open { display: block; }
-  #ct-form-title { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--sage-darker); }
-  #ct-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 10px; }
+  #ct-form-title { font-size: 15px; font-weight: 700; margin: 0 0 14px; color: var(--sage-darker); font-family: 'Playfair Display', serif; }
+  #ct-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
   .ct-field-full { grid-column: 1 / -1; }
-  #ct-form-grid label { display: block; font-size: 11px; color: var(--ct-ink-soft); margin-bottom: 3px; }
+  #ct-form-grid label { display: block; font-size: 11.5px; color: var(--ct-ink-soft); margin-bottom: 4px; font-weight: 600; }
   #ct-form-grid input, #ct-form-grid select, #ct-form-grid textarea {
-    width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid var(--ct-line); border-radius: 6px;
-    font-family: 'Lato', sans-serif; font-size: 13px; color: var(--dark); background: #fffdf9;
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--ct-line); border-radius: 7px;
+    font-family: 'Lato', sans-serif; font-size: 13.5px; color: var(--dark); background: #fffdf9;
   }
   #ct-form-grid input:focus, #ct-form-grid select:focus, #ct-form-grid textarea:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
-  #ct-form-grid textarea { resize: vertical; min-height: 48px; }
-  #ct-form-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  #ct-form-grid textarea { resize: vertical; min-height: 60px; }
+  #ct-form-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
   #ct-form-actions button {
-    font-family: 'Lato', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer;
-    border-radius: 7px; padding: 7px 13px;
+    font-family: 'Lato', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+    border-radius: 8px; padding: 8px 16px;
   }
   #ct-cancel-btn { background: transparent; border: 1px solid var(--ct-line); color: var(--ct-ink-soft); }
   #ct-cancel-btn:hover { border-color: var(--sage-dark); color: var(--sage-darker); }
   #ct-save-btn { background: var(--sage-dark); border: none; color: #fff; }
   #ct-save-btn:hover { background: var(--sage-darker); }
-  #ct-err-name { color: var(--ct-overdue); font-size: 11.5px; margin: 3px 0 0; display: none; }
+  #ct-err-name { color: var(--ct-overdue); font-size: 11.5px; margin: 4px 0 0; display: none; }
 
-  #ct-list { flex: 1; overflow-y: auto; padding: 12px 14px 6px; }
-  .ct-group { margin-bottom: 14px; }
+  #ct-list { flex: 1; overflow-y: auto; padding: 18px 26px 10px; }
+  .ct-group { margin-bottom: 22px; }
   .ct-group-title {
-    display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700;
-    color: var(--ct-ink-soft); margin: 0 0 7px; padding-bottom: 5px; border-bottom: 1px solid var(--ct-line);
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700;
+    color: var(--ct-ink-soft); margin: 0 0 10px; padding-bottom: 7px; border-bottom: 1px solid var(--ct-line);
+    letter-spacing: 0.02em; text-transform: uppercase;
   }
-  .ct-group-count { font-weight: 400; background: var(--ct-closed-soft); color: var(--ct-ink-soft); border-radius: 20px; padding: 1px 8px; font-size: 10.5px; }
+  .ct-group-count { font-weight: 400; background: var(--ct-closed-soft); color: var(--ct-ink-soft); border-radius: 20px; padding: 1px 9px; font-size: 11px; text-transform: none; letter-spacing: normal; }
+  .ct-group-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
 
-  .ct-card { background: #fff; border: 1px solid var(--ct-line); border-radius: 10px; padding: 10px 12px; margin-bottom: 7px; }
+  .ct-card { background: #fff; border: 1px solid var(--ct-line); border-radius: 12px; padding: 14px 16px; }
   .ct-card.overdue { border-color: #E3B8A9; background: var(--ct-overdue-soft); }
   .ct-card.closed { opacity: 0.65; }
-  .ct-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .ct-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .ct-name-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .ct-client-name { font-size: 14px; font-weight: 700; color: var(--sage-darker); }
-  .ct-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .ct-client-name { font-size: 15.5px; font-weight: 700; color: var(--sage-darker); font-family: 'Playfair Display', serif; }
+  .ct-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
   .ct-flag.status { background: var(--ct-gold-soft); color: var(--gold-text); }
   .ct-flag.status.booked { background: #eef4ea; color: var(--sage-darker); }
   .ct-flag.status.closed { background: var(--ct-closed-soft); color: var(--ct-closed); }
   .ct-flag.overdue { background: #F0D2C6; color: var(--ct-overdue); }
-  .ct-meta-line { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 4px; }
-  .ct-notes { font-size: 12px; color: var(--ct-ink-soft); margin-top: 5px; line-height: 1.5; }
-  .ct-card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-  .ct-card-actions-row { display: flex; gap: 8px; }
+  .ct-detail-row { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; }
+  .ct-detail-item { font-size: 12px; color: var(--ct-ink-soft); display: inline-flex; align-items: center; gap: 4px; }
+  .ct-meta-line { font-size: 12px; color: var(--ct-ink-soft); margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--ct-line); }
+  .ct-notes { font-size: 12.5px; color: var(--ct-ink-soft); margin-top: 6px; line-height: 1.55; }
+  .ct-card-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .ct-card-actions-row { display: flex; gap: 10px; }
   .ct-btn-text { background: none; border: none; color: var(--ct-ink-soft); font-size: 11.5px; padding: 2px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font-family: 'Lato', sans-serif; }
   .ct-btn-text:hover { color: var(--dark); }
   .ct-btn-text.danger:hover { color: var(--ct-overdue); }
   .ct-outlook-btn {
     background: #eef4ea; border: 1px solid var(--sage-dark); color: var(--sage-darker);
-    font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; cursor: pointer;
+    font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: 20px; cursor: pointer;
     font-family: 'Lato', sans-serif; white-space: nowrap;
   }
   .ct-outlook-btn:hover { background: var(--sage-dark); color: #fff; }
   .ct-outlook-btn:disabled { opacity: 0.6; cursor: default; }
 
-  .ct-empty { text-align: center; padding: 2.5rem 1rem; color: var(--ct-ink-soft); }
-  .ct-empty p { margin: 4px 0; font-size: 13px; }
-  .ct-empty .ct-empty-big { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--dark); }
+  .ct-empty { text-align: center; padding: 3.5rem 1rem; color: var(--ct-ink-soft); }
+  .ct-empty p { margin: 4px 0; font-size: 14px; }
+  .ct-empty .ct-empty-big { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--dark); }
 
-  #ct-status-msg { font-size: 11.5px; color: var(--ct-ink-soft); text-align: center; padding: 6px 14px 10px; flex-shrink: 0; }
+  #ct-status-msg { font-size: 12px; color: var(--ct-ink-soft); text-align: center; padding: 8px 26px 14px; flex-shrink: 0; }
 
+  @media (max-width: 700px) {
+    #ct-overlay { padding: 0; }
+    #ct-panel { border-radius: 0; }
+    #ct-head, #ct-toolbar, #ct-form-panel, #ct-list, #ct-status-msg { padding-left: 16px; padding-right: 16px; }
+    .ct-group-cards { grid-template-columns: 1fr; }
+  }
   @media (max-width: 480px) {
     #ct-btn { bottom: 78px; left: 16px; width: 52px; height: 52px; font-size: 19px; }
-    #ct-panel { bottom: 138px; left: 16px; width: calc(100vw - 24px); max-height: calc(100vh - 160px); }
   }
 </style>
 
 <button id="ct-btn" title="Client Tracker">📋</button>
 
+<div id="ct-overlay">
 <div id="ct-panel">
   <div id="ct-head">
     <div><b>Client Tracker</b><span id="ct-head-subtitle">Every active client, sorted by who needs you next</span></div>
@@ -14653,7 +14669,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     <button type="button" id="ct-close" aria-label="Close">✕</button>
   </div>
   <div id="ct-toolbar">
-    <input type="search" id="ct-search" placeholder="Search by name or notes">
+    <input type="search" id="ct-search" placeholder="Search by name, destination, or notes">
     <select id="ct-status-filter">
       <option value="">All statuses</option>
       <option>Inquiry</option>
@@ -14663,7 +14679,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       <option>Follow-up needed</option>
       <option>Closed</option>
     </select>
-    <button type="button" id="ct-add-btn">+ Add</button>
+    <button type="button" id="ct-add-btn">+ Add client</button>
   </div>
   <div id="ct-form-panel">
     <p id="ct-form-title">Add client</p>
@@ -14685,6 +14701,18 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         </select>
       </div>
       <div>
+        <label for="ct-f-destination">Destination / trip</label>
+        <input type="text" id="ct-f-destination" placeholder="Spain — Madrid, Barcelona">
+      </div>
+      <div>
+        <label for="ct-f-phone">Phone</label>
+        <input type="text" id="ct-f-phone" placeholder="(555) 555-1234">
+      </div>
+      <div>
+        <label for="ct-f-email">Email</label>
+        <input type="text" id="ct-f-email" placeholder="client@email.com">
+      </div>
+      <div>
         <label for="ct-f-last">Last contact</label>
         <input type="date" id="ct-f-last">
       </div>
@@ -14704,6 +14732,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   </div>
   <div id="ct-list"></div>
   <p id="ct-status-msg"></p>
+</div>
 </div>
 
 <script>
@@ -14775,6 +14804,9 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     document.getElementById('ct-form-title').textContent = client ? 'Edit client' : 'Add client';
     document.getElementById('ct-f-name').value = client ? client.name : '';
     document.getElementById('ct-f-status').value = client ? client.status : 'Inquiry';
+    document.getElementById('ct-f-destination').value = client ? (client.destination || '') : '';
+    document.getElementById('ct-f-phone').value = client ? (client.phone || '') : '';
+    document.getElementById('ct-f-email').value = client ? (client.email || '') : '';
     document.getElementById('ct-f-last').value = client ? (client.lastContact || '') : '';
     document.getElementById('ct-f-next').value = client ? (client.nextFollowUp || '') : '';
     document.getElementById('ct-f-notes').value = client ? (client.notes || '') : '';
@@ -14797,6 +14829,9 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const data = {
       name,
       status: document.getElementById('ct-f-status').value,
+      destination: document.getElementById('ct-f-destination').value.trim(),
+      phone: document.getElementById('ct-f-phone').value.trim(),
+      email: document.getElementById('ct-f-email').value.trim(),
       lastContact: document.getElementById('ct-f-last').value,
       nextFollowUp: document.getElementById('ct-f-next').value,
       notes: document.getElementById('ct-f-notes').value.trim()
@@ -14868,9 +14903,10 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   function ctAddToOutlook(client) {
     const start = new Date(client.nextFollowUp + 'T10:00:00');
     const end = new Date(start.getTime() + 30 * 60000);
-    const body = client.notes
-      ? `Kensington Tours client follow-up.\n\n${client.notes}`
-      : 'Kensington Tours client follow-up.';
+    const bodyLines = ['Kensington Tours client follow-up.'];
+    if (client.destination) bodyLines.push('', `Destination: ${client.destination}`);
+    if (client.notes) bodyLines.push('', client.notes);
+    const body = bodyLines.join('\n');
     const params = new URLSearchParams({
       path: '/calendar/action/compose',
       rru: 'addevent',
@@ -14894,6 +14930,10 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     }
     const lastText = c.lastContact ? `Last contact ${ctFormatDate(c.lastContact)}` : 'No last contact logged';
     const showOutlookBtn = !!c.nextFollowUp && c.status !== 'Closed';
+    const details = [];
+    if (c.destination) details.push(`<span class="ct-detail-item">🌍 ${ctEscapeHtml(c.destination)}</span>`);
+    if (c.phone) details.push(`<span class="ct-detail-item">📞 ${ctEscapeHtml(c.phone)}</span>`);
+    if (c.email) details.push(`<span class="ct-detail-item">✉️ ${ctEscapeHtml(c.email)}</span>`);
 
     return `
       <div class="ct-card ${isOverdue ? 'overdue' : ''} ${c.status === 'Closed' ? 'closed' : ''}">
@@ -14904,6 +14944,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
               <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
               ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
             </div>
+            ${details.length ? `<div class="ct-detail-row">${details.join('')}</div>` : ''}
             <p class="ct-meta-line">${lastText} · ${followText}</p>
             ${c.notes ? `<p class="ct-notes">${ctEscapeHtml(c.notes)}</p>` : ''}
           </div>
@@ -14923,7 +14964,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const statusFilter = document.getElementById('ct-status-filter').value;
 
     let filtered = ctClients.filter(c => {
-      const matchesSearch = !search || c.name.toLowerCase().includes(search) || (c.notes || '').toLowerCase().includes(search);
+      const matchesSearch = !search
+        || c.name.toLowerCase().includes(search)
+        || (c.notes || '').toLowerCase().includes(search)
+        || (c.destination || '').toLowerCase().includes(search)
+        || (c.phone || '').toLowerCase().includes(search)
+        || (c.email || '').toLowerCase().includes(search);
       const matchesStatus = !statusFilter || c.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -14953,7 +14999,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       if (items.length === 0) return;
       html += `<div class="ct-group">
         <div class="ct-group-title">${label} <span class="ct-group-count">${items.length}</span></div>
-        ${items.map(ctCardHTML).join('')}
+        <div class="ct-group-cards">${items.map(ctCardHTML).join('')}</div>
       </div>`;
     });
     list.innerHTML = html;
@@ -15037,16 +15083,18 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
 
   const ctBtn = document.getElementById('ct-btn');
-  const ctPanel = document.getElementById('ct-panel');
+  const ctOverlay = document.getElementById('ct-overlay');
+  function ctCloseOverlay() {
+    ctOverlay.classList.remove('shown');
+    setTimeout(() => ctOverlay.classList.remove('open'), 180);
+  }
   ctBtn.addEventListener('click', () => {
-    ctPanel.classList.add('open');
-    requestAnimationFrame(() => ctPanel.classList.add('shown'));
+    ctOverlay.classList.add('open');
+    requestAnimationFrame(() => ctOverlay.classList.add('shown'));
     ctCheckDueReminders();
   });
-  document.getElementById('ct-close').addEventListener('click', () => {
-    ctPanel.classList.remove('shown');
-    setTimeout(() => ctPanel.classList.remove('open'), 180);
-  });
+  document.getElementById('ct-close').addEventListener('click', ctCloseOverlay);
+  ctOverlay.addEventListener('click', e => { if (e.target === ctOverlay) ctCloseOverlay(); });
   document.getElementById('ct-add-btn').addEventListener('click', () => ctOpenForm(null));
   document.getElementById('ct-cancel-btn').addEventListener('click', ctCloseForm);
   document.getElementById('ct-save-btn').addEventListener('click', ctHandleSave);
