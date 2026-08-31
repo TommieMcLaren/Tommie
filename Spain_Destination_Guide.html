@@ -746,6 +746,26 @@
   #stale-modal h3 { font-family: 'Playfair Display', serif; color: var(--sage-darker); margin: 0 0 6px; font-size: 21px; }
   #stale-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
   #stale-close:hover { color: var(--sage-darker); }
+
+  /* Pop-out for a full live-AI answer (see addAiAnswerMsg/openItineraryModal)
+     — z-index above #ta-panel (9999) since it's opened from inside it. */
+  #ta-itinerary-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ta-itinerary-overlay.open { display: flex; }
+  #ta-itinerary-modal { background: #fffdf9; border-radius: 16px; max-width: 720px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 34px 34px 26px; box-shadow: 0 12px 50px rgba(0,0,0,0.4); border-top: 6px solid var(--gold); position: relative; font-family: 'Lato', sans-serif; }
+  #ta-itinerary-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ta-itinerary-close:hover { color: var(--sage-darker); }
+  #ta-itinerary-modal-body h2 { font-family: 'Playfair Display', serif; color: var(--sage-darker); font-size: 24px; margin: 0 0 12px; }
+  #ta-itinerary-modal-body h3 { font-family: 'Playfair Display', serif; color: var(--sage-darker); font-size: 19px; margin: 22px 0 8px; }
+  #ta-itinerary-modal-body h4 { color: var(--sage-dark); font-size: 15.5px; margin: 16px 0 6px; }
+  #ta-itinerary-modal-body p { font-size: 14.5px; line-height: 1.65; margin: 0 0 10px; color: #2a2a22; }
+  #ta-itinerary-modal-body ul, #ta-itinerary-modal-body ol { margin: 0 0 12px; padding-left: 22px; font-size: 14px; line-height: 1.6; }
+  #ta-itinerary-modal-body li { margin-bottom: 4px; }
+  #ta-itinerary-modal-body hr { border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 18px 0; }
+  #ta-itinerary-modal-body a { color: var(--sage-darker); font-weight: 700; }
+  #ta-itinerary-modal-body table { width: 100%; border-collapse: collapse; margin: 0 0 14px; font-size: 13px; }
+  #ta-itinerary-modal-body th, #ta-itinerary-modal-body td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+  #ta-itinerary-modal-body th { background: #faf6ee; font-weight: 700; color: var(--sage-darker); }
+  #ta-itinerary-modal-body .md-note { background: var(--beige, #f3ead9); border-left: 3px solid var(--gold); padding: 9px 13px; border-radius: 0 8px 8px 0; font-size: 13.5px; margin: 0 0 12px; color: #4a4a3d; }
   .stale-item { border-left: 3px solid var(--gold); background: var(--beige); border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 10px; }
   .stale-item-heading { font-weight: 800; font-size: 12.5px; margin-bottom: 3px; }
   .stale-item-heading a.stale-jump { color: var(--gold-text); text-decoration: underline; cursor: pointer; }
@@ -1488,7 +1508,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -13553,7 +13573,8 @@ Tommie McLaren`
         callClaudeAI([{ role: 'user', content: text }], convoContextNote(), null, typingDiv).then(result => {
           typingDiv.remove();
           if (result.error) { addErrorWithRetry(result.error, runAskAi); return; }
-          addMsg('bot', escapeHtml(result.text), true);
+          const { fullText, summaryText } = splitSummary(result.text, false);
+          addAiAnswerMsg(summaryText, fullText);
           renderCitiesMapMsg(result.cities);
         }).catch(e => {
           typingDiv.remove();
@@ -13592,7 +13613,8 @@ Tommie McLaren`
         callClaudeAI([{ role: 'user', content }], note, null, typingDiv).then(result => {
           typingDiv.remove();
           if (result.error) { addErrorWithRetry(result.error, runImageQuestion); return; }
-          addMsg('bot', escapeHtml(result.text), true);
+          const { fullText, summaryText } = splitSummary(result.text, false);
+          addAiAnswerMsg(summaryText, fullText);
           renderCitiesMapMsg(result.cities);
         }).catch(e => {
           typingDiv.remove();
@@ -13614,12 +13636,12 @@ Tommie McLaren`
       // history sent to Claude.
       const runConvoSend = () => {
         const typingDiv = showTyping();
-        convoRespond(text, typingDiv).then(({ text: replyText, speech, cities, error }) => {
+        convoRespond(text, typingDiv).then(({ text: replyText, full, cities, error }) => {
           typingDiv.remove();
           if (error) { convoHistory.pop(); addErrorWithRetry(replyText, runConvoSend); return; }
-          addMsg('bot', escapeHtml(replyText), true);
+          addAiAnswerMsg(replyText, full);
           renderCitiesMapMsg(cities);
-          speakText(speech);
+          speakText(replyText);
         }).catch(e => {
           typingDiv.remove();
           convoHistory.pop();
@@ -13797,16 +13819,19 @@ Tommie McLaren`
     window.speechSynthesis.speak(utter);
   }
 
-  // Conversation Mode reads replies aloud, and reciting a full structured
-  // itinerary (day-by-day bullets, hotel names, etc.) verbatim sounds
-  // mechanical, not like a person talking — and the DE can read the full
-  // detail on screen themselves anyway. This asks the model to append a
-  // short, warm spoken summary after any long, detailed answer; the code
-  // (see splitVoiceSummary below) speaks only that line and shows the full
-  // answer on screen as before. Short conversational replies already stay
-  // brief per the main system prompt, so this only matters for the
-  // itinerary/draft case that prompt explicitly exempts from brevity.
-  const TA_VOICE_SUMMARY_NOTE = `This is Conversation Mode — your reply may be read aloud. If your answer is long and detailed (a full itinerary, a draft, anything more than a few sentences), write the complete answer as normal first — the DE will read that part on screen. Then, on its own final line, add exactly one sentence starting with "VOICE_SUMMARY: " that's a warm, natural, spoken-sounding summary of the key point (as if you're telling a colleague the headline, not reciting the itinerary) — e.g. "VOICE_SUMMARY: I've built an 8-day Madrid and Barcelona trip anchored to a real Kensington itinerary, with Premier hotels and a few food-forward picks layered in." If your answer is already short (a few sentences), skip the VOICE_SUMMARY line entirely — just answer normally.`;
+  // A full structured itinerary (day-by-day bullets, hotel names, tables)
+  // dumped straight into a chat bubble is a wall of text to get lost in —
+  // and read aloud verbatim in Conversation Mode it sounds mechanical, not
+  // like a person talking. Either way the DE doesn't need all of it in the
+  // bubble/spoken out loud; they need the headline, with the full detail
+  // available on demand. This asks the model to append a short, warm
+  // summary after any long, detailed answer; the code (see splitSummary
+  // below) shows/speaks only that line in the chat, with a "View full"
+  // pop-out for the complete answer (still saved to convoHistory in full,
+  // never lost). Short conversational replies already stay brief per the
+  // main system prompt, so this only matters for the itinerary/draft case
+  // that prompt explicitly exempts from brevity.
+  const TA_SUMMARY_NOTE = `Your reply may be read aloud (Conversation Mode) and is always shown in a compact chat bubble first, with the full text available in a separate "View full details" pop-out — the DE does not have to read or hear everything in the bubble itself. If your answer is long and detailed (a full itinerary, a draft, anything more than a few sentences), write the complete answer as normal first — nothing needs to be shortened or left out, it's still fully available. Then, on its own final line, add exactly one sentence starting with "SUMMARY: " that's a warm, natural-sounding one-line overview of the key point (as if you're telling a colleague the headline, not reciting the itinerary) — e.g. "SUMMARY: I've built an 8-day Madrid and Barcelona trip anchored to a real Kensington itinerary, with Premier hotels and a few food-forward picks layered in." If your answer is already short (a few sentences), skip the SUMMARY line entirely — just answer normally.`;
 
   function convoContextNote() {
     const bits = [];
@@ -13816,19 +13841,20 @@ Tommie McLaren`
     if (taState.tier) bits.push('Budget tier: ' + taState.tier);
     if (taState.dietNeeds && taState.dietNeeds.length) bits.push('Dietary needs: ' + taState.dietNeeds.join(', '));
     const contextBlock = bits.length ? 'Current session context (may be relevant, may not — use judgment):\n' + bits.join('\n') : '';
-    return TA_VOICE_SUMMARY_NOTE + (contextBlock ? '\n\n' + contextBlock : '');
+    return TA_SUMMARY_NOTE + (contextBlock ? '\n\n' + contextBlock : '');
   }
 
-  // Pulls the model's "VOICE_SUMMARY: ..." line (see TA_VOICE_SUMMARY_NOTE)
-  // out of a reply: what's spoken vs. what's shown on screen are now two
-  // different things on purpose. Falls back to speaking the whole reply if
-  // the model didn't add one (short replies, or it just didn't follow the
-  // format) — better to read the full thing than stay silent.
-  function splitVoiceSummary(text, isError) {
-    if (isError || !text) return { displayText: text, speechText: text };
-    const m = text.match(/\n+VOICE_SUMMARY:\s*([^\n]+)\s*$/i);
-    if (!m) return { displayText: text, speechText: text };
-    return { displayText: text.slice(0, m.index).trim() || text, speechText: m[1].trim() };
+  // Pulls the model's "SUMMARY: ..." line (see TA_SUMMARY_NOTE) out of a
+  // reply: what's shown in the chat bubble/spoken aloud vs. the full answer
+  // (available via "View full details") are now two different things on
+  // purpose. Falls back to the whole reply for both if the model didn't add
+  // one (short replies, or it just didn't follow the format) — better to
+  // show/speak the full thing than show nothing.
+  function splitSummary(text, isError) {
+    if (isError || !text) return { fullText: text, summaryText: text };
+    const m = text.match(/\n+SUMMARY:\s*([^\n]+)\s*$/i);
+    if (!m) return { fullText: text, summaryText: text };
+    return { fullText: text.slice(0, m.index).trim() || text, summaryText: m[1].trim() };
   }
 
   // Renders the same inline route map the scenario builder uses, but for
@@ -13845,16 +13871,115 @@ Tommie McLaren`
     } catch (e) { /* map data incomplete for one of these cities — skip silently */ }
   }
 
+  // Deliberately not a full markdown implementation — just the subset the
+  // live AI's own system prompt asks it to use for itinerary/draft answers
+  // (headers, bold, bullet/numbered lists, GFM tables, horizontal rules,
+  // links, "> " note lines). Escapes the raw text FIRST, then only ever
+  // recognizes markdown syntax in the now-safe/escaped text, so this can't
+  // become an HTML-injection path even if the model's own output somehow
+  // contained angle brackets.
+  function renderMarkdownLite(text) {
+    const lines = escapeHtml(text || '').split('\n');
+    const out = [];
+    let listBuffer = [], listType = null, tableBuffer = [];
+
+    function inlineFormat(s) {
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      return s;
+    }
+    function flushList() {
+      if (!listBuffer.length) return;
+      const tag = listType === 'ol' ? 'ol' : 'ul';
+      out.push(`<${tag}>` + listBuffer.map(item => `<li>${inlineFormat(item)}</li>`).join('') + `</${tag}>`);
+      listBuffer = []; listType = null;
+    }
+    function flushTable() {
+      if (!tableBuffer.length) return;
+      const cellsOf = row => row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      const rows = tableBuffer.filter(r => !/^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(r));
+      if (rows.length) {
+        let html = '<table><thead><tr>' + cellsOf(rows[0]).map(c => `<th>${inlineFormat(c)}</th>`).join('') + '</tr></thead><tbody>';
+        rows.slice(1).forEach(r => { html += '<tr>' + cellsOf(r).map(c => `<td>${inlineFormat(c)}</td>`).join('') + '</tr>'; });
+        out.push(html + '</tbody></table>');
+      }
+      tableBuffer = [];
+    }
+
+    lines.forEach(line => {
+      const t = line.trim();
+      if (/^\|.*\|$/.test(t)) { flushList(); tableBuffer.push(t); return; }
+      flushTable();
+      if (/^#{1,3}\s+/.test(t)) {
+        flushList();
+        const level = t.match(/^(#{1,3})/)[1].length;
+        const tag = level === 1 ? 'h2' : level === 2 ? 'h3' : 'h4';
+        out.push(`<${tag}>${inlineFormat(t.replace(/^#{1,3}\s+/, ''))}</${tag}>`);
+      } else if (/^-{3,}$/.test(t)) {
+        flushList(); out.push('<hr>');
+      } else if (/^[-*]\s+/.test(t)) {
+        if (listType !== 'ul') { flushList(); listType = 'ul'; }
+        listBuffer.push(t.replace(/^[-*]\s+/, ''));
+      } else if (/^\d+\.\s+/.test(t)) {
+        if (listType !== 'ol') { flushList(); listType = 'ol'; }
+        listBuffer.push(t.replace(/^\d+\.\s+/, ''));
+      } else if (/^&gt;\s?/.test(t)) {
+        flushList();
+        out.push(`<div class="md-note">${inlineFormat(t.replace(/^&gt;\s?/, ''))}</div>`);
+      } else if (t === '') {
+        flushList();
+      } else {
+        flushList();
+        out.push(`<p>${inlineFormat(t)}</p>`);
+      }
+    });
+    flushList(); flushTable();
+    return out.join('\n');
+  }
+
+  const itineraryOverlay = document.getElementById('ta-itinerary-overlay');
+  const itineraryModalBody = document.getElementById('ta-itinerary-modal-body');
+  function openItineraryModal(fullText) {
+    if (!itineraryOverlay || !itineraryModalBody) return;
+    itineraryModalBody.innerHTML = renderMarkdownLite(fullText);
+    itineraryOverlay.classList.add('open');
+  }
+  function closeItineraryModal() {
+    if (itineraryOverlay) itineraryOverlay.classList.remove('open');
+  }
+  const itineraryCloseBtn = document.getElementById('ta-itinerary-close');
+  if (itineraryCloseBtn) itineraryCloseBtn.addEventListener('click', closeItineraryModal);
+  if (itineraryOverlay) itineraryOverlay.addEventListener('click', e => { if (e.target === itineraryOverlay) closeItineraryModal(); });
+
+  // Shared by every live-AI display site (Conversation Mode, the "Actually
+  // think this through" escalation): shows the short SUMMARY line (see
+  // TA_SUMMARY_NOTE/splitSummary above) as the actual chat bubble content,
+  // with a "View full details" pop-out for the complete answer whenever the
+  // model produced one — i.e. whenever there's more behind the summary than
+  // what's shown. A short answer (fullText === summaryText, no split
+  // happened) just displays normally with no pop-out, nothing hidden.
+  function addAiAnswerMsg(summaryText, fullText) {
+    const hasMore = fullText && summaryText && fullText.trim() !== summaryText.trim();
+    let html = escapeHtml(summaryText);
+    if (hasMore) html += `<div class="ta-rec-actions"><button type="button" class="ta-rec-confirm" data-action="view-full">📋 View full details</button></div>`;
+    const div = addMsg('bot', html, true);
+    if (hasMore) {
+      const btn = div.querySelector('[data-action="view-full"]');
+      if (btn) btn.addEventListener('click', () => openItineraryModal(fullText));
+    }
+    return div;
+  }
+
   async function convoRespond(transcript, progressDiv) {
     convoHistory.push({ role: 'user', content: transcript });
     if (convoHistory.length > 12) convoHistory = convoHistory.slice(-12);
     const result = await callClaudeAI(convoHistory, convoContextNote(), null, progressDiv);
     const rawText = result.error ? result.error : result.text;
-    const { displayText, speechText } = splitVoiceSummary(rawText, !!result.error);
-    // Store the clean displayed text (no VOICE_SUMMARY line) in history, not
-    // the raw reply — keeps later turns' context free of the speech-only tag.
-    if (!result.error) convoHistory.push({ role: 'assistant', content: displayText });
-    return { text: displayText, speech: speechText, cities: result.cities || [], error: !!result.error };
+    const { fullText, summaryText } = splitSummary(rawText, !!result.error);
+    // Store the clean full text (no SUMMARY line) in history, not the raw
+    // reply — keeps later turns' context free of the summary-only tag.
+    if (!result.error) convoHistory.push({ role: 'assistant', content: fullText });
+    return { text: summaryText, full: fullText, cities: result.cities || [], error: !!result.error };
   }
 
   function convoListenOnce() {
@@ -13877,7 +14002,7 @@ Tommie McLaren`
       // back, even to report a problem.
       const runVoiceRespond = () => {
         const typingDiv = showTyping();
-        convoRespond(transcript, typingDiv).then(({ text: replyText, speech, cities, error }) => {
+        convoRespond(transcript, typingDiv).then(({ text: replyText, full, cities, error }) => {
           typingDiv.remove();
           if (error) {
             convoHistory.pop(); // same dup-turn guard as send()'s convoActive branch
@@ -13885,9 +14010,9 @@ Tommie McLaren`
             addErrorWithRetry(replyText, runVoiceRespond);
             return;
           }
-          addMsg('bot', escapeHtml(replyText), true);
+          addAiAnswerMsg(replyText, full);
           renderCitiesMapMsg(cities);
-          speakText(speech, () => { if (convoActive) convoListenOnce(); });
+          speakText(replyText, () => { if (convoActive) convoListenOnce(); });
         }).catch(err => {
           typingDiv.remove();
           convoHistory.pop();
@@ -14369,6 +14494,13 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     <h3>⏱️ What's Stale</h3>
     <p style="margin:0 0 14px; font-size:13px; color:#8a8776;">Every spot in this guide already flagged as time-sensitive — tariffs, entry rules, Michelin stars, snapshots — pulled into one list so nothing gets missed on a routine re-check.</p>
     <div id="stale-list"></div>
+  </div>
+</div>
+
+<div id="ta-itinerary-overlay">
+  <div id="ta-itinerary-modal">
+    <button id="ta-itinerary-close" type="button" aria-label="Close">✕</button>
+    <div id="ta-itinerary-modal-body"></div>
   </div>
 </div>
 

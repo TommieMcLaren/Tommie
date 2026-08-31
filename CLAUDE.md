@@ -314,6 +314,83 @@ observed behavior, not blind code review:
   spoken while the full answer still displays and still saves to
   `convoHistory` in full. Short conversational replies are unaffected — the
   main system prompt already keeps those brief.
+  **Superseded by the chat-bubble condensing feature below** — this
+  mechanism was generalized rather than kept voice-only; see that section
+  for the current names (`TA_SUMMARY_NOTE`/`splitSummary`/`SUMMARY:`).
+
+## Chat-bubble condensing + "View full details" pop-out (Aug 2026)
+
+Direct response to live feedback: full itineraries (headers, tables, bold
+text, links, day-by-day bullet lists) were landing raw in the chat bubble,
+making the conversation "easy to get lost in." Wanted the bubble to read
+"more like a texting platform back and forth" — a brief headline, with the
+full detail available on demand rather than always dumped inline.
+
+- **Generalized the voice-only summary mechanism instead of building a
+  second one.** The `VOICE_SUMMARY:`/`splitVoiceSummary()` pair added
+  earlier this session already solved almost the same problem (get the
+  model to also emit a short one-line take on a long answer) — renamed to
+  `TA_SUMMARY_NOTE`/`splitSummary()`/`SUMMARY:` and now serves both
+  Conversation Mode's spoken reply *and* the chat bubble's displayed text,
+  rather than keeping two near-identical prompt instructions and parsers in
+  sync by hand. `splitSummary(text, isError)` returns `{fullText,
+  summaryText}`; on error, or when no `SUMMARY:` line is present (short
+  replies skip it on purpose per the prompt instruction), both fields are
+  just the original text unchanged, so callers never need an `isMore`
+  branch of their own.
+- **`addAiAnswerMsg(summaryText, fullText)`** — the new shared display
+  helper. Renders the bubble as just the summary text; only when `fullText`
+  actually differs from `summaryText` does it append a "📋 View full
+  details" button wired to open the pop-out modal with the full text. A
+  short answer (no `SUMMARY:` line, so `fullText === summaryText`) renders
+  with no button at all — nothing to expand.
+- **`renderMarkdownLite(text)`** — a small hand-rolled markdown-to-HTML
+  renderer for the pop-out modal only (the chat bubble itself still shows
+  plain escaped summary text, unchanged from before). Escapes via
+  `escapeHtml()` first, then parses on top of the escaped text: `#`/`##`/
+  `###` headers, `**bold**`, `[text](url)` (http/https only — anything else,
+  including `javascript:`, is left as literal escaped text, not linkified),
+  `-`/`*`/numbered lists, `---` rules, GFM `|a|b|` tables, and `&gt; ` quote
+  lines as note callouts. Deliberately not a full markdown implementation —
+  scoped to what KT itinerary responses actually use. Logic-tested in Node
+  against a representative multi-section itinerary sample (headers, a
+  table, a bulleted day, a note callout, a link) and separately against an
+  XSS probe (`<script>`, a `javascript:` link, a quote-breakout URL) —
+  all three attack vectors came back inert; only `escapeHtml()`'s own
+  output feeds the parser, so nothing it emits can introduce a tag that
+  wasn't already there as literal text.
+- **Modal**: `#ta-itinerary-overlay` / `#ta-itinerary-modal`, styled to
+  match the existing `#stale-modal` pattern, opened via
+  `openItineraryModal(fullText)` (sets `.innerHTML` from
+  `renderMarkdownLite()` and toggles `.open`) and closed via the ✕ button,
+  a backdrop click, or already-established `@media print` hide rules
+  (added to the same hide-list as `#ta-panel`/`#stale-overlay`).
+- **Wired at all three live-AI chat-bubble display sites**: the typed
+  Conversation Mode path (`send()`'s `runConvoSend`), the real microphone
+  voice path (`convoListenOnce`'s `runVoiceRespond`), and the "🧠 Actually
+  think this through →" escalation button (`runAskAi`) — all three now call
+  `splitSummary()` then `addAiAnswerMsg()` instead of dumping
+  `escapeHtml(result.text)` straight into the bubble. The one-off vision/
+  image-question path (the 📎 attach flow) got the same treatment for
+  consistency, even though its system note doesn't currently request a
+  `SUMMARY:` line — harmless no-op today (`splitSummary` returns the text
+  unchanged when no tag is found), and ready if that prompt ever grows
+  long-form answers. **Deliberately left alone**: the Outlook-draft/
+  schedule-follow-up confirmation replies and the calendar follow-up check
+  — those prompts explicitly ask the model for a short confirmation, don't
+  send `convoContextNote()` (so no `SUMMARY:` tag is ever produced there
+  regardless), and were already short by design; adding the pop-out
+  machinery to them would be dead code, not a fix.
+- Logic-tested in Node: `splitSummary` against a real multi-paragraph
+  itinerary-with-`SUMMARY:`-line, a short reply with no tag, and an error
+  string (all three matched expected shape). `renderMarkdownLite` against
+  the markdown/XSS cases above. All edited `<script>` blocks still pass
+  `node --check`.
+- **Unverified live, same caveat as everything else in this section**: the
+  actual modal open/close interaction, scroll behavior on a long itinerary,
+  and how the "📋 View full details" button looks against the real KT
+  itinerary output haven't been seen in a real browser from this
+  environment — check these first if the pop-out looks or behaves oddly.
 
 ## Design decisions to preserve, not "helpfully" change
 
