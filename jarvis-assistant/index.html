@@ -247,6 +247,7 @@
         <div class="row">
           <button class="btn-primary" id="connectOutlookBtn">Connect Outlook</button>
           <button class="icon-btn" id="refreshInboxBtn">Refresh inbox</button>
+          <button class="btn-danger" id="disconnectOutlookBtn" style="display:none;">Disconnect</button>
         </div>
         <div class="card-list" id="inboxList"></div>
       </div>
@@ -261,6 +262,7 @@
         <div class="row">
           <button class="btn-primary" id="connectFolderBtn">Connect folder</button>
           <button class="icon-btn" id="reconnectFolderBtn" style="display:none;">Re-grant access</button>
+          <button class="btn-danger" id="disconnectFolderBtn" style="display:none;">Disconnect</button>
         </div>
         <div id="pendingEditsWrap"></div>
         <div id="fileTreeWrap" class="file-tree"></div>
@@ -884,7 +886,15 @@
     saveState(); renderTasks(); renderNotes(); renderHistory();
   });
 
-  $("msClientIdInput").addEventListener("change", function () { state.msClientId = this.value.trim(); saveState(); });
+  $("msClientIdInput").addEventListener("change", function () {
+    state.msClientId = this.value.trim();
+    saveState();
+    // Warm up the MSAL instance now (async) so a later "Connect Outlook" click
+    // can call loginPopup() with as little async delay as possible — popup
+    // blockers are more likely to eat window.open() the further it drifts
+    // from the actual user gesture that triggered it.
+    if (state.msClientId) ensureMsalInstance().catch(function () {});
+  });
 
   function isFileProtocol() { return location.protocol === "file:"; }
   function checkFileProtocolWarnings() {
@@ -994,7 +1004,17 @@
     $("outlookStatusText").textContent = connected ? ("Connected as " + (account.username || "Outlook account")) : "Not connected";
     $("inboxBadge").textContent = connected ? "on" : "off";
     $("connectOutlookBtn").textContent = connected ? "Reconnect Outlook" : "Connect Outlook";
+    $("disconnectOutlookBtn").style.display = connected ? "inline-block" : "none";
   }
+
+  function disconnectOutlook() {
+    state.msAccountId = "";
+    saveState();
+    updateOutlookStatus();
+    renderInboxList([]);
+    addToolNote("Outlook disconnected. Your Microsoft sign-in itself is untouched — this just stops Jarvis from using it.");
+  }
+  $("disconnectOutlookBtn").addEventListener("click", disconnectOutlook);
 
   function renderInboxList(emails) {
     var wrap = $("inboxList");
@@ -1012,14 +1032,25 @@
       var from = document.createElement("div"); from.className = "from"; from.textContent = (m.fromName || m.from) + (m.receivedDateTime ? (" · " + new Date(m.receivedDateTime).toLocaleString()) : "");
       var preview = document.createElement("div"); preview.className = "preview"; preview.textContent = m.preview || "";
       body.appendChild(subj); body.appendChild(from); body.appendChild(preview);
-      var btn = document.createElement("button");
-      btn.textContent = "Ask Jarvis";
-      btn.onclick = function () {
+      var btnWrap = document.createElement("div");
+      btnWrap.style.display = "flex"; btnWrap.style.flexDirection = "column"; btnWrap.style.gap = "6px";
+      var askBtn = document.createElement("button");
+      askBtn.textContent = "Ask Jarvis";
+      askBtn.onclick = function () {
         textInput.value = 'About my email "' + m.subject + '" from ' + (m.fromName || m.from) + " (email id " + m.id + "): ";
         showView("chat");
         textInput.focus();
       };
-      card.appendChild(dot); card.appendChild(body); card.appendChild(btn);
+      var taskBtn = document.createElement("button");
+      taskBtn.textContent = "+ Task";
+      taskBtn.title = "Add a task referencing this email";
+      taskBtn.onclick = function () {
+        executeTool("add_task", { title: "Follow up: " + m.subject + " (from " + (m.fromName || m.from) + ")" });
+        taskBtn.textContent = "Added ✓";
+        taskBtn.disabled = true;
+      };
+      btnWrap.appendChild(askBtn); btnWrap.appendChild(taskBtn);
+      card.appendChild(dot); card.appendChild(body); card.appendChild(btnWrap);
       wrap.appendChild(card);
     });
   }
@@ -1062,6 +1093,16 @@
       });
     });
   }
+  function idbDelete(key) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("handles", "readwrite");
+        tx.objectStore("handles").delete(key);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
 
   function updateFolderStatus() {
     var connected = !!workFolderHandle;
@@ -1069,7 +1110,20 @@
     $("folderStatusText").textContent = connected ? ("Connected: " + workFolderHandle.name) : "Not connected";
     $("folderBadge").textContent = connected ? "on" : "off";
     $("reconnectFolderBtn").style.display = "none";
+    $("disconnectFolderBtn").style.display = connected ? "inline-block" : "none";
   }
+
+  function disconnectWorkFolder() {
+    workFolderHandle = null;
+    pendingEdits = {};
+    idbDelete("workFolderHandle").catch(function () {});
+    updateFolderStatus();
+    renderPendingEdits();
+    $("fileTreeWrap").innerHTML = "";
+    $("filePreviewWrap").innerHTML = "";
+    addToolNote("Work folder disconnected.");
+  }
+  $("disconnectFolderBtn").addEventListener("click", disconnectWorkFolder);
 
   function connectWorkFolder() {
     if (isFileProtocol()) { addToolNote("Folder access needs this page served over http/https — see Settings for how."); showView("settings"); return; }
