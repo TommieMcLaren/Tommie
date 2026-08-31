@@ -392,9 +392,74 @@ full detail available on demand rather than always dumped inline.
   itinerary output haven't been seen in a real browser from this
   environment — check these first if the pop-out looks or behaves oddly.
 
+## Client Tracker panel (Aug 2026, unverified live)
+
+Direct response to a scope conversation: rather than keep expanding Jarvis
+into a full organizational assistant, the plan settled on keeping this file
+as the standalone work tool it already is, and adding one narrowly-scoped
+piece — a client/follow-up tracker — built from a separate mockup file the
+DE provided (`clienttracker.html`, a `window.storage`-based standalone
+Artifact prototype). Ported into the master doc rather than left standalone
+so it's always open alongside the rest of the guide, and so it can reach
+Outlook through the Trip Assistant's already-working BYOK connection
+instead of needing its own.
+
+- **New floating panel**, independent of the Trip Assistant: `#ct-btn`
+  (📋, bottom-left) / `#ct-panel`, deliberately mirrored in the opposite
+  corner from `#ta-btn`/`#ta-panel` (bottom-right) so the two can never
+  visually collide if both happen to be open at once.
+- **Storage swapped from `window.storage` to `localStorage`.** The source
+  mockup used `window.storage.get/set` — that's an Artifacts-runtime-only
+  capability (see the artifact-capabilities skill) that doesn't exist when
+  this file is opened as a plain `file://` page, which is how this guide
+  actually gets used post-BYOK-migration. Rewritten as synchronous
+  `localStorage` reads/writes under `kt-client-tracker:v1`, matching this
+  file's existing `kt-trip-assistant:*` key-naming convention. Async
+  `loadData`/`saveData` collapsed to sync since `localStorage` doesn't need
+  awaiting — the mockup's `async`/`await` was scaffolding for the Artifacts
+  storage API, not a real requirement here.
+- **Re-themed to this guide's own palette** (sage/gold/beige) instead of
+  the mockup's navy/gold, scoped entirely under `#ct-*` ids/classes so
+  nothing leaks into or collides with the rest of the file's CSS.
+- **Outlook integration, push-only, reusing rather than duplicating.** Each
+  card with a `nextFollowUp` date gets a "📅 Add to Outlook" button that
+  creates one real calendar event via `outlook_create_event` — same MCP
+  pattern and same `mcp_toolset`/beta-header requirements as the Trip
+  Assistant's existing "Schedule follow-up" button (see "Live-AI upgrade"
+  above for why that pairing matters). Rather than re-implement the
+  fetch/streaming/auth/refusal-handling plumbing a second time in a
+  separate script block, the Trip Assistant's IIFE now exports
+  `window.__taCallClaudeAI` / `window.__taCalendarMcp` /
+  `window.__taHasApiKey()` right before it closes, and the tracker calls
+  through those — one copy of that logic, not two drifting in parallel.
+  Gated the same way the rest of live-AI is: if no API key is saved yet,
+  the tracker shows a message pointing at Trip Assistant's ⚙️ Settings
+  rather than attempting a doomed request. This is **push only** — it
+  creates a new event, never reads, modifies, or sends anything — consistent
+  with this file's standing Outlook rule below.
+- **`getKnownClientNames()` (used by the existing "📅 Check follow-ups due"
+  calendar cross-reference) now also reads the tracker's client list**, not
+  just past archived Trip Assistant sessions — so that check is grounded in
+  everyone actually being tracked, not just people who've been discussed in
+  a live-AI conversation before. Deliberately kept as a literal storage-key
+  string in both places rather than a shared exported constant — the two
+  panels are otherwise fully independent, and one string literal in two
+  places is simpler than adding a load-order dependency for it.
+- Logic-tested in Node: date-bucket grouping (overdue/due-this-week/
+  upcoming/no-date/closed) against six synthetic clients spanning each
+  bucket, and the card renderer against an XSS probe (`<script>` in a
+  client name, an `onerror=` payload in notes) — both came back as inert
+  escaped text, not live markup.
+- **Unverified live, same caveat as everything else in this section**: the
+  actual "Add to Outlook" call has not been exercised against a real
+  Outlook account from this environment — check that first, along with how
+  the panel looks/behaves in a real browser at various widths.
+
 ## Design decisions to preserve, not "helpfully" change
 
-- Outlook is read+draft only, never send.
+- Outlook is read+draft only, never send. The Client Tracker's "Add to
+  Outlook" button follows the same rule in its push-only form: it only
+  ever creates a new event, never reads, edits, or sends.
 - Kosher is never inferred from "vegetarian" — only Zerta (Barcelona) is
   tagged kosher-certified; unqualified "Jewish" interest is treated as
   heritage-site interest, not a dietary assumption.
