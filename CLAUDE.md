@@ -531,13 +531,26 @@ instead of needing its own.
   server. Please check your authorization token.` — confirmed the `mcp_
   servers` connector needs its own Microsoft OAuth `authorization_token`,
   which this file has no way to obtain without a hosted OAuth redirect
-  endpoint. Client Tracker's "Add to Outlook" is fixed (see "Client
-  Tracker panel" above) via an Outlook Web compose deep link instead of
-  the MCP call. **The Trip Assistant's own "Schedule follow-up" and
-  Outlook-draft buttons hit this exact same error and are still broken**
-  — same fix pattern would apply (a compose/mail deep link instead of
-  `outlook_create_event`/`outlook_create_draft`), not yet done since the
-  DE hasn't asked for that one yet.
+  endpoint. Client Tracker's "Add to Outlook", the Trip Assistant's
+  "Schedule follow-up" button, and its "Draft in Outlook" button are all
+  now fixed the same way — a pre-filled Outlook Web compose deep link
+  (`/calendar/.../compose` or `/mail/.../compose`) opened in a new tab
+  instead of the broken `outlook_create_event`/`outlook_create_draft`
+  MCP calls. No OAuth, no server, one extra click (Save/Send stays with
+  the DE) where the MCP version would've been zero. Each site now shows
+  a `addMsg('bot', ...)` confirmation naming the popup-blocked case
+  explicitly (`window.open` returns `null` if a popup blocker ate it)
+  instead of silently doing nothing. Logic-tested in Node: the schedule
+  button's date math (day offset, month-boundary crossing, "0 days" =
+  today not tomorrow) and both deep-link URLs' encoding — all correct.
+  **Still broken, and can't be fixed with this same trick**: the
+  "📅 Check follow-ups due" chip's `runFollowUpCheck()` also calls
+  `TA_CALENDAR_MCP` (to *read* the calendar via `outlook_calendar_search`,
+  not create anything) and hits the identical auth error — but a deep
+  link can only open a compose screen, it can't read data back out of
+  Outlook, so this one has no equivalent workaround. Fixing it for real
+  needs the actual OAuth infrastructure (Azure AD app + hosted redirect
+  endpoint) described above.
 
 ## Working in this file
 

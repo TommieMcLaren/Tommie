@@ -13402,10 +13402,16 @@ Tommie McLaren`
       };
       smsbtn.addEventListener('click', runSms);
     });
-    // Creates a real Outlook draft via the live AI — deliberately scoped to
-    // outlook_create_draft only (never outlook_send_draft), so this can
-    // never send anything on its own. Recipients are left blank; the DE
-    // fills those in and reviews in Outlook before sending.
+    // REPLACED the MCP-based version (Aug 2026): outlook_create_draft via
+    // the mcp_servers connector needs its own Microsoft OAuth
+    // authorization_token, which this file — a static page with no
+    // backend — has no way to obtain (see the Client Tracker's
+    // ctAddToOutlook for the full root-cause writeup; same failure, same
+    // fix pattern here). Opens Outlook Web's own mail compose screen
+    // pre-filled instead — no OAuth, no server. Recipients are still
+    // left blank; the DE fills those in and reviews before sending,
+    // same rule as before, now enforced by the fact that nothing here
+    // can send anything at all, only open a compose window.
     container.querySelectorAll('.ta-outlook-btn').forEach(obtn => {
       const runOutlook = () => {
         const target = document.getElementById(obtn.dataset.target);
@@ -13413,23 +13419,17 @@ Tommie McLaren`
         const m = fullText.match(/^Subject:\s*(.+)\n\n([\s\S]*)$/);
         const subject = m ? m[1] : '';
         const body = m ? m[2] : fullText;
-        obtn.disabled = true; const origLabel = obtn.textContent; obtn.textContent = 'Saving…';
-        const note = `Create a draft in the DE's Outlook Drafts folder using outlook_create_draft ONLY (never outlook_send_draft — nothing should be sent). Use this exact subject and body, converting line breaks to simple HTML paragraphs — do not rewrite, paraphrase, add, or remove any content. Leave recipients (to/cc/bcc) blank; the DE will fill those in and review before sending.\nSubject: ${subject || '(no subject given — write a short, reasonable one based on the body)'}\nBody:\n${body}`;
-        callClaudeAI([{ role: 'user', content: 'Create this as an Outlook draft.' }], note, [TA_CALENDAR_MCP]).then(result => {
-          obtn.disabled = false; obtn.textContent = origLabel;
-          if (result.error) { addErrorWithRetry(result.error, runOutlook); return; }
-          addMsg('bot', escapeHtml(result.text), true);
-        }).catch(e => {
-          obtn.disabled = false; obtn.textContent = origLabel;
-          addErrorWithRetry("Something unexpected broke while saving that draft: " + (e && e.message ? e.message : String(e)), runOutlook);
-        });
+        const params = new URLSearchParams({ subject, body });
+        const win = window.open(`https://outlook.office.com/mail/deeplink/compose?${params.toString()}`, '_blank', 'noopener');
+        addMsg('bot', win
+          ? 'Opened a draft in Outlook — check the new tab, add a recipient, and review before sending.'
+          : "Your browser blocked that popup — allow popups for this page and tap the button again.", true);
       };
       obtn.addEventListener('click', runOutlook);
     });
-    // Schedules a follow-up event — asks how many days out via a plain
-    // browser prompt (simple, reliable, no extra UI to build), computes
-    // the actual date in JS rather than trusting the model's date math,
-    // then creates ONE event via outlook_create_event.
+    // Same fix as above, applied to the calendar side: opens Outlook
+    // Web's "New event" compose screen instead of calling
+    // outlook_create_event through the broken MCP connector.
     container.querySelectorAll('.ta-schedule-btn').forEach(schbtn => {
       const runSchedule = () => {
         const daysStr = window.prompt('Schedule a follow-up in how many days?', '3');
@@ -13440,17 +13440,24 @@ Tommie McLaren`
         const m = fullText.match(/^Subject:\s*(.+)\n/);
         const refSubject = m ? m[1] : fullText.slice(0, 60);
         const clientLabel = taState.clientName || 'client';
-        const dateStr = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
-        schbtn.disabled = true; const origLabel = schbtn.textContent; schbtn.textContent = 'Scheduling…';
-        const note = `Create ONE calendar event using outlook_create_event: subject "Follow up — ${escapeHtml(clientLabel)}", date ${dateStr}, time 10:00, 30 minutes long, showAs 'busy', no attendees. Body: a one-line reminder referencing "${refSubject}". If the signed-in user's timezone isn't otherwise known, use a reasonable default (e.g. America/Toronto). After creating it, briefly confirm the date back to the DE.`;
-        callClaudeAI([{ role: 'user', content: 'Schedule this follow-up.' }], note, [TA_CALENDAR_MCP]).then(result => {
-          schbtn.disabled = false; schbtn.textContent = origLabel;
-          if (result.error) { addErrorWithRetry(result.error, runSchedule); return; }
-          addMsg('bot', escapeHtml(result.text), true);
-        }).catch(e => {
-          schbtn.disabled = false; schbtn.textContent = origLabel;
-          addErrorWithRetry("Something unexpected broke while scheduling that: " + (e && e.message ? e.message : String(e)), runSchedule);
+        const start = new Date();
+        start.setDate(start.getDate() + days);
+        start.setHours(10, 0, 0, 0);
+        const end = new Date(start.getTime() + 30 * 60000);
+        const p = n => String(n).padStart(2, '0');
+        const localIso = d => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+        const params = new URLSearchParams({
+          path: '/calendar/action/compose',
+          rru: 'addevent',
+          subject: `Follow up — ${clientLabel}`,
+          startdt: localIso(start),
+          enddt: localIso(end),
+          body: `Reminder re: "${refSubject}"`
         });
+        const win = window.open(`https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`, '_blank', 'noopener');
+        addMsg('bot', win
+          ? `Opened Outlook for a follow-up on ${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} — check the new tab and tap Save.`
+          : "Your browser blocked that popup — allow popups for this page and tap the button again.", true);
       };
       schbtn.addEventListener('click', runSchedule);
     });
