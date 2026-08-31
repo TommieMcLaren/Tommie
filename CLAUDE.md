@@ -594,6 +594,53 @@ placeholder for):
   correctly in a real browser, and how a genuine TMT URL looks/behaves
   once clicked, haven't been seen outside this environment.
 
+## Client Tracker: click-to-open profile view (Aug 2026, unverified live)
+
+Direct response to the first real screenshot of the panel: with
+destination/itinerary/TMT/phone/email/notes/actions all stacked on every
+card at once (from the two features above), the list read as cluttered.
+Fix was a list/detail split, not a slimmer version of the same crowded
+card:
+
+- **`ctCardHTML()` cut back to three things**: name, status/overdue
+  flags, and the one line that actually drives the urgency grouping
+  (last contact · next follow-up). Everything else — destination,
+  itinerary, TMT link, phone, email, notes, and every action button —
+  moved off the card entirely.
+- **New profile view (`ctRenderDetail()` / `#ct-detail`)**, opened by
+  clicking anywhere on a card (`data-open` on the whole card, one
+  listener in `ctRender()`'s wiring instead of three separate
+  data-edit/data-delete/data-outlook ones). Shows the full record in
+  labeled sections (Trip, Contact, Follow-up, Notes) plus real actions:
+  📞 phone and ✉️ email are live `tel:`/`mailto:` links, the itinerary
+  and TMT link open in a new tab (through the same `ctSafeHref()` gate
+  as before — TMT is still free-typed by the DE), and "📅 Add to
+  Outlook" moved down here from the old inline card button. A header
+  row above the profile carries "← Back to list", "✏️ Edit", and
+  "🗑️ Delete" — Edit still opens the existing `#ct-form-panel` (now
+  re-renders the profile after save so it reflects the edit immediately
+  rather than needing a re-open), Delete closes the profile and returns
+  to the list.
+- Toolbar (search/filter/+Add) hides while a profile is open — a
+  deliberate drill-down feel (list screen vs. profile screen) rather
+  than search/filter controls sitting uselessly above a single client's
+  detail. Closing the whole panel (✕ or backdrop click) now also resets
+  back to list view, so reopening the tracker later doesn't land on
+  whatever profile was last open.
+- Logic-tested in Node (a stubbed `document.getElementById` returning
+  fake elements, since this needed real DOM mutation rather than a pure
+  string-return function like `ctCardHTML`): a full profile render with
+  every field populated (itinerary + TMT links present as real anchors,
+  phone/email as `tel:`/`mailto:`), an XSS probe across every field at
+  once (`<script>` in name, `onerror=` in destination, an SVG-onload
+  payload in notes, `<script>` fragments in phone/email, a `javascript:`
+  TMT link) — all inert, and an unknown/stale `ctDetailId` correctly
+  falls back to `ctCloseDetail()` instead of throwing.
+- **Unverified live, same as the rest of this panel**: the actual
+  click-to-open feel, the hover affordance on cards, and how the
+  section-based profile layout reads in a real browser haven't been
+  seen outside this environment — check those first.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
