@@ -454,6 +454,32 @@ instead of needing its own.
   actual "Add to Outlook" call has not been exercised against a real
   Outlook account from this environment — check that first, along with how
   the panel looks/behaves in a real browser at various widths.
+- **"Add to Outlook" confirmed broken live (Aug 2026), root cause not yet
+  found.** DE reported it didn't work; no error text was captured yet, so
+  the actual failure mode (auth, MCP wiring, something else) is still
+  unconfirmed — see "Still open" below for the leading theory and how to
+  get the diagnostic info needed to actually fix it.
+- **Browser-notification reminders added** as a same-tab-only stand-in
+  while Outlook is broken. New 🔕/🔔/🚫 bell button in `#ct-head` —
+  `Notification.requestPermission()` (must fire from the click itself, a
+  real user gesture, or browsers silently ignore/block it) then
+  `ctCheckDueReminders()` fires a `Notification` for every non-Closed
+  client whose `nextFollowUp` is today or earlier, deduped per
+  client-per-day via `localStorage['kt-client-tracker:notified:v1']` so
+  reopening the panel doesn't re-fire the same reminder. Runs on panel
+  open, once on page load if permission is already granted, and every 5
+  minutes on a `setInterval` while the tab stays open (catches a
+  follow-up going overdue, or a day rolling over, during a long session).
+  **Real, load-bearing limitation, not a bug**: this is a static file with
+  no server and no service worker, so these can only fire while this tab
+  is open in a browser — closing the tab or the browser means no
+  reminder, unlike a true push notification. Once Outlook is confirmed
+  working, that's the reminder that survives the tab being closed; this
+  is the gap-filler for right now. Logic-tested in Node against synthetic
+  clients (mocked `Notification`/`localStorage`): overdue + due-today
+  correctly notify, future/closed/no-date clients correctly don't, a
+  second same-day check correctly doesn't re-fire, and permission not
+  granted correctly no-ops.
 
 ## Design decisions to preserve, not "helpfully" change
 
@@ -475,6 +501,23 @@ instead of needing its own.
   (see "Live-AI upgrade" below) but still never successfully test-called live.
 - The round-cap-to-7 fix and personal-recommendations layer are logic-tested
   but not yet observed end-to-end in a live model response in the actual app.
+- **Outlook MCP calls (Client Tracker's "Add to Outlook" and the Trip
+  Assistant's "Schedule follow-up"/draft buttons) confirmed broken live —
+  root cause not yet diagnosed.** Leading theory, unconfirmed: this file's
+  `TA_CALENDAR_MCP` points at Anthropic's hosted remote MCP connector
+  (`microsoft365.mcp.claude.com`), and hosted remote connectors normally
+  require a one-time OAuth consent flow linking the DE's own Microsoft 365
+  account — separate from, and in addition to, the Anthropic API key BYOK
+  covers. A plain `fetch()` with just `x-api-key` has no way to complete
+  that consent step, which would explain a consistent failure rather than
+  an intermittent one. **Not yet confirmed** — need the actual error
+  surfaced by `ctSetStatus()`/`addErrorWithRetry()` (or the DevTools
+  Network tab response body for the `api.anthropic.com/v1/messages` call)
+  to know if this is really an MCP-auth issue vs. something else (bad
+  `mcp_toolset` pairing, a expired/wrong beta header, a plain network
+  error). Get that error text before changing any of the MCP wiring code —
+  guessing at a fix here without it risks the same "reverted the model
+  twice, wasn't the model" dead end as the Aug 2026 tool-calling bug.
 
 ## Working in this file
 

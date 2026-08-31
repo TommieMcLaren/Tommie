@@ -14544,8 +14544,9 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
   #ct-head b { font-family: 'Playfair Display', serif; font-size: 17px; letter-spacing: 0.2px; }
   #ct-head span { display: block; font-size: 11px; opacity: 0.85; margin-top: 3px; line-height: 1.4; }
-  #ct-close { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 15px; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
-  #ct-close:hover { background: rgba(255,255,255,0.3); }
+  #ct-close, #ct-notify-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 15px; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
+  #ct-close:hover, #ct-notify-btn:hover { background: rgba(255,255,255,0.3); }
+  #ct-notify-btn.on { background: rgba(255,255,255,0.32); }
 
   #ct-toolbar { display: flex; gap: 8px; padding: 12px 14px 0; flex-shrink: 0; }
   #ct-search {
@@ -14640,7 +14641,8 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
 
 <div id="ct-panel">
   <div id="ct-head">
-    <div><b>Client Tracker</b><span>Every active client, sorted by who needs you next</span></div>
+    <div><b>Client Tracker</b><span id="ct-head-subtitle">Every active client, sorted by who needs you next</span></div>
+    <button type="button" id="ct-notify-btn" title="Browser reminders when a follow-up is due">🔕</button>
     <button type="button" id="ct-close" aria-label="Close">✕</button>
   </div>
   <div id="ct-toolbar">
@@ -14962,11 +14964,70 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     });
   }
 
+  // Browser desktop-notification reminders for due/overdue follow-ups.
+  // Real limitation, not a bug: this is a plain static file with no
+  // server and no service worker, so these can only fire while this tab
+  // is actually open in a browser — closing the browser (or the tab)
+  // means no reminder, unlike a real push notification. That's the
+  // tradeoff for "no backend, works from a downloaded file." The
+  // "Add to Outlook" button remains the way to get a reminder that
+  // survives the tab being closed (via Outlook's own notifications),
+  // once that's confirmed working.
+  const CT_NOTIFIED_KEY = 'kt-client-tracker:notified:v1';
+
+  function ctRefreshNotifyUI() {
+    const btn = document.getElementById('ct-notify-btn');
+    if (!('Notification' in window)) {
+      btn.textContent = '🔕';
+      btn.title = "This browser doesn't support notifications.";
+      btn.classList.remove('on');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      btn.textContent = '🔔';
+      btn.title = 'Reminders on — you\'ll get a browser notification when a follow-up is due, while this tab is open.';
+      btn.classList.add('on');
+    } else if (Notification.permission === 'denied') {
+      btn.textContent = '🚫';
+      btn.title = 'Notifications blocked for this page in your browser settings — re-enable them there to use reminders.';
+      btn.classList.remove('on');
+    } else {
+      btn.textContent = '🔕';
+      btn.title = 'Tap to turn on browser reminders for due follow-ups.';
+      btn.classList.remove('on');
+    }
+  }
+
+  function ctCheckDueReminders() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    let notified;
+    try { notified = JSON.parse(localStorage.getItem(CT_NOTIFIED_KEY) || '{}'); }
+    catch (e) { notified = {}; }
+    const today = ctTodayISO();
+    let changed = false;
+    ctClients.forEach(c => {
+      if (c.status === 'Closed' || !c.nextFollowUp) return;
+      if (ctDaysBetween(c.nextFollowUp) > 0) return; // not due yet
+      if (notified[c.id] === today) return; // already reminded today
+      const overdueBy = ctDaysBetween(c.nextFollowUp);
+      const body = overdueBy < 0
+        ? `Follow-up was due ${ctFormatDate(c.nextFollowUp)} — ${Math.abs(overdueBy)} day${Math.abs(overdueBy) === 1 ? '' : 's'} overdue.`
+        : 'Follow-up is due today.';
+      try { new Notification('📋 ' + c.name, { body, tag: 'ct-' + c.id }); } catch (e) { /* e.g. blocked mid-session */ }
+      notified[c.id] = today;
+      changed = true;
+    });
+    if (changed) {
+      try { localStorage.setItem(CT_NOTIFIED_KEY, JSON.stringify(notified)); } catch (e) {}
+    }
+  }
+
   const ctBtn = document.getElementById('ct-btn');
   const ctPanel = document.getElementById('ct-panel');
   ctBtn.addEventListener('click', () => {
     ctPanel.classList.add('open');
     requestAnimationFrame(() => ctPanel.classList.add('shown'));
+    ctCheckDueReminders();
   });
   document.getElementById('ct-close').addEventListener('click', () => {
     ctPanel.classList.remove('shown');
@@ -14980,8 +15041,31 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   document.getElementById('ct-f-name').addEventListener('input', () => {
     document.getElementById('ct-err-name').style.display = 'none';
   });
+  document.getElementById('ct-notify-btn').addEventListener('click', () => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      // Must be triggered by a real user gesture (this click) — browsers
+      // silently ignore/ auto-deny a requestPermission() call that isn't.
+      Notification.requestPermission().then(() => {
+        ctRefreshNotifyUI();
+        if (Notification.permission === 'granted') {
+          new Notification('📋 Reminders on', { body: "You'll be notified here when a client follow-up is due, as long as this tab stays open." });
+          ctCheckDueReminders();
+        }
+      });
+    } else if (Notification.permission === 'denied') {
+      ctSetStatus('Notifications are blocked for this page — check your browser\'s site settings to re-enable them.');
+    }
+    // Already granted: nothing to do, the button just reflects status.
+  });
 
   ctLoadData();
+  ctRefreshNotifyUI();
+  ctCheckDueReminders();
+  // Re-check periodically while the tab stays open, so a follow-up that
+  // becomes due mid-session (or a day rolling over overnight on a tab
+  // left open) still gets caught without the panel being reopened.
+  setInterval(ctCheckDueReminders, 5 * 60 * 1000);
 })();
 </script>
 
