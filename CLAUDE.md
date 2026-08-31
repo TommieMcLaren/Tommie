@@ -723,6 +723,28 @@ rather than the compact card (keeping the earlier declutter work intact):
   in one form even when collapsed, and the tab row's wrapping behavior
   on a narrower window — none of this has been seen in a real browser
   from this environment.
+- **Confirmed broken live, root cause found and fixed (Aug 2026):** the
+  Edit form got visibly cut off partway through the "Client Details"
+  section with no scrollbar — the underlying page was visible below the
+  panel instead. Root cause: `#ct-panel` is a fixed-height
+  (`min(780px, 100%)`) flex column with `overflow: hidden`.
+  `#ct-form-panel` had no scroll of its own and wasn't a `flex: 1`
+  child, so once the six new intake sections made its natural content
+  taller than the space left after the header/toolbar/tabs, it just
+  overflowed the column and `#ct-panel`'s `overflow: hidden` clipped it
+  — no scrollbar anywhere, content silently unreachable below the fold.
+  `#ct-list`/`#ct-detail` each having their own `flex: 1` +
+  `overflow-y: auto` didn't help, since the form panel was a sibling,
+  not something either of them wrapped. Fixed by wrapping
+  `#ct-form-panel`/`#ct-list`/`#ct-detail` together in one new
+  `#ct-body` region (`flex: 1; min-height: 0; overflow-y: auto;`) that's
+  the actual scrolling area now, regardless of which of the three is
+  showing. The `min-height: 0` matters — a flex item's default
+  `min-height: auto` can otherwise block it from shrinking below its
+  content's natural size, which would silently defeat the scroll fix.
+  **Unverified live**: the actual scroll behavior with this fix in a
+  real browser — check that the Edit form (with a section or two
+  expanded) now scrolls all the way to the Save/Cancel buttons.
 
 ## Design decisions to preserve, not "helpfully" change
 
