@@ -179,6 +179,73 @@
   .pending-card .actions button { flex: 1; }
   .btn-approve { background: var(--good); color: #04331f; border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
   .btn-reject { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; }
+
+  /* Graph view */
+  :root {
+    --node-task: #4fd1ff;
+    --node-note: #8b7bff;
+    --node-tag: #3fe0a5;
+    --node-email: #ff6fa5;
+    --node-file: #ffb454;
+    --node-folder: #e6f1ff;
+  }
+  #view-graph { position: relative; background: radial-gradient(ellipse at center, #0a1420 0%, var(--bg) 70%); }
+  #graphToolbar {
+    position: absolute; top: 14px; left: 14px; z-index: 5; display: flex; gap: 8px;
+  }
+  #graphToolbar button { background: rgba(11,17,25,.85); border: 1px solid var(--border); color: var(--text); border-radius: 20px; padding: 7px 14px; cursor: pointer; font-size: 12.5px; backdrop-filter: blur(4px); }
+  #graphToolbar button.active { border-color: var(--accent); color: var(--accent); }
+  #graphCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  #graphCanvas.dragging { cursor: grabbing; }
+  #graphLegend {
+    position: absolute; top: 14px; right: 14px; z-index: 5; width: 190px;
+    background: rgba(11,17,25,.85); border: 1px solid var(--border); border-radius: 12px; padding: 12px; backdrop-filter: blur(4px);
+    font-size: 12.5px; max-height: calc(100% - 28px); overflow-y: auto;
+  }
+  #graphLegend .legend-title { color: var(--muted); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  #graphLegend .legend-row { display: flex; align-items: center; gap: 8px; padding: 5px 2px; cursor: pointer; user-select: none; }
+  #graphLegend .legend-row.off { opacity: .35; }
+  #graphLegend .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  #graphLegend .legend-count { margin-left: auto; color: var(--muted); }
+  #graphEmpty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13.5px; text-align: center; padding: 40px; }
+  #graphInfoPanel {
+    position: absolute; bottom: 14px; left: 14px; z-index: 5; width: 260px;
+    background: rgba(11,17,25,.92); border: 1px solid var(--accent); border-radius: 12px; padding: 14px; backdrop-filter: blur(4px);
+    display: none;
+  }
+  #graphInfoPanel.show { display: block; }
+  #graphInfoPanel .gi-type { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+  #graphInfoPanel .gi-label { font-size: 14px; margin: 6px 0 10px; word-break: break-word; }
+  #graphInfoPanel button { width: 100%; }
+
+  /* Jarvis radial HUD (persistent, floats over every tab) */
+  #jarvisHud {
+    position: fixed; right: 20px; bottom: 20px; z-index: 100;
+    width: 96px; height: 96px; cursor: pointer; user-select: none;
+  }
+  #jarvisHud svg { width: 100%; height: 100%; overflow: visible; }
+  #jarvisHud .hud-ring-bg { fill: none; stroke: var(--border); stroke-width: 2; }
+  #jarvisHud .hud-ring-fg { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; transform-origin: center; transition: stroke .3s; }
+  #jarvisHud .hud-dashes { fill: none; stroke: var(--accent-dim); stroke-width: 1; stroke-dasharray: 2 6; animation: hud-spin 30s linear infinite; transform-origin: center; }
+  #jarvisHud.listening .hud-ring-fg { stroke: var(--danger); animation: hud-pulse 1.1s ease-in-out infinite; }
+  #jarvisHud.thinking .hud-ring-fg { stroke: var(--accent2); animation: hud-spin 1.4s linear infinite; }
+  #jarvisHud.speaking .hud-ring-fg { stroke: var(--good); animation: hud-pulse .7s ease-in-out infinite; }
+  #jarvisHud .hud-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+  #jarvisHud .hud-title { font-size: 9px; letter-spacing: 2px; color: var(--accent); font-weight: 700; }
+  #jarvisHud .hud-status { font-size: 8px; letter-spacing: 1px; color: var(--muted); margin-top: 2px; text-transform: uppercase; }
+  #jarvisHudBubble {
+    position: fixed; right: 128px; bottom: 30px; z-index: 100; max-width: 260px;
+    background: var(--panel2); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px;
+    font-size: 12.5px; line-height: 1.4; display: none; box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  }
+  #jarvisHudBubble.show { display: block; }
+  @keyframes hud-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes hud-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  @media (max-width: 720px) {
+    #jarvisHud { width: 72px; height: 72px; right: 14px; bottom: 14px; }
+    #jarvisHudBubble { right: 14px; bottom: 96px; max-width: calc(100% - 28px); }
+    #graphLegend { width: 150px; }
+  }
 </style>
 </head>
 <body>
@@ -193,6 +260,7 @@
 <div class="layout">
   <nav class="sidebar" id="sidebar">
     <button data-view="chat" class="active">&#128172; Chat</button>
+    <button data-view="graph">&#128300; Graph</button>
     <button data-view="tasks">&#9989; Tasks <span class="badge" id="taskBadge">0</span></button>
     <button data-view="notes">&#128221; Notes <span class="badge" id="noteBadge">0</span></button>
     <button data-view="inbox">&#128233; Inbox <span class="badge" id="inboxBadge">off</span></button>
@@ -209,6 +277,21 @@
         <button id="micBtn" title="Voice input">&#127908;</button>
         <input type="text" id="textInput" placeholder="Ask Jarvis anything, or give it a task to remember..." autocomplete="off">
         <button id="sendBtn">Send</button>
+      </div>
+    </section>
+
+    <section class="view" id="view-graph">
+      <div id="graphToolbar">
+        <button id="graphFitBtn">&#9678; Fit</button>
+        <button id="graphLabelsBtn">Aa Labels</button>
+      </div>
+      <div id="graphLegend"><div class="legend-title">Show</div><div id="graphLegendRows"></div></div>
+      <canvas id="graphCanvas"></canvas>
+      <div id="graphEmpty">Nothing to show yet — add a task or note, connect Outlook, or connect a work folder, and it'll show up here as a node.</div>
+      <div id="graphInfoPanel">
+        <div class="gi-type" id="giType"></div>
+        <div class="gi-label" id="giLabel"></div>
+        <button class="icon-btn" id="giGoBtn">Open</button>
       </div>
     </section>
 
@@ -346,6 +429,19 @@
     </section>
 
   </main>
+</div>
+
+<div id="jarvisHudBubble"></div>
+<div id="jarvisHud" title="Click to talk to Jarvis">
+  <svg viewBox="0 0 100 100">
+    <circle class="hud-dashes" cx="50" cy="50" r="46"></circle>
+    <circle class="hud-ring-bg" cx="50" cy="50" r="38"></circle>
+    <circle class="hud-ring-fg" id="hudRingFg" cx="50" cy="50" r="38" stroke-dasharray="239" stroke-dashoffset="60"></circle>
+  </svg>
+  <div class="hud-label">
+    <div class="hud-title">J.A.R.V.I.S.</div>
+    <div class="hud-status" id="hudStatusText">idle</div>
+  </div>
 </div>
 
 <!-- MSAL Browser (Microsoft's official SPA auth library) — pin/verify this version against
@@ -583,6 +679,7 @@
     var navBtn = document.querySelector('nav.sidebar button[data-view="' + name + '"]');
     if (navBtn) navBtn.classList.add("active");
     $("sidebar").classList.remove("open");
+    if (name === "graph" && typeof resizeGraphCanvas === "function") resizeGraphCanvas();
   }
 
   // ---------- Chat rendering ----------
@@ -601,6 +698,9 @@
     }
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
+    if (role === "assistant" && !opts.retry && typeof showHudBubble === "function") {
+      showHudBubble(text.length > 220 ? text.slice(0, 220) + "…" : text);
+    }
     return div;
   }
 
@@ -668,7 +768,7 @@
         return { now_iso: now.toISOString(), now_local: now.toString(), day_of_week: now.toLocaleDateString(undefined, { weekday: "long" }) };
       }
       case "add_task": {
-        var task = { id: uid(), title: input.title, due: input.due || null, done: false, createdAt: new Date().toISOString() };
+        var task = { id: uid(), title: input.title, due: input.due || null, done: false, createdAt: new Date().toISOString(), sourceEmailId: input.sourceEmailId || null };
         state.tasks.push(task);
         saveState(); renderTasks();
         return { ok: true, task: task };
@@ -1017,6 +1117,7 @@
   $("disconnectOutlookBtn").addEventListener("click", disconnectOutlook);
 
   function renderInboxList(emails) {
+    lastEmails = emails || [];
     var wrap = $("inboxList");
     wrap.innerHTML = "";
     if (!emails || emails.length === 0) { wrap.innerHTML = '<div class="empty">No emails loaded yet.</div>'; return; }
@@ -1045,7 +1146,7 @@
       taskBtn.textContent = "+ Task";
       taskBtn.title = "Add a task referencing this email";
       taskBtn.onclick = function () {
-        executeTool("add_task", { title: "Follow up: " + m.subject + " (from " + (m.fromName || m.from) + ")" });
+        executeTool("add_task", { title: "Follow up: " + m.subject + " (from " + (m.fromName || m.from) + ")", sourceEmailId: m.id });
         taskBtn.textContent = "Added ✓";
         taskBtn.disabled = true;
       };
@@ -1119,7 +1220,7 @@
     idbDelete("workFolderHandle").catch(function () {});
     updateFolderStatus();
     renderPendingEdits();
-    $("fileTreeWrap").innerHTML = "";
+    renderFileTree([]);
     $("filePreviewWrap").innerHTML = "";
     addToolNote("Work folder disconnected.");
   }
@@ -1198,6 +1299,7 @@
   }
 
   function renderFileTree(entries) {
+    lastFileEntries = entries || [];
     var wrap = $("fileTreeWrap");
     wrap.innerHTML = "";
     if (!entries || entries.length === 0) { wrap.innerHTML = '<div class="empty">No files found.</div>'; return; }
@@ -1278,6 +1380,304 @@
     renderPendingEdits();
   }
 
+  // ================= Graph visualization =================
+  var lastEmails = [];
+  var lastFileEntries = [];
+  var graphNodes = [];
+  var graphEdges = [];
+  var graphNodeIndex = {};
+  var graphFilters = {};
+  var graphView = { panX: 0, panY: 0, scale: 1 };
+  var graphSelected = null;
+  var graphCanvas = $("graphCanvas");
+  var graphCtx = graphCanvas.getContext("2d");
+  var showLabelsAlways = false;
+  var graphFrameCount = 0;
+
+  var NODE_COLORS = { task: "#4fd1ff", note: "#8b7bff", tag: "#3fe0a5", email: "#ff6fa5", file: "#ffb454", folder: "#e6f1ff" };
+  var NODE_TYPE_LABELS = { task: "Tasks", note: "Notes", tag: "Tags", email: "Emails", file: "Files", folder: "Folder" };
+
+  function buildGraphData() {
+    var nodes = [], edges = [], byId = {};
+    function addNode(id, type, label) {
+      if (byId[id]) return byId[id];
+      var prev = graphNodeIndex[id];
+      var n = {
+        id: id, type: type, label: label,
+        x: prev ? prev.x : (Math.random() - 0.5) * 300,
+        y: prev ? prev.y : (Math.random() - 0.5) * 300,
+        vx: prev ? prev.vx : 0,
+        vy: prev ? prev.vy : 0,
+        fixed: prev ? prev.fixed : false,
+        degree: 0
+      };
+      byId[id] = n; nodes.push(n);
+      return n;
+    }
+    function addEdge(aId, bId) {
+      if (!byId[aId] || !byId[bId]) return;
+      edges.push({ a: aId, b: bId, aNode: byId[aId], bNode: byId[bId] });
+      byId[aId].degree++; byId[bId].degree++;
+    }
+
+    state.notes.forEach(function (n) {
+      addNode("note:" + n.id, "note", n.text.slice(0, 40));
+      if (n.tag) {
+        var tagId = "tag:" + n.tag.toLowerCase();
+        addNode(tagId, "tag", n.tag);
+        addEdge(tagId, "note:" + n.id);
+      }
+    });
+    lastEmails.forEach(function (m) { addNode("email:" + m.id, "email", m.subject || "(no subject)"); });
+    state.tasks.forEach(function (t) {
+      if (t.done) return;
+      addNode("task:" + t.id, "task", t.title);
+      if (t.sourceEmailId) addEdge("email:" + t.sourceEmailId, "task:" + t.id);
+    });
+    if (lastFileEntries.length > 0) {
+      addNode("folder:root", "folder", workFolderHandle ? workFolderHandle.name : "Work folder");
+      lastFileEntries.forEach(function (e) {
+        if (e.kind !== "file") return;
+        addNode("file:" + e.path, "file", e.path);
+        addEdge("folder:root", "file:" + e.path);
+      });
+    }
+
+    graphNodes = nodes; graphEdges = edges; graphNodeIndex = byId;
+  }
+
+  function nodeRadius(n) { return Math.max(7, Math.min(26, 7 + n.degree * 2.2)); }
+  function truncateLabel(s, max) { return s.length > max ? s.slice(0, max - 1) + "…" : s; }
+
+  function simulateGraphStep() {
+    var REPULSION = 1800, SPRING = 0.02, IDEAL_LEN = 70, CENTER_PULL = 0.003, DAMPING = 0.82;
+    var nodes = graphNodes;
+    for (var i = 0; i < nodes.length; i++) {
+      var a = nodes[i];
+      if (a.fixed) continue;
+      var fx = 0, fy = 0;
+      for (var j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        var b = nodes[j];
+        var dx = a.x - b.x, dy = a.y - b.y;
+        var distSq = dx * dx + dy * dy || 0.01;
+        if (distSq > 90000) continue;
+        var dist = Math.sqrt(distSq);
+        var force = REPULSION / distSq;
+        fx += (dx / dist) * force; fy += (dy / dist) * force;
+      }
+      fx += -a.x * CENTER_PULL; fy += -a.y * CENTER_PULL;
+      a.vx = (a.vx + fx) * DAMPING; a.vy = (a.vy + fy) * DAMPING;
+    }
+    graphEdges.forEach(function (e) {
+      var a = e.aNode, b = e.bNode;
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      var diff = dist - IDEAL_LEN;
+      var fx = (dx / dist) * diff * SPRING, fy = (dy / dist) * diff * SPRING;
+      if (!a.fixed) { a.vx += fx; a.vy += fy; }
+      if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
+    });
+    nodes.forEach(function (n) { if (n.fixed) return; n.x += n.vx; n.y += n.vy; });
+  }
+
+  function resizeGraphCanvas() {
+    var rect = graphCanvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    graphCanvas.width = Math.max(1, rect.width * dpr);
+    graphCanvas.height = Math.max(1, rect.height * dpr);
+    graphCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawGraph() {
+    var rect = graphCanvas.getBoundingClientRect();
+    graphCtx.clearRect(0, 0, rect.width, rect.height);
+    graphCtx.save();
+    graphCtx.translate(rect.width / 2 + graphView.panX, rect.height / 2 + graphView.panY);
+    graphCtx.scale(graphView.scale, graphView.scale);
+
+    graphCtx.strokeStyle = "rgba(125,147,173,0.25)";
+    graphCtx.lineWidth = 1 / graphView.scale;
+    graphEdges.forEach(function (e) {
+      if (!graphFilters[e.aNode.type] || !graphFilters[e.bNode.type]) return;
+      graphCtx.beginPath();
+      graphCtx.moveTo(e.aNode.x, e.aNode.y);
+      graphCtx.lineTo(e.bNode.x, e.bNode.y);
+      graphCtx.stroke();
+    });
+
+    graphNodes.forEach(function (n) {
+      if (!graphFilters[n.type]) return;
+      var r = nodeRadius(n);
+      var isSelected = graphSelected === n.id;
+      graphCtx.beginPath();
+      graphCtx.fillStyle = NODE_COLORS[n.type] || "#888";
+      graphCtx.shadowColor = NODE_COLORS[n.type] || "#888";
+      graphCtx.shadowBlur = isSelected ? 22 : 10;
+      graphCtx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      graphCtx.fill();
+      graphCtx.shadowBlur = 0;
+      if (isSelected) {
+        graphCtx.lineWidth = 2 / graphView.scale;
+        graphCtx.strokeStyle = "#fff";
+        graphCtx.stroke();
+      }
+      if (showLabelsAlways || isSelected || graphView.scale > 1.3 || r > 16) {
+        graphCtx.fillStyle = "#e6f1ff";
+        graphCtx.font = (12 / graphView.scale) + "px -apple-system, sans-serif";
+        graphCtx.textAlign = "center";
+        graphCtx.fillText(truncateLabel(n.label, 22), n.x, n.y + r + 12 / graphView.scale);
+      }
+    });
+    graphCtx.restore();
+  }
+
+  function updateGraphLegend() {
+    var counts = {};
+    graphNodes.forEach(function (n) { counts[n.type] = (counts[n.type] || 0) + 1; });
+    var wrap = $("graphLegendRows");
+    wrap.innerHTML = "";
+    Object.keys(NODE_TYPE_LABELS).forEach(function (type) {
+      if (!counts[type]) return;
+      if (!(type in graphFilters)) graphFilters[type] = true;
+      var row = document.createElement("div");
+      row.className = "legend-row" + (graphFilters[type] ? "" : " off");
+      var dot = document.createElement("span"); dot.className = "legend-dot"; dot.style.background = NODE_COLORS[type];
+      var label = document.createElement("span"); label.textContent = NODE_TYPE_LABELS[type];
+      var count = document.createElement("span"); count.className = "legend-count"; count.textContent = counts[type];
+      row.appendChild(dot); row.appendChild(label); row.appendChild(count);
+      row.onclick = function () { graphFilters[type] = !graphFilters[type]; updateGraphLegend(); };
+      wrap.appendChild(row);
+    });
+  }
+
+  function updateGraphEmptyState() {
+    $("graphEmpty").style.display = graphNodes.length === 0 ? "flex" : "none";
+  }
+
+  function screenToGraph(clientX, clientY) {
+    var rect = graphCanvas.getBoundingClientRect();
+    var sx = clientX - rect.left, sy = clientY - rect.top;
+    return {
+      x: (sx - rect.width / 2 - graphView.panX) / graphView.scale,
+      y: (sy - rect.height / 2 - graphView.panY) / graphView.scale
+    };
+  }
+  function findNodeAt(gx, gy) {
+    for (var i = graphNodes.length - 1; i >= 0; i--) {
+      var n = graphNodes[i];
+      if (!graphFilters[n.type]) continue;
+      var r = nodeRadius(n);
+      var dx = gx - n.x, dy = gy - n.y;
+      if (dx * dx + dy * dy <= r * r) return n;
+    }
+    return null;
+  }
+
+  function selectGraphNode(node) {
+    graphSelected = node ? node.id : null;
+    var panel = $("graphInfoPanel");
+    if (!node) { panel.classList.remove("show"); return; }
+    panel.classList.add("show");
+    $("giType").textContent = NODE_TYPE_LABELS[node.type] || node.type;
+    $("giLabel").textContent = node.label;
+    $("giGoBtn").onclick = function () { openGraphNode(node); };
+  }
+  function openGraphNode(node) {
+    var type = node.id.split(":")[0];
+    if (type === "task") showView("tasks");
+    else if (type === "note" || type === "tag") showView("notes");
+    else if (type === "email") showView("inbox");
+    else if (type === "file" || type === "folder") showView("workfolder");
+  }
+
+  var graphDragMode = null, graphDragNode = null, graphMouseDownClient = null, graphPanStart = { x: 0, y: 0 };
+  graphCanvas.addEventListener("mousedown", function (ev) {
+    graphMouseDownClient = { x: ev.clientX, y: ev.clientY };
+    var p = screenToGraph(ev.clientX, ev.clientY);
+    var hit = findNodeAt(p.x, p.y);
+    if (hit) { graphDragMode = "node"; graphDragNode = hit; hit.fixed = true; }
+    else { graphDragMode = "pan"; graphPanStart = { x: graphView.panX, y: graphView.panY }; }
+    graphCanvas.classList.add("dragging");
+  });
+  window.addEventListener("mousemove", function (ev) {
+    if (graphDragMode === "node" && graphDragNode) {
+      var p = screenToGraph(ev.clientX, ev.clientY);
+      graphDragNode.x = p.x; graphDragNode.y = p.y; graphDragNode.vx = 0; graphDragNode.vy = 0;
+    } else if (graphDragMode === "pan" && graphMouseDownClient) {
+      graphView.panX = graphPanStart.x + (ev.clientX - graphMouseDownClient.x);
+      graphView.panY = graphPanStart.y + (ev.clientY - graphMouseDownClient.y);
+    }
+  });
+  window.addEventListener("mouseup", function () {
+    if (graphDragMode === "node" && graphDragNode) graphDragNode.fixed = false;
+    graphDragMode = null; graphDragNode = null;
+    graphCanvas.classList.remove("dragging");
+  });
+  graphCanvas.addEventListener("click", function (ev) {
+    if (graphMouseDownClient) {
+      var dx = ev.clientX - graphMouseDownClient.x, dy = ev.clientY - graphMouseDownClient.y;
+      graphMouseDownClient = null;
+      if (dx * dx + dy * dy > 25) return;
+    }
+    var p = screenToGraph(ev.clientX, ev.clientY);
+    selectGraphNode(findNodeAt(p.x, p.y));
+  });
+  graphCanvas.addEventListener("wheel", function (ev) {
+    ev.preventDefault();
+    var factor = ev.deltaY < 0 ? 1.1 : 0.9;
+    graphView.scale = Math.max(0.25, Math.min(3, graphView.scale * factor));
+  }, { passive: false });
+
+  $("graphFitBtn").addEventListener("click", function () {
+    if (graphNodes.length === 0) return;
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    graphNodes.forEach(function (n) {
+      if (!graphFilters[n.type]) return;
+      minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+      minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+    });
+    if (!isFinite(minX)) return;
+    var rect = graphCanvas.getBoundingClientRect();
+    var w = maxX - minX || 100, h = maxY - minY || 100;
+    graphView.scale = Math.min(3, Math.max(0.25, Math.min(rect.width / (w + 120), rect.height / (h + 120))));
+    graphView.panX = -((minX + maxX) / 2) * graphView.scale;
+    graphView.panY = -((minY + maxY) / 2) * graphView.scale;
+  });
+  $("graphLabelsBtn").addEventListener("click", function () {
+    showLabelsAlways = !showLabelsAlways;
+    this.classList.toggle("active", showLabelsAlways);
+  });
+  window.addEventListener("resize", function () {
+    if ($("view-graph").classList.contains("active")) resizeGraphCanvas();
+  });
+
+  function graphTick() {
+    requestAnimationFrame(graphTick);
+    if (!$("view-graph").classList.contains("active")) return;
+    graphFrameCount++;
+    if (graphFrameCount % 20 === 1) buildGraphData();
+    simulateGraphStep();
+    drawGraph();
+    if (graphFrameCount % 20 === 1) { updateGraphLegend(); updateGraphEmptyState(); }
+  }
+
+  // ================= Jarvis radial HUD =================
+  var hudState = "idle";
+  function setHudState(newState, statusText) {
+    hudState = newState;
+    $("jarvisHud").className = newState === "idle" ? "" : newState;
+    $("hudStatusText").textContent = statusText || newState;
+  }
+  function showHudBubble(text) {
+    var b = $("jarvisHudBubble");
+    b.textContent = text;
+    b.classList.add("show");
+    clearTimeout(showHudBubble._t);
+    showHudBubble._t = setTimeout(function () { b.classList.remove("show"); }, 7000);
+  }
+  $("jarvisHud").addEventListener("click", function () { startListening(); });
+
   // ---------- Voices ----------
   var availableVoices = [];
   function populateVoices() {
@@ -1313,6 +1713,9 @@
     var voice = availableVoices.find(function (v) { return v.voiceURI === state.voiceURI; });
     if (voice) utter.voice = voice;
     utter.rate = state.rate; utter.pitch = state.pitch;
+    setHudState("speaking", "speaking");
+    utter.onend = function () { if (hudState === "speaking") setHudState("idle", "idle"); };
+    utter.onerror = utter.onend;
     window.speechSynthesis.speak(utter);
   }
 
@@ -1336,9 +1739,11 @@
     recognizer.maxAlternatives = 1;
     listening = true;
     micBtn.classList.add("listening");
+    setHudState("listening", "listening");
     recognizer.onresult = function (ev) {
       var transcript = ev.results[0][0].transcript;
       textInput.value = transcript;
+      showHudBubble('"' + transcript + '"');
       stopListening();
       send();
     };
@@ -1354,6 +1759,7 @@
   function stopListening() {
     listening = false;
     micBtn.classList.remove("listening");
+    if (hudState === "listening") setHudState("idle", "idle");
     if (recognizer) { try { recognizer.stop(); } catch (e) {} }
   }
   micBtn.addEventListener("click", startListening);
@@ -1559,9 +1965,13 @@
     div.textContent = "Jarvis is thinking…";
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
+    setHudState("thinking", "thinking");
     return div;
   }
-  function removeTypingIndicator(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+  function removeTypingIndicator(el) {
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    if (hudState === "thinking") setHudState("idle", "idle");
+  }
 
   // ---------- Send ----------
   function send() {
@@ -1615,6 +2025,7 @@
   updateFolderStatus();
   restoreOutlookSession();
   restoreWorkFolder();
+  requestAnimationFrame(graphTick);
   statusDot.className = "pulse-dot online";
 })();
 </script>
