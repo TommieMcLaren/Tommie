@@ -266,6 +266,7 @@
     <button data-view="notes">&#128221; Notes <span class="badge" id="noteBadge">0</span></button>
     <button data-view="inbox">&#128233; Inbox <span class="badge" id="inboxBadge">off</span></button>
     <button data-view="workfolder">&#128193; Work Folder <span class="badge" id="folderBadge">off</span></button>
+    <button data-view="automations">&#9889; Automations</button>
     <button data-view="settings">&#9881;&#65039; Settings</button>
   </nav>
 
@@ -334,6 +335,23 @@
           <button class="btn-danger" id="disconnectOutlookBtn" style="display:none;">Disconnect</button>
         </div>
         <div class="card-list" id="inboxList"></div>
+
+        <h2 style="margin-top:26px;">Upcoming (7 days)</h2>
+        <div class="hint">Calendar follow-ups — same Outlook connection as above.</div>
+        <div class="row"><button class="icon-btn" id="refreshCalendarBtn">Refresh calendar</button></div>
+        <div class="card-list" id="calendarList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-automations">
+      <div class="panel">
+        <h2>Automations</h2>
+        <div class="hint">Reusable templates for the things you do over and over — client onboarding, sending an itinerary, a standard follow-up. Write <code>{input}</code> anywhere you want a client/trip name filled in. Running one fills your message in Chat for you to review and send — Jarvis never sends anything on its own.</div>
+        <div class="row">
+          <input type="text" id="newPlaybookName" placeholder="Name, e.g. Send itinerary">
+          <button class="btn-primary" id="addPlaybookBtn">New</button>
+        </div>
+        <div class="card-list" id="playbookList"></div>
       </div>
     </section>
 
@@ -420,6 +438,11 @@
             <input type="checkbox" id="speakToggle" style="width:auto;">
           </div>
           <button class="icon-btn" id="previewVoiceBtn" style="margin-top:10px;">Preview voice</button>
+          <div class="toggle-row" style="margin-top:14px; border-top:1px solid var(--border); padding-top:14px;">
+            <span>Wake word — always listen for "Jarvis"</span>
+            <input type="checkbox" id="wakeWordToggle" style="width:auto;">
+          </div>
+          <div class="status-line">Best-effort — browser speech recognition varies, and this keeps the mic open continuously in this tab while enabled. Chrome/Edge only.</div>
         </fieldset>
 
         <fieldset>
@@ -461,7 +484,7 @@
   var ANTHROPIC_VERSION = "2023-06-01";
 
   var GRAPH_BASE = "https://graph.microsoft.com/v1.0";
-  var GRAPH_SCOPES = ["User.Read", "Mail.Read", "Mail.ReadWrite"];
+  var GRAPH_SCOPES = ["User.Read", "Mail.Read", "Mail.ReadWrite", "Calendars.ReadWrite"];
   var IGNORED_DIRS = { "node_modules": 1, ".git": 1, "dist": 1, "build": 1, ".next": 1, "__pycache__": 1, ".venv": 1 };
 
   var BASE_TOOLS = [
@@ -584,6 +607,25 @@
         },
         required: ["to", "subject", "body"]
       }
+    },
+    {
+      name: "list_upcoming_events",
+      description: "List the user's Outlook calendar events over the next N days.",
+      input_schema: { type: "object", properties: { days: { type: "integer", description: "How many days ahead, default 7, max 30." } } }
+    },
+    {
+      name: "create_calendar_event",
+      description: "Create a calendar event on the user's Outlook calendar — e.g. a client follow-up, a call, a reminder to check back in. This directly creates the event (unlike email, there is no 'send' step to skip).",
+      input_schema: {
+        type: "object",
+        properties: {
+          subject: { type: "string" },
+          start: { type: "string", description: "ISO 8601 datetime, e.g. 2026-09-05T14:00:00. Compute from get_current_datetime, never guess." },
+          end: { type: "string", description: "ISO 8601 datetime. If omitted, defaults to 30 minutes after start." },
+          notes: { type: "string", description: "Optional event body/notes." }
+        },
+        required: ["subject", "start"]
+      }
     }
   ];
 
@@ -631,7 +673,15 @@
       messages: [],
       surfacedBanner: false,
       msClientId: "",
-      msAccountId: ""
+      msAccountId: "",
+      wakeWordEnabled: false,
+      playbooks: [
+        {
+          id: "seed-onboarding",
+          name: "New client onboarding",
+          template: "Set up onboarding for {input}: add a note tagged {input} summarizing what we know so far, and add three tasks — send a welcome email, schedule a kickoff call, and confirm invoicing details — each mentioning {input} in the title."
+        }
+      ]
     };
   }
 
@@ -859,6 +909,23 @@
         return graphFetch("/me/messages", { method: "POST", body: JSON.stringify(payload) })
           .then(function (m) { return { ok: true, draft_id: m.id, note: "Saved to the Outlook Drafts folder. Not sent." }; });
       }
+      case "list_upcoming_events": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        return fetchUpcomingEvents(Math.min(input.days || 7, 30)).then(function (events) { return { events: events }; });
+      }
+      case "create_calendar_event": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        var start = input.start;
+        var end = input.end || new Date(new Date(start).getTime() + 30 * 60000).toISOString();
+        var evPayload = {
+          subject: input.subject,
+          start: { dateTime: start, timeZone: "UTC" },
+          end: { dateTime: end, timeZone: "UTC" },
+          body: { contentType: "Text", content: input.notes || "" }
+        };
+        return graphFetch("/me/events", { method: "POST", body: JSON.stringify(evPayload) })
+          .then(function (ev) { return { ok: true, event_id: ev.id, note: "Added to the user's Outlook calendar." }; });
+      }
 
       // ---- Work folder tools (async, File System Access API) ----
       case "list_workfolder_files": {
@@ -953,6 +1020,56 @@
     saveState(); renderNotes();
   });
 
+  // ---------- Automations / Playbooks ----------
+  function renderPlaybooks() {
+    var wrap = $("playbookList");
+    wrap.innerHTML = "";
+    if (state.playbooks.length === 0) { wrap.innerHTML = '<div class="empty">No automations yet.</div>'; return; }
+    state.playbooks.forEach(function (p) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.style.flexDirection = "column"; card.style.alignItems = "stretch";
+      var title = document.createElement("div"); title.className = "title"; title.style.fontWeight = "600"; title.textContent = p.name;
+      var templateBox = document.createElement("textarea");
+      templateBox.value = p.template;
+      templateBox.rows = 2;
+      templateBox.style.cssText = "width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0;resize:vertical;";
+      templateBox.onchange = function () { p.template = templateBox.value; saveState(); };
+      var actions = document.createElement("div");
+      actions.style.cssText = "display:flex;gap:8px;";
+      var runBtn = document.createElement("button"); runBtn.className = "btn-primary"; runBtn.textContent = "Run";
+      runBtn.onclick = function () { runPlaybook(p); };
+      var delBtn = document.createElement("button"); delBtn.className = "icon-btn"; delBtn.textContent = "Delete";
+      delBtn.onclick = function () {
+        state.playbooks = state.playbooks.filter(function (x) { return x.id !== p.id; });
+        saveState(); renderPlaybooks();
+      };
+      actions.appendChild(runBtn); actions.appendChild(delBtn);
+      card.appendChild(title); card.appendChild(templateBox); card.appendChild(actions);
+      wrap.appendChild(card);
+    });
+  }
+
+  function runPlaybook(p) {
+    var filled = p.template;
+    if (filled.indexOf("{input}") !== -1) {
+      var value = window.prompt('Fill in "{input}" for "' + p.name + '":', "");
+      if (value === null) return;
+      filled = filled.split("{input}").join(value);
+    }
+    textInput.value = filled;
+    showView("chat");
+    textInput.focus();
+  }
+
+  $("addPlaybookBtn").addEventListener("click", function () {
+    var name = $("newPlaybookName").value.trim();
+    if (!name) return;
+    state.playbooks.push({ id: uid(), name: name, template: "Write your template here — use {input} for a client/trip name." });
+    $("newPlaybookName").value = "";
+    saveState(); renderPlaybooks();
+  });
+
   // ---------- Settings panel ----------
   function initSettingsUI() {
     $("apiKeyInput").value = state.apiKey;
@@ -962,6 +1079,7 @@
     $("rateSlider").value = state.rate; $("rateVal").textContent = state.rate.toFixed(2);
     $("pitchSlider").value = state.pitch; $("pitchVal").textContent = state.pitch.toFixed(1);
     $("speakToggle").checked = state.speakReplies;
+    $("wakeWordToggle").checked = state.wakeWordEnabled;
     $("msClientIdInput").value = state.msClientId;
     $("redirectUriField").textContent = window.location.origin + window.location.pathname;
     updateApiStatusLine();
@@ -1044,6 +1162,7 @@
       saveState();
       updateOutlookStatus();
       fetchRecentEmails(10, false).then(renderInboxList).catch(function (e) { addToolNote("Could not load inbox: " + e.message); });
+      fetchUpcomingEvents(7).then(renderCalendarList).catch(function (e) { addToolNote("Could not load calendar: " + e.message); });
     }).catch(function (err) {
       addToolNote("Outlook connect failed: " + (err && err.message ? err.message : err));
     });
@@ -1098,6 +1217,40 @@
       .then(function (data) { return (data.value || []).map(simplifyEmail); });
   }
 
+  function fetchUpcomingEvents(days) {
+    var now = new Date();
+    var until = new Date(now.getTime() + (days || 7) * 86400000);
+    var url = "/me/calendarView?startDateTime=" + encodeURIComponent(now.toISOString()) + "&endDateTime=" + encodeURIComponent(until.toISOString())
+      + "&$select=id,subject,start,end,location&$orderby=start/dateTime&$top=25";
+    return graphFetch(url).then(function (data) {
+      return (data.value || []).map(function (ev) {
+        return { id: ev.id, subject: ev.subject, start: ev.start && ev.start.dateTime, end: ev.end && ev.end.dateTime, location: (ev.location && ev.location.displayName) || "" };
+      });
+    });
+  }
+
+  function renderCalendarList(events) {
+    lastEvents = events || [];
+    var wrap = $("calendarList");
+    wrap.innerHTML = "";
+    if (!events || events.length === 0) { wrap.innerHTML = '<div class="empty">No upcoming events loaded.</div>'; return; }
+    events.forEach(function (ev) {
+      var card = document.createElement("div");
+      card.className = "card";
+      var body = document.createElement("div"); body.className = "body";
+      var title = document.createElement("div"); title.className = "title"; title.textContent = ev.subject || "(no subject)";
+      var meta = document.createElement("div"); meta.className = "meta";
+      meta.textContent = (ev.start ? new Date(ev.start + "Z").toLocaleString() : "") + (ev.location ? " · " + ev.location : "");
+      body.appendChild(title); body.appendChild(meta);
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+  }
+  $("refreshCalendarBtn").addEventListener("click", function () {
+    if (!outlookConnected()) { addToolNote("Connect Outlook first."); return; }
+    fetchUpcomingEvents(7).then(renderCalendarList).catch(function (e) { addToolNote("Could not load calendar: " + e.message); });
+  });
+
   function updateOutlookStatus() {
     var connected = outlookConnected();
     $("outlookDot").className = "conn-dot" + (connected ? " on" : "");
@@ -1113,6 +1266,7 @@
     saveState();
     updateOutlookStatus();
     renderInboxList([]);
+    renderCalendarList([]);
     addToolNote("Outlook disconnected. Your Microsoft sign-in itself is untouched — this just stops Jarvis from using it.");
   }
   $("disconnectOutlookBtn").addEventListener("click", disconnectOutlook);
@@ -1383,6 +1537,7 @@
 
   // ================= Graph visualization =================
   var lastEmails = [];
+  var lastEvents = [];
   var lastFileEntries = [];
   var graphNodes = [];
   var graphEdges = [];
@@ -1395,8 +1550,8 @@
   var showLabelsAlways = false;
   var graphFrameCount = 0;
 
-  var NODE_COLORS = { task: "#4fd1ff", note: "#8b7bff", tag: "#3fe0a5", email: "#ff6fa5", file: "#ffb454", folder: "#e6f1ff" };
-  var NODE_TYPE_LABELS = { task: "Tasks", note: "Notes", tag: "Tags", email: "Emails", file: "Files", folder: "Folder" };
+  var NODE_COLORS = { task: "#4fd1ff", note: "#8b7bff", tag: "#3fe0a5", email: "#ff6fa5", event: "#ffe066", file: "#ffb454", folder: "#e6f1ff" };
+  var NODE_TYPE_LABELS = { task: "Tasks", note: "Notes", tag: "Tags", email: "Emails", event: "Calendar", file: "Files", folder: "Folder" };
 
   function buildGraphData() {
     var nodes = [], edges = [], byId = {};
@@ -1410,7 +1565,8 @@
         vx: prev ? prev.vx : 0,
         vy: prev ? prev.vy : 0,
         fixed: prev ? prev.fixed : false,
-        degree: 0
+        degree: 0,
+        bornAt: prev ? prev.bornAt : Date.now()
       };
       byId[id] = n; nodes.push(n);
       return n;
@@ -1430,6 +1586,7 @@
       }
     });
     lastEmails.forEach(function (m) { addNode("email:" + m.id, "email", m.subject || "(no subject)"); });
+    lastEvents.forEach(function (ev) { addNode("event:" + ev.id, "event", ev.subject || "(no subject)"); });
     state.tasks.forEach(function (t) {
       if (t.done) return;
       addNode("task:" + t.id, "task", t.title);
@@ -1507,10 +1664,12 @@
       graphCtx.stroke();
     });
 
+    var now = Date.now();
     graphNodes.forEach(function (n) {
       if (!graphFilters[n.type]) return;
       var r = nodeRadius(n);
       var isSelected = graphSelected === n.id;
+      var age = now - (n.bornAt || 0);
       graphCtx.beginPath();
       graphCtx.fillStyle = NODE_COLORS[n.type] || "#888";
       graphCtx.shadowColor = NODE_COLORS[n.type] || "#888";
@@ -1522,6 +1681,16 @@
         graphCtx.lineWidth = 2 / graphView.scale;
         graphCtx.strokeStyle = "#fff";
         graphCtx.stroke();
+      }
+      if (age >= 0 && age < 1600) {
+        var t = age / 1600;
+        graphCtx.beginPath();
+        graphCtx.arc(n.x, n.y, r + t * 20, 0, Math.PI * 2);
+        graphCtx.strokeStyle = NODE_COLORS[n.type] || "#888";
+        graphCtx.globalAlpha = 1 - t;
+        graphCtx.lineWidth = 2 / graphView.scale;
+        graphCtx.stroke();
+        graphCtx.globalAlpha = 1;
       }
       if (showLabelsAlways || isSelected || graphView.scale > 1.3 || r > 16) {
         graphCtx.fillStyle = "#e6f1ff";
@@ -1588,7 +1757,7 @@
     var type = node.id.split(":")[0];
     if (type === "task") showView("tasks");
     else if (type === "note" || type === "tag") showView("notes");
-    else if (type === "email") showView("inbox");
+    else if (type === "email" || type === "event") showView("inbox");
     else if (type === "file" || type === "folder") showView("workfolder");
   }
 
@@ -1734,6 +1903,7 @@
   function startListening() {
     if (!Recognition) { addToolNote("Voice input isn't supported in this browser."); return; }
     if (listening) { stopListening(); return; }
+    if (typeof stopWakeWordListening === "function") stopWakeWordListening();
     recognizer = new Recognition();
     recognizer.lang = "en-US";
     recognizer.interimResults = false;
@@ -1762,8 +1932,64 @@
     micBtn.classList.remove("listening");
     if (hudState === "listening") setHudState("idle", "idle");
     if (recognizer) { try { recognizer.stop(); } catch (e) {} }
+    if (state.wakeWordEnabled) setTimeout(startWakeWordListening, 350);
   }
   micBtn.addEventListener("click", startListening);
+
+  // ---------- Wake word ("Jarvis") ----------
+  var wakeRecognizer = null;
+  var wakeArmed = false;
+  var wakeArmTimeout = null;
+
+  function startWakeWordListening() {
+    if (!Recognition || !state.wakeWordEnabled || listening || wakeRecognizer) return;
+    wakeRecognizer = new Recognition();
+    wakeRecognizer.lang = "en-US";
+    wakeRecognizer.continuous = true;
+    wakeRecognizer.interimResults = true;
+    wakeRecognizer.onresult = function (ev) {
+      var latest = ev.results[ev.results.length - 1];
+      if (!latest.isFinal) return;
+      var transcript = latest[0].transcript.toLowerCase();
+      if (wakeArmed) {
+        wakeArmed = false;
+        clearTimeout(wakeArmTimeout);
+        var command = latest[0].transcript.trim();
+        if (command) { textInput.value = command; showHudBubble('"' + command + '"'); send(); }
+        else setHudState("idle", "idle");
+        return;
+      }
+      var idx = transcript.indexOf("jarvis");
+      if (idx === -1) return;
+      var after = latest[0].transcript.slice(idx + 6).trim();
+      if (after.length > 2) {
+        textInput.value = after; showHudBubble('"' + after + '"'); send();
+      } else {
+        wakeArmed = true;
+        setHudState("listening", "listening");
+        showHudBubble("Yes?");
+        clearTimeout(wakeArmTimeout);
+        wakeArmTimeout = setTimeout(function () { wakeArmed = false; if (hudState === "listening") setHudState("idle", "idle"); }, 8000);
+      }
+    };
+    wakeRecognizer.onerror = function () {};
+    wakeRecognizer.onend = function () {
+      wakeRecognizer = null;
+      if (state.wakeWordEnabled && !listening) setTimeout(startWakeWordListening, 500);
+    };
+    try { wakeRecognizer.start(); } catch (e) { wakeRecognizer = null; }
+  }
+  function stopWakeWordListening() {
+    if (wakeRecognizer) { try { wakeRecognizer.onend = null; wakeRecognizer.stop(); } catch (e) {} wakeRecognizer = null; }
+    wakeArmed = false;
+    clearTimeout(wakeArmTimeout);
+  }
+  $("wakeWordToggle").addEventListener("change", function () {
+    state.wakeWordEnabled = this.checked;
+    saveState();
+    if (state.wakeWordEnabled) { addToolNote('Wake word on — say "Jarvis" to start talking.'); startWakeWordListening(); }
+    else { stopWakeWordListening(); addToolNote("Wake word off."); }
+  });
 
   // ---------- Proactive banner (due/overdue tasks) ----------
   function checkDueBanner() {
@@ -1793,8 +2019,9 @@
     lines.push("Never invent a task_id or note_id. If you don't already have one from earlier in this conversation, call list_tasks or list_notes first.");
     lines.push("Before calling delete_task or delete_note, make sure the match is unambiguous; if more than one item could match, ask the user which one they mean instead of guessing.");
     if (outlookConnected()) {
-      lines.push("The user's Outlook mailbox is connected (read + draft only). Use list_recent_emails / search_emails / get_email to read mail, and draft_reply / draft_new_email to prepare responses. You can NEVER send an email — there is no send tool, only drafting to the Outlook Drafts folder, and that is intentional; don't claim you sent anything.");
-      lines.push("When a task grows out of an email (a request, a deadline, a follow-up), offer to add_task it, but don't do so silently — say what you're adding.");
+      lines.push("The user's Outlook mailbox and calendar are connected (mail is read + draft only). Use list_recent_emails / search_emails / get_email to read mail, and draft_reply / draft_new_email to prepare responses. You can NEVER send an email — there is no send tool, only drafting to the Outlook Drafts folder, and that is intentional; don't claim you sent anything.");
+      lines.push("Use list_upcoming_events to see the calendar, and create_calendar_event to add a follow-up, call, or reminder directly — unlike email this creates the event for real (there's no draft-only step for calendar), so only create one when the user actually asked for it, not as a guess.");
+      lines.push("When a task or follow-up grows out of an email (a request, a deadline, a promise to check back in), offer to add_task or create_calendar_event it, but don't do so silently — say what you're adding.");
     }
     if (workFolderHandle) {
       lines.push("The user has connected a local work folder. Use list_workfolder_files / read_workfolder_file to look at it, and propose_workfolder_edit to suggest a change. propose_workfolder_edit only STAGES the change for the user to approve in the Work Folder tab — it never writes to disk by itself. Always explain what you're changing and why in your reply, not just in the staged card.");
@@ -2011,7 +2238,10 @@
     if (!state.msClientId || !window.msal) { updateOutlookStatus(); return; }
     ensureMsalInstance().then(function () {
       updateOutlookStatus();
-      if (outlookConnected()) fetchRecentEmails(10, false).then(renderInboxList).catch(function () {});
+      if (outlookConnected()) {
+        fetchRecentEmails(10, false).then(renderInboxList).catch(function () {});
+        fetchUpcomingEvents(7).then(renderCalendarList).catch(function () {});
+      }
     }).catch(function () { updateOutlookStatus(); });
   }
 
@@ -2019,6 +2249,7 @@
   initSettingsUI();
   renderTasks();
   renderNotes();
+  renderPlaybooks();
   renderHistory();
   checkDueBanner();
   checkFileProtocolWarnings();
@@ -2027,6 +2258,7 @@
   restoreOutlookSession();
   restoreWorkFolder();
   requestAnimationFrame(graphTick);
+  if (state.wakeWordEnabled) startWakeWordListening();
   statusDot.className = "pulse-dot online";
 })();
 </script>
