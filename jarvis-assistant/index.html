@@ -154,6 +154,31 @@
     nav.sidebar.open { left: 0; }
     .msg { max-width: 88%; }
   }
+
+  /* Outlook / Work Folder additions */
+  .warn-banner {
+    background: rgba(255,107,107,.08); border: 1px solid var(--danger); color: var(--danger);
+    border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 16px;
+  }
+  .conn-status { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .conn-dot.on { background: var(--good); }
+  .readonly-field { background: var(--panel2); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 8px 10px; font-size: 12px; word-break: break-all; user-select: all; }
+  .email-card .subject { font-size: 14px; font-weight: 600; }
+  .email-card .from { font-size: 12px; color: var(--accent); margin-top: 2px; }
+  .email-card .preview { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .email-card .unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 5px; flex-shrink: 0; }
+  .file-entry { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
+  .file-entry:hover { background: var(--panel2); }
+  .file-entry .kind-icon { width: 16px; text-align: center; color: var(--muted); }
+  .file-preview { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; max-height: 260px; overflow-y: auto; margin-top: 10px; }
+  .pending-card { border-color: var(--accent2); }
+  .pending-card .path { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--accent2); }
+  .pending-card .reason { font-size: 12.5px; color: var(--muted); margin: 4px 0 8px; }
+  .pending-card .actions { display: flex; gap: 8px; }
+  .pending-card .actions button { flex: 1; }
+  .btn-approve { background: var(--good); color: #04331f; border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-reject { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -170,6 +195,8 @@
     <button data-view="chat" class="active">&#128172; Chat</button>
     <button data-view="tasks">&#9989; Tasks <span class="badge" id="taskBadge">0</span></button>
     <button data-view="notes">&#128221; Notes <span class="badge" id="noteBadge">0</span></button>
+    <button data-view="inbox">&#128233; Inbox <span class="badge" id="inboxBadge">off</span></button>
+    <button data-view="workfolder">&#128193; Work Folder <span class="badge" id="folderBadge">off</span></button>
     <button data-view="settings">&#9881;&#65039; Settings</button>
   </nav>
 
@@ -211,6 +238,36 @@
       </div>
     </section>
 
+    <section class="view" id="view-inbox">
+      <div class="panel">
+        <h2>Inbox</h2>
+        <div class="hint">Read-only + draft access to Outlook. Jarvis can read email and prepare replies, but will never send anything without you reviewing it in Outlook first.</div>
+        <div id="inboxFileProtoWarning" class="warn-banner" style="display:none;">This page was opened as a local file (file://). Outlook sign-in needs it served over http/https instead — see Settings for a one-line command to do that.</div>
+        <div class="conn-status"><span class="conn-dot" id="outlookDot"></span><span id="outlookStatusText">Not connected</span></div>
+        <div class="row">
+          <button class="btn-primary" id="connectOutlookBtn">Connect Outlook</button>
+          <button class="icon-btn" id="refreshInboxBtn">Refresh inbox</button>
+        </div>
+        <div class="card-list" id="inboxList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-workfolder">
+      <div class="panel">
+        <h2>Work Folder</h2>
+        <div class="hint">A folder on this computer that Jarvis can read and, with your approval on each change, edit. Nothing is written until you click Approve.</div>
+        <div id="folderFileProtoWarning" class="warn-banner" style="display:none;">This page was opened as a local file (file://). Folder access needs it served over http/https instead — see Settings for a one-line command to do that.</div>
+        <div class="conn-status"><span class="conn-dot" id="folderDot"></span><span id="folderStatusText">Not connected</span></div>
+        <div class="row">
+          <button class="btn-primary" id="connectFolderBtn">Connect folder</button>
+          <button class="icon-btn" id="reconnectFolderBtn" style="display:none;">Re-grant access</button>
+        </div>
+        <div id="pendingEditsWrap"></div>
+        <div id="fileTreeWrap" class="file-tree"></div>
+        <div id="filePreviewWrap"></div>
+      </div>
+    </section>
+
     <section class="view" id="view-settings">
       <div class="panel">
         <h2>Settings</h2>
@@ -231,6 +288,31 @@
             <input type="checkbox" id="webSearchToggle" style="width:auto;">
           </div>
           <div class="status-line" id="apiStatusLine"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Outlook / Microsoft 365</legend>
+          <div class="hint" style="margin-bottom:10px;">
+            Requires an Azure AD app registration (free, under your own Microsoft account) — I can't create this for you. In
+            <a href="https://portal.azure.com" target="_blank" rel="noopener" style="color:var(--accent);">portal.azure.com</a>
+            &rarr; App registrations &rarr; New registration: set platform type "Single-page application", redirect URI as shown below,
+            and add delegated permissions Mail.Read, Mail.ReadWrite, User.Read. Then paste the Application (client) ID here.
+          </div>
+          <label class="field">Redirect URI to register in Azure</label>
+          <div class="readonly-field" id="redirectUriField"></div>
+          <label class="field">Application (client) ID</label>
+          <input type="text" id="msClientIdInput" placeholder="00000000-0000-0000-0000-000000000000">
+          <div class="status-line">Outlook access is read + draft only — Jarvis can never send an email on its own.</div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Local hosting (required for Outlook and Work Folder)</legend>
+          <div class="hint" style="margin-bottom:0;">
+            Both features need this page served over http/https, not opened directly as a file. From this folder, run one of:
+            <div class="readonly-field" style="margin-top:8px;">python3 -m http.server 8000</div>
+            <div class="readonly-field" style="margin-top:6px;">npx serve .</div>
+            then open it at the localhost address that prints instead of double-clicking the file.
+          </div>
         </fieldset>
 
         <fieldset>
@@ -264,6 +346,10 @@
   </main>
 </div>
 
+<!-- MSAL Browser (Microsoft's official SPA auth library) — pin/verify this version against
+     https://github.com/AzureAD/microsoft-authentication-library-for-js/releases before relying on it live;
+     could not be checked against the network from the environment this was written in. -->
+<script src="https://alcdn.msauth.net/browser/3.24.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
 <script>
 (function () {
   "use strict";
@@ -275,7 +361,11 @@
   var ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
   var ANTHROPIC_VERSION = "2023-06-01";
 
-  var TOOLS = [
+  var GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+  var GRAPH_SCOPES = ["User.Read", "Mail.Read", "Mail.ReadWrite"];
+  var IGNORED_DIRS = { "node_modules": 1, ".git": 1, "dist": 1, "build": 1, ".next": 1, "__pycache__": 1, ".venv": 1 };
+
+  var BASE_TOOLS = [
     {
       name: "get_current_datetime",
       description: "Get the current date and time on the user's device. Always call this before interpreting any relative date/time reference (today, tomorrow, next Friday, in 2 hours) so due dates are computed correctly.",
@@ -352,6 +442,78 @@
 
   var NATIVE_WEB_SEARCH_TOOL = { type: "web_search_20250305", name: "web_search", max_uses: 5 };
 
+  var EMAIL_TOOLS = [
+    {
+      name: "list_recent_emails",
+      description: "List the user's most recent inbox emails.",
+      input_schema: {
+        type: "object",
+        properties: {
+          top: { type: "integer", description: "Max results, default 10, max 25." },
+          unread_only: { type: "boolean" }
+        }
+      }
+    },
+    {
+      name: "search_emails",
+      description: "Search the user's mailbox by keyword (subject/body/sender).",
+      input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }
+    },
+    {
+      name: "get_email",
+      description: "Get the full body of one email by id. Call list_recent_emails or search_emails first to get the id.",
+      input_schema: { type: "object", properties: { email_id: { type: "string" } }, required: ["email_id"] }
+    },
+    {
+      name: "draft_reply",
+      description: "Create a reply draft in the user's Outlook Drafts folder for an existing email. This never sends the email — the user must review and send it themselves from Outlook.",
+      input_schema: {
+        type: "object",
+        properties: { email_id: { type: "string" }, body: { type: "string", description: "Full plain-text reply body." } },
+        required: ["email_id", "body"]
+      }
+    },
+    {
+      name: "draft_new_email",
+      description: "Create a new (non-reply) email draft in the user's Outlook Drafts folder. This never sends the email.",
+      input_schema: {
+        type: "object",
+        properties: {
+          to: { type: "array", items: { type: "string" }, description: "Recipient email addresses." },
+          subject: { type: "string" },
+          body: { type: "string" }
+        },
+        required: ["to", "subject", "body"]
+      }
+    }
+  ];
+
+  var FILE_TOOLS = [
+    {
+      name: "list_workfolder_files",
+      description: "List files and subfolders in the user's connected local work folder (two levels deep, common noise directories like node_modules/.git skipped).",
+      input_schema: { type: "object", properties: { path: { type: "string", description: "Optional subfolder path relative to the work folder root. Omit for the root." } } }
+    },
+    {
+      name: "read_workfolder_file",
+      description: "Read a text file's contents from the connected work folder. Fails on files over 200KB.",
+      input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }
+    },
+    {
+      name: "propose_workfolder_edit",
+      description: "Propose writing new content to a file in the work folder (creating it if it doesn't exist). This does NOT write immediately — it stages the change as a card in the Work Folder tab that the user must explicitly approve before anything touches disk. Always explain the change to the user in your reply too, don't just silently stage it.",
+      input_schema: {
+        type: "object",
+        properties: {
+          path: { type: "string" },
+          new_content: { type: "string", description: "The complete new file content, not a diff." },
+          reason: { type: "string", description: "One sentence explaining the change, shown to the user." }
+        },
+        required: ["path", "new_content", "reason"]
+      }
+    }
+  ];
+
   // ---------- State ----------
   var state = loadState();
 
@@ -368,7 +530,9 @@
       tasks: [],
       notes: [],
       messages: [],
-      surfacedBanner: false
+      surfacedBanner: false,
+      msClientId: "",
+      msAccountId: ""
     };
   }
 
@@ -550,6 +714,79 @@
         saveState(); renderNotes();
         return { ok: true };
       }
+
+      // ---- Email tools (async, Microsoft Graph) ----
+      case "list_recent_emails": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        return fetchRecentEmails(input.top, input.unread_only).then(function (emails) { return { emails: emails }; });
+      }
+      case "search_emails": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        var q = encodeURIComponent('"' + String(input.query || "").replace(/"/g, "") + '"');
+        return graphFetch("/me/messages?$search=" + q + "&$top=15&$select=id,subject,from,receivedDateTime,bodyPreview,isRead", { headers: { ConsistencyLevel: "eventual" } })
+          .then(function (data) { return { emails: (data.value || []).map(simplifyEmail) }; });
+      }
+      case "get_email": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        return graphFetch("/me/messages/" + encodeURIComponent(input.email_id) + "?$select=id,subject,from,toRecipients,receivedDateTime,body")
+          .then(function (m) {
+            return {
+              id: m.id, subject: m.subject,
+              from: (m.from && m.from.emailAddress && m.from.emailAddress.address) || "",
+              receivedDateTime: m.receivedDateTime,
+              body: stripHtml((m.body && m.body.content) || "")
+            };
+          });
+      }
+      case "draft_reply": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        return graphFetch("/me/messages/" + encodeURIComponent(input.email_id) + "/createReply", { method: "POST", body: JSON.stringify({}) })
+          .then(function (draft) {
+            return graphFetch("/me/messages/" + draft.id, { method: "PATCH", body: JSON.stringify({ body: { contentType: "Text", content: input.body } }) });
+          })
+          .then(function (updated) { return { ok: true, draft_id: updated.id, note: "Saved to the Outlook Drafts folder. Not sent — the user needs to review and send it." }; });
+      }
+      case "draft_new_email": {
+        if (!outlookConnected()) return { ok: false, error: "Outlook isn't connected. Ask the user to connect it in the Inbox tab." };
+        var payload = {
+          subject: input.subject,
+          body: { contentType: "Text", content: input.body },
+          toRecipients: (input.to || []).map(function (addr) { return { emailAddress: { address: addr } }; })
+        };
+        return graphFetch("/me/messages", { method: "POST", body: JSON.stringify(payload) })
+          .then(function (m) { return { ok: true, draft_id: m.id, note: "Saved to the Outlook Drafts folder. Not sent." }; });
+      }
+
+      // ---- Work folder tools (async, File System Access API) ----
+      case "list_workfolder_files": {
+        if (!workFolderHandle) return { ok: false, error: "No work folder is connected. Ask the user to connect one in the Work Folder tab." };
+        var startP = input.path ? resolveDirHandle(input.path) : Promise.resolve(workFolderHandle);
+        return startP.then(function (dir) { return listDirEntries(dir, input.path ? input.path.replace(/\/?$/, "/") : "", 0, 2, []); })
+          .then(function (entries) { return { entries: entries }; });
+      }
+      case "read_workfolder_file": {
+        if (!workFolderHandle) return { ok: false, error: "No work folder is connected. Ask the user to connect one in the Work Folder tab." };
+        return resolveFilePath(input.path)
+          .then(function (r) { return r.dir.getFileHandle(r.name); })
+          .then(function (fh) { return fh.getFile(); })
+          .then(function (file) {
+            if (file.size > 200000) return { ok: false, error: "File too large to read (" + file.size + " bytes, 200KB limit)." };
+            return file.text().then(function (text) { return { ok: true, path: input.path, content: text }; });
+          });
+      }
+      case "propose_workfolder_edit": {
+        if (!workFolderHandle) return { ok: false, error: "No work folder is connected. Ask the user to connect one in the Work Folder tab." };
+        return resolveFilePath(input.path)
+          .then(function (r) { return r.dir.getFileHandle(r.name).then(function (fh) { return fh.getFile(); }).then(function (f) { return f.text(); }); })
+          .catch(function () { return ""; })
+          .then(function (oldContent) {
+            var editId = uid();
+            pendingEdits[editId] = { path: input.path, oldContent: oldContent, newContent: input.new_content, reason: input.reason || "" };
+            renderPendingEdits();
+            return { ok: true, staged: true, edit_id: editId, note: "Staged in the Work Folder tab for the user to review and approve — nothing written to disk yet." };
+          });
+      }
+
       default:
         return { ok: false, error: "Unknown tool: " + name };
     }
@@ -622,6 +859,8 @@
     $("rateSlider").value = state.rate; $("rateVal").textContent = state.rate.toFixed(2);
     $("pitchSlider").value = state.pitch; $("pitchVal").textContent = state.pitch.toFixed(1);
     $("speakToggle").checked = state.speakReplies;
+    $("msClientIdInput").value = state.msClientId;
+    $("redirectUriField").textContent = window.location.origin + window.location.pathname;
     updateApiStatusLine();
   }
 
@@ -644,6 +883,346 @@
     state.tasks = []; state.notes = []; state.messages = [];
     saveState(); renderTasks(); renderNotes(); renderHistory();
   });
+
+  $("msClientIdInput").addEventListener("change", function () { state.msClientId = this.value.trim(); saveState(); });
+
+  function isFileProtocol() { return location.protocol === "file:"; }
+  function checkFileProtocolWarnings() {
+    var show = isFileProtocol();
+    $("inboxFileProtoWarning").style.display = show ? "block" : "none";
+    $("folderFileProtoWarning").style.display = show ? "block" : "none";
+  }
+
+  // ================= Outlook / Microsoft Graph =================
+  var msalInstance = null;
+
+  function outlookConnected() {
+    return !!(msalInstance && state.msAccountId && findMsalAccount());
+  }
+  function findMsalAccount() {
+    if (!msalInstance) return null;
+    var accounts = msalInstance.getAllAccounts();
+    return accounts.find(function (a) { return a.homeAccountId === state.msAccountId; }) || null;
+  }
+
+  function ensureMsalInstance() {
+    if (!window.msal) throw new Error("MSAL library failed to load (check your network connection and that this page is served over http/https, not opened as a local file).");
+    if (!state.msClientId) throw new Error("Add your Azure AD Application (client) ID in Settings first.");
+    if (msalInstance && msalInstance.__clientId === state.msClientId) return Promise.resolve(msalInstance);
+    var instance = new msal.PublicClientApplication({
+      auth: {
+        clientId: state.msClientId,
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: window.location.origin + window.location.pathname
+      },
+      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false }
+    });
+    instance.__clientId = state.msClientId;
+    return instance.initialize().then(function () {
+      msalInstance = instance;
+      return msalInstance;
+    });
+  }
+
+  function connectOutlook() {
+    if (isFileProtocol()) { addToolNote("Outlook sign-in needs this page served over http/https — see Settings for how."); showView("settings"); return; }
+    ensureMsalInstance().then(function (instance) {
+      return instance.loginPopup({ scopes: GRAPH_SCOPES });
+    }).then(function (result) {
+      state.msAccountId = result.account.homeAccountId;
+      saveState();
+      updateOutlookStatus();
+      fetchRecentEmails(10, false).then(renderInboxList).catch(function (e) { addToolNote("Could not load inbox: " + e.message); });
+    }).catch(function (err) {
+      addToolNote("Outlook connect failed: " + (err && err.message ? err.message : err));
+    });
+  }
+
+  function getGraphToken() {
+    if (!msalInstance) return Promise.reject(new Error("Outlook isn't connected."));
+    var account = findMsalAccount();
+    if (!account) return Promise.reject(new Error("Outlook isn't connected."));
+    return msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: account })
+      .catch(function () { return msalInstance.acquireTokenPopup({ scopes: GRAPH_SCOPES, account: account }); })
+      .then(function (res) { return res.accessToken; });
+  }
+
+  function graphFetch(path, options) {
+    options = options || {};
+    return getGraphToken().then(function (token) {
+      var headers = { Authorization: "Bearer " + token, "Content-Type": "application/json" };
+      for (var k in (options.headers || {})) headers[k] = options.headers[k];
+      var fetchOpts = { method: options.method || "GET", headers: headers };
+      if (options.body) fetchOpts.body = options.body;
+      return fetch(GRAPH_BASE + path, fetchOpts);
+    }).then(function (resp) {
+      if (!resp.ok) return resp.text().then(function (t) { throw new Error("Graph API error " + resp.status + ": " + t.slice(0, 300)); });
+      if (resp.status === 204) return null;
+      return resp.json();
+    });
+  }
+
+  function simplifyEmail(m) {
+    return {
+      id: m.id,
+      subject: m.subject,
+      from: (m.from && m.from.emailAddress && m.from.emailAddress.address) || "",
+      fromName: (m.from && m.from.emailAddress && m.from.emailAddress.name) || "",
+      receivedDateTime: m.receivedDateTime,
+      preview: m.bodyPreview,
+      isRead: m.isRead
+    };
+  }
+
+  function stripHtml(html) {
+    var div = document.createElement("div");
+    div.innerHTML = html;
+    return (div.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  function fetchRecentEmails(top, unreadOnly) {
+    top = Math.min(top || 10, 25);
+    var filterQ = unreadOnly ? "&$filter=isRead eq false" : "";
+    return graphFetch("/me/mailFolders/inbox/messages?$top=" + top + "&$select=id,subject,from,receivedDateTime,bodyPreview,isRead" + filterQ + "&$orderby=receivedDateTime desc")
+      .then(function (data) { return (data.value || []).map(simplifyEmail); });
+  }
+
+  function updateOutlookStatus() {
+    var connected = outlookConnected();
+    $("outlookDot").className = "conn-dot" + (connected ? " on" : "");
+    var account = findMsalAccount();
+    $("outlookStatusText").textContent = connected ? ("Connected as " + (account.username || "Outlook account")) : "Not connected";
+    $("inboxBadge").textContent = connected ? "on" : "off";
+    $("connectOutlookBtn").textContent = connected ? "Reconnect Outlook" : "Connect Outlook";
+  }
+
+  function renderInboxList(emails) {
+    var wrap = $("inboxList");
+    wrap.innerHTML = "";
+    if (!emails || emails.length === 0) { wrap.innerHTML = '<div class="empty">No emails loaded yet.</div>'; return; }
+    emails.forEach(function (m) {
+      var card = document.createElement("div");
+      card.className = "card email-card";
+      var dot = document.createElement("div");
+      dot.className = "unread-dot";
+      dot.style.visibility = m.isRead ? "hidden" : "visible";
+      var body = document.createElement("div");
+      body.className = "body";
+      var subj = document.createElement("div"); subj.className = "subject"; subj.textContent = m.subject || "(no subject)";
+      var from = document.createElement("div"); from.className = "from"; from.textContent = (m.fromName || m.from) + (m.receivedDateTime ? (" · " + new Date(m.receivedDateTime).toLocaleString()) : "");
+      var preview = document.createElement("div"); preview.className = "preview"; preview.textContent = m.preview || "";
+      body.appendChild(subj); body.appendChild(from); body.appendChild(preview);
+      var btn = document.createElement("button");
+      btn.textContent = "Ask Jarvis";
+      btn.onclick = function () {
+        textInput.value = 'About my email "' + m.subject + '" from ' + (m.fromName || m.from) + " (email id " + m.id + "): ";
+        showView("chat");
+        textInput.focus();
+      };
+      card.appendChild(dot); card.appendChild(body); card.appendChild(btn);
+      wrap.appendChild(card);
+    });
+  }
+
+  $("connectOutlookBtn").addEventListener("click", connectOutlook);
+  $("refreshInboxBtn").addEventListener("click", function () {
+    if (!outlookConnected()) { addToolNote("Connect Outlook first."); return; }
+    fetchRecentEmails(15, false).then(renderInboxList).catch(function (e) { addToolNote("Could not load inbox: " + e.message); });
+  });
+
+  // ================= Work folder / File System Access =================
+  var workFolderHandle = null;
+  var pendingEdits = {};
+
+  function idbOpen() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open("jarvis_fs", 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore("handles"); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+  function idbGet(key) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("handles", "readonly");
+        var r = tx.objectStore("handles").get(key);
+        r.onsuccess = function () { resolve(r.result); };
+        r.onerror = function () { reject(r.error); };
+      });
+    });
+  }
+  function idbSet(key, value) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction("handles", "readwrite");
+        tx.objectStore("handles").put(value, key);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+
+  function updateFolderStatus() {
+    var connected = !!workFolderHandle;
+    $("folderDot").className = "conn-dot" + (connected ? " on" : "");
+    $("folderStatusText").textContent = connected ? ("Connected: " + workFolderHandle.name) : "Not connected";
+    $("folderBadge").textContent = connected ? "on" : "off";
+    $("reconnectFolderBtn").style.display = "none";
+  }
+
+  function connectWorkFolder() {
+    if (isFileProtocol()) { addToolNote("Folder access needs this page served over http/https — see Settings for how."); showView("settings"); return; }
+    if (!window.showDirectoryPicker) { addToolNote("This browser doesn't support folder access — use Chrome or Edge."); return; }
+    window.showDirectoryPicker({ mode: "readwrite" }).then(function (handle) {
+      workFolderHandle = handle;
+      return idbSet("workFolderHandle", handle);
+    }).then(function () {
+      updateFolderStatus();
+      return listDirEntries(workFolderHandle, "", 0, 2, []);
+    }).then(renderFileTree).catch(function (e) {
+      if (e && e.name !== "AbortError") addToolNote("Could not connect folder: " + e.message);
+    });
+  }
+
+  function restoreWorkFolder() {
+    idbGet("workFolderHandle").then(function (handle) {
+      if (!handle) return;
+      workFolderHandle = handle;
+      return handle.queryPermission({ mode: "readwrite" }).then(function (perm) {
+        if (perm === "granted") {
+          updateFolderStatus();
+          return listDirEntries(workFolderHandle, "", 0, 2, []).then(renderFileTree);
+        }
+        $("folderStatusText").textContent = "Connected previously: " + handle.name + " (needs re-granting)";
+        $("reconnectFolderBtn").style.display = "inline-block";
+      });
+    }).catch(function () {});
+  }
+
+  $("reconnectFolderBtn").addEventListener("click", function () {
+    if (!workFolderHandle) return;
+    workFolderHandle.requestPermission({ mode: "readwrite" }).then(function (perm) {
+      if (perm === "granted") {
+        updateFolderStatus();
+        listDirEntries(workFolderHandle, "", 0, 2, []).then(renderFileTree);
+      }
+    });
+  });
+  $("connectFolderBtn").addEventListener("click", connectWorkFolder);
+
+  function resolveDirHandle(path) {
+    var parts = String(path || "").split("/").filter(Boolean);
+    return parts.reduce(function (p, part) {
+      return p.then(function (d) { return d.getDirectoryHandle(part); });
+    }, Promise.resolve(workFolderHandle));
+  }
+  function resolveFilePath(path, createParents) {
+    var parts = String(path || "").split("/").filter(Boolean);
+    if (parts.length === 0) return Promise.reject(new Error("Empty path."));
+    var dirParts = parts.slice(0, -1);
+    return dirParts.reduce(function (p, part) {
+      return p.then(function (d) { return d.getDirectoryHandle(part, { create: !!createParents }); });
+    }, Promise.resolve(workFolderHandle)).then(function (dir) {
+      return { dir: dir, name: parts[parts.length - 1] };
+    });
+  }
+
+  function listDirEntries(dirHandle, prefix, depth, maxDepth, out) {
+    return (async function () {
+      for await (var entry of dirHandle.entries()) {
+        var name = entry[0], handle = entry[1];
+        if (handle.kind === "directory" && IGNORED_DIRS[name]) continue;
+        out.push({ path: prefix + name, kind: handle.kind });
+        if (out.length > 300) return out;
+        if (handle.kind === "directory" && depth < maxDepth) {
+          await listDirEntries(handle, prefix + name + "/", depth + 1, maxDepth, out);
+        }
+      }
+      return out;
+    })();
+  }
+
+  function renderFileTree(entries) {
+    var wrap = $("fileTreeWrap");
+    wrap.innerHTML = "";
+    if (!entries || entries.length === 0) { wrap.innerHTML = '<div class="empty">No files found.</div>'; return; }
+    entries.forEach(function (e) {
+      var row = document.createElement("div");
+      row.className = "file-entry";
+      var icon = document.createElement("span");
+      icon.className = "kind-icon";
+      icon.textContent = e.kind === "directory" ? "📁" : "📄";
+      var label = document.createElement("span");
+      label.textContent = e.path;
+      row.appendChild(icon); row.appendChild(label);
+      if (e.kind === "file") row.onclick = function () { previewFile(e.path); };
+      wrap.appendChild(row);
+    });
+  }
+
+  function previewFile(path) {
+    var wrap = $("filePreviewWrap");
+    wrap.innerHTML = "";
+    resolveFilePath(path).then(function (r) { return r.dir.getFileHandle(r.name); })
+      .then(function (fh) { return fh.getFile(); })
+      .then(function (file) { return file.text(); })
+      .then(function (text) {
+        var box = document.createElement("div");
+        box.className = "file-preview";
+        box.textContent = path + "\n\n" + (text.length > 5000 ? text.slice(0, 5000) + "\n...(truncated)" : text);
+        wrap.appendChild(box);
+      }).catch(function (e) { addToolNote("Could not read " + path + ": " + e.message); });
+  }
+
+  function renderPendingEdits() {
+    var wrap = $("pendingEditsWrap");
+    wrap.innerHTML = "";
+    var ids = Object.keys(pendingEdits);
+    if (ids.length === 0) return;
+    ids.forEach(function (editId) {
+      var edit = pendingEdits[editId];
+      var card = document.createElement("div");
+      card.className = "card pending-card";
+      card.style.flexDirection = "column";
+      var pathEl = document.createElement("div"); pathEl.className = "path"; pathEl.textContent = edit.path;
+      var reasonEl = document.createElement("div"); reasonEl.className = "reason"; reasonEl.textContent = edit.reason;
+      var stat = document.createElement("div"); stat.className = "meta";
+      stat.textContent = (edit.oldContent ? edit.oldContent.split("\n").length : 0) + " lines → " + edit.newContent.split("\n").length + " lines";
+      var preview = document.createElement("div"); preview.className = "file-preview";
+      preview.textContent = edit.newContent.length > 3000 ? edit.newContent.slice(0, 3000) + "\n...(truncated)" : edit.newContent;
+      var actions = document.createElement("div"); actions.className = "actions";
+      var approveBtn = document.createElement("button"); approveBtn.className = "btn-approve"; approveBtn.textContent = "Approve & write";
+      var rejectBtn = document.createElement("button"); rejectBtn.className = "btn-reject"; rejectBtn.textContent = "Reject";
+      approveBtn.onclick = function () { approveEdit(editId); };
+      rejectBtn.onclick = function () { rejectEdit(editId); };
+      actions.appendChild(approveBtn); actions.appendChild(rejectBtn);
+      card.appendChild(pathEl); card.appendChild(reasonEl); card.appendChild(stat); card.appendChild(preview); card.appendChild(actions);
+      wrap.appendChild(card);
+    });
+  }
+
+  function approveEdit(editId) {
+    var edit = pendingEdits[editId];
+    if (!edit) return;
+    resolveFilePath(edit.path, true)
+      .then(function (r) { return r.dir.getFileHandle(r.name, { create: true }); })
+      .then(function (fh) { return fh.createWritable(); })
+      .then(function (writable) { return writable.write(edit.newContent).then(function () { return writable.close(); }); })
+      .then(function () {
+        delete pendingEdits[editId];
+        addToolNote("✅ Wrote " + edit.path);
+        renderPendingEdits();
+        return listDirEntries(workFolderHandle, "", 0, 2, []).then(renderFileTree);
+      })
+      .catch(function (e) { addToolNote("Failed to write " + edit.path + ": " + e.message); });
+  }
+  function rejectEdit(editId) {
+    var edit = pendingEdits[editId];
+    delete pendingEdits[editId];
+    if (edit) addToolNote("Rejected the proposed change to " + edit.path);
+    renderPendingEdits();
+  }
 
   // ---------- Voices ----------
   var availableVoices = [];
@@ -745,12 +1324,20 @@
   function buildSystemPrompt() {
     var lines = [];
     lines.push("You are Jarvis, a personal AI assistant running entirely inside the user's web browser.");
-    lines.push("All memory (tasks, notes, conversation history) is stored only in this browser's local storage on this device. You have no access to the user's files, other applications, or the operating system itself — if asked to do something outside that scope, say so plainly rather than pretending to do it.");
+    lines.push("All memory (tasks, notes, conversation history) is stored only in this browser's local storage on this device.");
+    lines.push("You have no access to the user's operating system, other applications, or anything beyond what's explicitly connected below — if asked to do something outside that scope, say so plainly rather than pretending to do it.");
     if (state.userName) lines.push("The user's name is " + state.userName + ". Address them by name occasionally, not every message.");
     lines.push("Always call get_current_datetime before resolving a relative date or time reference (today, tomorrow, next Friday, in two hours) — never guess the current date.");
     lines.push("Use add_task / list_tasks / complete_task / delete_task for anything reminder- or to-do-shaped. Use add_note / list_notes / delete_note for facts, preferences, and things worth remembering long-term.");
     lines.push("Never invent a task_id or note_id. If you don't already have one from earlier in this conversation, call list_tasks or list_notes first.");
     lines.push("Before calling delete_task or delete_note, make sure the match is unambiguous; if more than one item could match, ask the user which one they mean instead of guessing.");
+    if (outlookConnected()) {
+      lines.push("The user's Outlook mailbox is connected (read + draft only). Use list_recent_emails / search_emails / get_email to read mail, and draft_reply / draft_new_email to prepare responses. You can NEVER send an email — there is no send tool, only drafting to the Outlook Drafts folder, and that is intentional; don't claim you sent anything.");
+      lines.push("When a task grows out of an email (a request, a deadline, a follow-up), offer to add_task it, but don't do so silently — say what you're adding.");
+    }
+    if (workFolderHandle) {
+      lines.push("The user has connected a local work folder. Use list_workfolder_files / read_workfolder_file to look at it, and propose_workfolder_edit to suggest a change. propose_workfolder_edit only STAGES the change for the user to approve in the Work Folder tab — it never writes to disk by itself. Always explain what you're changing and why in your reply, not just in the staged card.");
+    }
     if (state.webSearchEnabled) lines.push("You have a real-time web search tool. Use it for anything time-sensitive or outside your training data, and mention when you used it.");
     lines.push("Keep replies conversational and reasonably concise — they may be read aloud.");
     return lines.join(" ");
@@ -758,7 +1345,9 @@
 
   // ---------- Streaming ----------
   function streamAnthropicMessages(messages, onDelta) {
-    var tools = TOOLS.slice();
+    var tools = BASE_TOOLS.slice();
+    if (outlookConnected()) tools = tools.concat(EMAIL_TOOLS);
+    if (workFolderHandle) tools = tools.concat(FILE_TOOLS);
     if (state.webSearchEnabled) tools.push(NATIVE_WEB_SEARCH_TOOL);
 
     var controller = new AbortController();
@@ -888,16 +1477,18 @@
           return;
         }
 
-        var toolResults = toolUses.map(function (tu) {
+        var toolPromises = toolUses.map(function (tu) {
           addToolNote("⚙️ " + tu.name + (tu.input && Object.keys(tu.input).length ? " " + JSON.stringify(tu.input) : ""));
-          var output;
-          try { output = executeTool(tu.name, tu.input); }
-          catch (e) { output = { ok: false, error: String(e && e.message || e) }; }
-          return { type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(output) };
+          return Promise.resolve()
+            .then(function () { return executeTool(tu.name, tu.input); })
+            .catch(function (e) { return { ok: false, error: String(e && e.message || e) }; })
+            .then(function (output) { return { type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(output) }; });
         });
-        state.messages.push({ role: "user", content: toolResults });
-        saveState();
-        return step();
+        return Promise.all(toolPromises).then(function (toolResults) {
+          state.messages.push({ role: "user", content: toolResults });
+          saveState();
+          return step();
+        });
       }).catch(function (err) {
         removeTypingIndicator(typingEl);
         var message = "Something went wrong: " + (err && err.message ? err.message : String(err));
@@ -951,12 +1542,25 @@
   $("navToggle").addEventListener("click", function () { $("sidebar").classList.toggle("open"); });
   updateNavToggleVisibility();
 
+  function restoreOutlookSession() {
+    if (!state.msClientId || !window.msal) { updateOutlookStatus(); return; }
+    ensureMsalInstance().then(function () {
+      updateOutlookStatus();
+      if (outlookConnected()) fetchRecentEmails(10, false).then(renderInboxList).catch(function () {});
+    }).catch(function () { updateOutlookStatus(); });
+  }
+
   // ---------- Init ----------
   initSettingsUI();
   renderTasks();
   renderNotes();
   renderHistory();
   checkDueBanner();
+  checkFileProtocolWarnings();
+  updateOutlookStatus();
+  updateFolderStatus();
+  restoreOutlookSession();
+  restoreWorkFolder();
   statusDot.className = "pulse-dot online";
 })();
 </script>
