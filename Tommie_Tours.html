@@ -12248,24 +12248,56 @@ Ground rules:
     return {
       handleEvent(evt, onTextDelta) {
         switch (evt.type) {
-          case 'content_block_start':
-            content[evt.index] = evt.content_block && evt.content_block.type === 'tool_use'
-              ? { type: 'tool_use', id: evt.content_block.id, name: evt.content_block.name, input: {}, _rawInput: '' }
-              : { type: 'text', text: '' };
+          // Confirmed broken live (Sep 2026): a real conversation hit
+          // "messages.12.content.2.text._rawInput: Extra inputs are not
+          // permitted" — a 400 on a LATER turn, once the earlier reply
+          // (which had triggered a live web_search) was replayed back as
+          // conversation history. Root cause: this only ever special-cased
+          // evt.content_block.type === 'tool_use' — anything else,
+          // including a web_search call's own 'server_tool_use' block,
+          // fell into the generic { type: 'text', text: '' } bucket. That
+          // block then received real input_json_delta events (server tool
+          // calls stream their input the same way custom tool calls do),
+          // stamping a stray _rawInput property onto what this code now
+          // believed was a plain text block — and content_block_stop's
+          // cleanup below only ever ran for type==='tool_use', so that
+          // property was never deleted before the block got sent back to
+          // the API untouched on the next turn. Fixed by preserving
+          // whatever real block type Anthropic actually sent (a shallow
+          // clone, not a guess) for anything that isn't literally
+          // 'tool_use' or 'text', and by making the _rawInput accumulate/
+          // finalize/delete steps below key off "this block actually
+          // received input_json_delta events" rather than off type
+          // ==='tool_use' specifically — so a server_tool_use block (or
+          // any future tool-like block type) gets the same JSON
+          // reconstruction and the same guaranteed cleanup a custom
+          // tool_use block already got, instead of silently miscategorized.
+          case 'content_block_start': {
+            const block = evt.content_block || {};
+            if (block.type === 'tool_use') {
+              content[evt.index] = { type: 'tool_use', id: block.id, name: block.name, input: {}, _rawInput: '' };
+            } else if (block.type === 'text') {
+              content[evt.index] = { type: 'text', text: '' };
+            } else {
+              content[evt.index] = Object.assign({}, block);
+            }
             break;
+          }
           case 'content_block_delta':
             if (!content[evt.index]) break;
             if (evt.delta.type === 'text_delta') {
-              content[evt.index].text += evt.delta.text;
-              if (onTextDelta) onTextDelta(evt.delta.text);
+              if (content[evt.index].type === 'text') {
+                content[evt.index].text += evt.delta.text;
+                if (onTextDelta) onTextDelta(evt.delta.text);
+              }
             } else if (evt.delta.type === 'input_json_delta') {
               content[evt.index]._rawInput = (content[evt.index]._rawInput || '') + evt.delta.partial_json;
             }
             break;
           case 'content_block_stop':
-            if (content[evt.index] && content[evt.index].type === 'tool_use') {
+            if (content[evt.index] && content[evt.index]._rawInput !== undefined) {
               try { content[evt.index].input = content[evt.index]._rawInput ? JSON.parse(content[evt.index]._rawInput) : {}; }
-              catch (e) { content[evt.index].input = {}; }
+              catch (e) { content[evt.index].input = content[evt.index].input || {}; }
               delete content[evt.index]._rawInput;
             }
             break;

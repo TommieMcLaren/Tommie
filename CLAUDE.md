@@ -2031,6 +2031,83 @@ with no notes yet had no Notes section at all.
   "Hi Amanda," with neither the caveat paragraph nor the `---` separator
   leaking into it. All 16 script blocks parse; div-tag balance unchanged.
 
+## Streaming: a real 400 crash traced to a web_search content block miscategorized as text (Sep 2026, unverified live)
+
+Reported live, unrelated to any client — a plain "what's the most kosher
+Friendly restaurant" conversation, followed by "yeah can you give me any
+information you have on them to contact them" (a request that plausibly
+triggers a live `web_search`). The exact error: `Anthropic returned an
+error (400) — messages.12.content.2.text._rawInput: Extra inputs are not
+permitted.` A genuine crash, not a misunderstanding of a Settings key or
+a rate limit — pinned down and fixed, not just retried past.
+
+- **Root cause, found by reading `createStreamAccumulator()`
+  (`callClaudeAI`'s streaming-event accumulator) directly**:
+  `content_block_start` only ever special-cased
+  `evt.content_block.type === 'tool_use'` — anything else, including a
+  live `web_search` call's own `server_tool_use` content block, fell
+  into the generic `{ type: 'text', text: '' }` bucket. But a
+  `server_tool_use` block streams its input the same way a custom
+  `tool_use` block does — via real `input_json_delta` events — so that
+  miscategorized block still received them, stamping a stray
+  `_rawInput` property onto what this code now believed was a plain text
+  block. `content_block_stop`'s cleanup (deleting `_rawInput` once the
+  JSON was parsed) only ever ran for `type === 'tool_use'`, so on a
+  `server_tool_use` block that property was never removed. That corrupted
+  block then got pushed into `convo` (`callClaudeAI`'s own request array,
+  not the persisted `convoHistory`) via `convo.push({ role: 'assistant',
+  content: data.content })` right before the NEXT round of the same
+  tool-use loop — and Anthropic's API rejects a `text`-typed content
+  block carrying an extra `_rawInput` field outright, surfacing as a 400
+  on that later message index, exactly matching the reported error shape.
+  **Confirmed this doesn't need a data-migration or a "clear your
+  history" fix**: `convo` is rebuilt fresh from `data.content` on every
+  `callClaudeAI` call — nothing persisted to `localStorage`/
+  `convoHistory` carries a raw content-block array, only the final text —
+  so the corruption never survived past the one broken request. The code
+  fix alone is the complete fix.
+- **Fixed by generalizing rather than special-casing a second type
+  name.** `content_block_start` now preserves whatever real block type
+  Anthropic actually sent (a shallow clone) for anything that isn't
+  literally `'tool_use'` or `'text'`, instead of guessing every non-
+  `tool_use` block must be text. The `_rawInput` accumulate/finalize/
+  delete steps in `content_block_delta`/`content_block_stop` now key off
+  "this block actually received an `input_json_delta` event" (checking
+  `_rawInput !== undefined`) rather than off `type === 'tool_use'`
+  specifically — so a `server_tool_use` block, or any other tool-like
+  block type Anthropic adds later, gets the same JSON reconstruction and
+  the same guaranteed cleanup a custom `tool_use` block already got,
+  without this file needing to hardcode every possible type name up
+  front. A `web_search_tool_result` block (delivered whole via
+  `content_block_start`, no delta at all) simply passes through
+  unmodified under the new generic branch — it never receives
+  `input_json_delta`, so `_rawInput` is never set on it and there's
+  nothing to clean up.
+- Verified with a real Node execution-harness test against the actual
+  extracted `createStreamAccumulator()` source (not a paraphrase),
+  simulating the exact failure shape: a text block followed by a
+  `server_tool_use` block streaming `input_json_delta` events for a
+  `web_search` call. Confirmed the `server_tool_use` block keeps its real
+  type, its input parses correctly, and — the actual bug — **no block in
+  the result carries a leftover `_rawInput` property at all**. Also
+  covered: a `web_search_tool_result` block passes through with its
+  `content` intact; a normal custom `tool_use` call (e.g. `search_guide`)
+  still works exactly as before; a plain streamed text-only reply is
+  unaffected; malformed `input_json_delta` JSON still falls back to `{}`
+  without throwing; a mid-stream `error` event is still captured; and a
+  final check that the resulting text block's own keys are exactly
+  `{type, text}` — nothing extra that would fail Anthropic's own content-
+  block validation the way the original bug did. All 16 script blocks
+  parse; div-tag balance unchanged (pure logic fix, no markup touched).
+- **Unverified live**: whether a real `web_search` call (as opposed to
+  the simulated event sequence in the test above) reproduces this exact
+  fix cleanly end-to-end — the simulated events match Anthropic's
+  documented streaming shape for a server tool call, but this couldn't be
+  run against a live key from this environment. Ask "can you give me any
+  information you have on them to contact them" again (or any other
+  question likely to trigger a live web search) to confirm the 400 is
+  actually gone.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
