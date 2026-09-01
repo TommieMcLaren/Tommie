@@ -1014,6 +1014,58 @@ for Outlook again.
   guess, not something tuned against real usage patterns. Worth adjusting
   `TA_HOTLEAD_STALE_DAYS` after living with it for a week or two.
 
+## Dead code removal — the old chip-based routing (Aug 2026)
+
+Follow-up to "what would help next" alongside the hot-lead nudge above.
+The "Trip Assistant: rebuilt as one always-conversational surface" section
+had already flagged `handleResult()` and everything it exclusively called
+as unreachable once `send()` started routing every message straight to the
+live AI — left in place at the time since verifying ~250 lines had truly
+no other caller, with no way to run this live, was judged riskier than a
+later, more careful pass. This was that pass.
+
+- **Verified via grep, not guesswork**: every candidate function's total
+  reference count across the whole file, confirming each one's only
+  caller(s) were themselves inside the same dead chain rooted at
+  `handleResult()` (which `send()` never calls). Where a function like
+  `searchGuideKnowledge`, `scoreSearchEntry`, or `cleanSearchText` turned
+  out to have a second, live caller (`runSearchGuideTool`, the real
+  `search_guide` tool handler used by the live AI) it was kept — only the
+  functions with zero live callers left were removed.
+- **Removed**: `handleResult`, `wantsScenarioBuild`, `buildScenarioPlan`,
+  `presentScenarioDraft`, `wantsItinerary`, `scoreAllItineraries`,
+  `renderItineraryRecommendation`, `renderItineraryChoices`,
+  `presentRecommendation`, `wireRecommendationActions`,
+  `buildDraftsFromText`, `extractCities`, `extractDayCount`,
+  `extractDietaryNeeds`, `extractTravelerType`, `extractMonth`,
+  `detectIntents`, `hasTemplateSignal`, `wireJumpLinks`,
+  `presentKnowledgeAnswer`, `renderKnowledgeAnswer`,
+  `extractRelevantSnippet`, `STALE_PATTERN`, `detectAdjustment`,
+  `applyDraftAdjustment` — 933 lines net. Also removed the now-orphaned
+  `lastKnowledgeContext` variable (its only reader was inside
+  `handleResult`, its only writer inside the also-removed
+  `presentKnowledgeAnswer`).
+- **Deliberately left alone**: `lastDraftContext` and `pendingResume` are
+  still declared and reset in live code (`renderAndTrackDrafts` still
+  writes `lastDraftContext`) even though nothing reads either one
+  meaningfully anymore — they're inert, not unreachable, and touching them
+  isn't part of what this pass was scoped to. Also left alone: the
+  "🧠 Actually think this through" escalation button's fallback path,
+  which lives inside `handleResult` and was removed along with it — the
+  panel's actual fallback-to-live-AI behavior is unaffected since `send()`
+  already routes everything to the live AI directly and never had its own
+  copy of that escalation button.
+- Verified via the same method as every other change this session: every
+  removed name greps to zero remaining references; every kept name (the
+  ones above plus `send`, `convoRespond`, `foldLower`,
+  `extractClientName`/`Destination`/`Tier`/`Occasion`/`Vibes`, and the
+  three live search functions) still greps to its expected count; all 15
+  `<script>` blocks parse via `node --check`-equivalent syntax parsing;
+  div-tag balance shrank symmetrically (1,662/1,662 → 1,610/1,610 opens/
+  closes) since the removed functions built HTML template strings, not
+  just logic. No behavior change for the DE — this is pure removal of code
+  that `send()` was already never calling.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
