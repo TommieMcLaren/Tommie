@@ -13711,12 +13711,29 @@ ${renderMarkdownLite(fullText)}
   function addAiAnswerMsg(summaryText, fullText) {
     const hasMore = fullText && summaryText && fullText.trim() !== summaryText.trim();
     let html = escapeHtml(summaryText);
-    if (hasMore) html += `<div class="ta-rec-actions"><button type="button" class="ta-rec-confirm" data-action="view-full">📋 View full details</button></div>`;
+    // Confirmed live (Sep 2026): the DE typed "would you be able to read
+    // those to me" and got "I'm not able to do text-to-speech directly"
+    // — an honestly-wrong answer, since this app HAS real TTS
+    // (speakText, ElevenLabs or the browser voice), just never wired to
+    // a button on a typed reply — only the mic/Conversation Mode loop
+    // auto-speaks. The model has no way to know that from its own text
+    // generation, so the fix is a real button here, not a smarter
+    // prompt. Always shown (not just when there's a pop-out) since
+    // reading aloud is useful for a short reply too.
+    html += `<div class="ta-rec-actions">`;
+    if (hasMore) html += `<button type="button" class="ta-rec-confirm" data-action="view-full">📋 View full details</button>`;
+    html += `<button type="button" class="ta-rec-confirm" data-action="read-aloud">🔊 Read aloud</button></div>`;
     const div = addMsg('bot', html, true);
     if (hasMore) {
       const btn = div.querySelector('[data-action="view-full"]');
       if (btn) btn.addEventListener('click', () => openItineraryModal(fullText));
     }
+    const readBtn = div.querySelector('[data-action="read-aloud"]');
+    if (readBtn) readBtn.addEventListener('click', () => {
+      readBtn.disabled = true;
+      readBtn.textContent = '🔊 Reading…';
+      speakText(fullText, () => { readBtn.disabled = false; readBtn.textContent = '🔊 Read aloud'; });
+    });
     // Reported live (Aug 2026): a client mentioned in a normal chat reply
     // (not the Daily Brief, not the itinerary pop-out) read as plain text
     // with no way to act on it — this is the shared bubble every live-AI

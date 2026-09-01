@@ -2453,6 +2453,75 @@ anything with the UI.
   intrusive. Test next: say "please open Amanda Jackson's lead card"
   and "open Amanda Jackson's latest draft" both typed and over voice.
 
+## Real "Read aloud" button on every chat reply (Sep 2026, unverified live)
+
+Surfaced right after the lead-card fix, same session: the DE typed
+"would you be able to read those to me" and got "I'm not able to do
+text-to-speech directly — that's outside what I can do in this app...
+use a screen reader." An honestly-wrong answer, not a lie — this app
+genuinely does have real TTS (`speakText`, either ElevenLabs or the
+browser voice), the model just has no way to know that from its own
+text generation, since only the mic/Conversation Mode loop currently
+auto-speaks a reply. A typed question has never had a way to be read
+back on demand.
+
+- **Fixed with a real button, not a smarter prompt.** Telling the
+  system prompt about `speakText`/the mic loop wouldn't actually solve
+  this — the model still can't trigger a UI action, it could only
+  describe one, which is the same category of problem the
+  "open lead card" fix above was about. `addAiAnswerMsg()` (the one
+  shared bubble-rendering function every non-draft live-AI reply
+  already funnels through — Conversation Mode, the escalation button,
+  typed chat, the image-question path) now always renders a
+  "🔊 Read aloud" button, not just when there's a "📋 View full
+  details" pop-out — a short reply is just as worth hearing as a long
+  one. Wired to the existing `speakText(fullText, onDone)`, so it
+  automatically gets whichever voice provider (browser or ElevenLabs)
+  is currently selected in Settings, with no separate wiring needed.
+  Disables itself and shows "🔊 Reading…" while speaking, restoring to
+  normal once `speakText`'s `onDone` fires — same disable/relabel
+  pattern already used by the SMS "Condensing…" button and the draft
+  Copy button.
+- **Reads the full text, not the condensed summary shown in the
+  bubble** — matches what "View full details" already shows, so
+  clicking either one (read or view) gets the DE the complete answer,
+  not just the one-line teaser.
+- **Known small gap, not fixed this pass**: `speakText()` internally
+  calls `stopSpeaking()` on every new call, so clicking a SECOND
+  bubble's Read-aloud button while a FIRST one is still speaking
+  correctly cancels the first and starts the second — but the first
+  button's own label stays stuck on "🔊 Reading…" forever, since its
+  `onDone` callback never fires (the speech it was waiting on got
+  cancelled, not completed). Cosmetic only — clicking that stuck button
+  again just re-triggers it correctly — not worth a global "which
+  button is active" tracker for a first pass, but worth fixing if it
+  turns out to look broken in practice.
+- **Deliberately not added to drafted emails/texts** (`renderAndTrackDrafts`'s
+  pop-out) — same reasoning CLAUDE.md already gives for why client-name
+  links are skipped there: that content is meant to be copy-pasted or
+  sent as-is, and this specific report was about a normal chat answer,
+  not a draft.
+- Verified with a real Node execution-harness test against the actual
+  extracted `addAiAnswerMsg()` source (not a paraphrase), across six
+  cases: a short reply still gets the button (and correctly gets no
+  "View full details" button, since there's nothing extra to show); a
+  long reply gets both buttons; clicking Read aloud passes the FULL
+  text (not the summary) to `speakText`, and the button disables/
+  relabels while speaking and restores after; "View full details"
+  still opens the modal with the full text (regression guard);
+  `wireClientProfileLinks` is still called on the bubble (regression
+  guard); and an XSS probe in the summary text still comes back
+  escaped (regression guard). All 16 script blocks parse; div-tag
+  balance unaffected (pure JS change, one new button per bubble, no
+  structural markup change).
+- **Unverified live**: how the new button actually reads against the
+  chat bubble's existing "View full details" button visually (crowding
+  a short reply's action row), and whether reading a full itinerary
+  answer aloud (headers, bullet lists, a table) sounds reasonable once
+  `speakText`'s markdown-stripping runs on it versus something that
+  needs its own summarization pass — worth trying on a genuinely long
+  multi-day itinerary answer, not just a short one-line reply.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
