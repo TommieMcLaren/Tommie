@@ -13765,7 +13765,7 @@ ${renderMarkdownLite(fullText)}
     // second, nested "jump to profile" button sitting right next to the
     // Draft button, which is redundant at best and fragile DOM nesting
     // (a <button> inside a <span> right beside another button) at worst.
-    const html = `<b>Hello — here's your day at a glance:</b><br><span class="ta-brief-lines">${lines.map(l => escapeHtml(l)).join('<br>')}</span>${actionsHtml}<br>Just ask, and I can draft outreach or pull up anyone's details.`;
+    const html = `<b>Hello — here's your day at a glance:</b><br><span class="ta-brief-lines">${lines.map(l => escapeHtml(l)).join('<br>')}</span>${actionsHtml}<br>Just ask, and I can draft a message or pull up anyone's details.`;
     const div = addMsg('bot', html, true);
     const linesEl = div.querySelector('.ta-brief-lines');
     if (linesEl) wireClientProfileLinks(linesEl);
@@ -15580,7 +15580,7 @@ ${renderMarkdownLite(fullText)}
           const dateLabel = new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           return `<div class="ct-draft-row" data-open-draft="${i}"><span class="ct-draft-row-subject">${ctEscapeHtml(d.subject || '(no subject)')}</span><span class="ct-draft-row-date">${ctEscapeHtml(dateLabel)}</span></div>`;
         }).join('')
-      : `<p class="ct-sidebar-notes-empty">No drafts yet — use "Draft outreach" above.</p>`);
+      : `<p class="ct-sidebar-notes-empty">No drafts yet — use "Draft Message" above.</p>`);
 
     // Notes (Sep 2026) — used to vanish entirely for a client with no
     // notes yet (ctRenderNotesLog returned '' and the whole section
@@ -15629,7 +15629,7 @@ ${renderMarkdownLite(fullText)}
         <div class="ct-detail-sidebar">
           ${ctBuildTaskCallout(c, diff, isOverdue)}
           <div class="ct-profile-cta">
-            <button type="button" class="ct-draft-btn" id="ct-detail-draft-btn">✉️ Draft outreach</button>
+            <button type="button" class="ct-draft-btn" id="ct-detail-draft-btn">✉️ Draft Message</button>
             ${showOutlookBtn ? `<button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button>` : ''}
           </div>
           <div class="ct-profile-section">${draftsHtml}</div>
