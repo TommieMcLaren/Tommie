@@ -780,6 +780,11 @@
   #ta-itinerary-modal-body li { margin-bottom: 4px; }
   #ta-itinerary-modal-body hr { border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 18px 0; }
   #ta-itinerary-modal-body a { color: var(--sage-darker); font-weight: 700; }
+  .ta-client-link {
+    background: var(--ct-gold-soft, #f3ead9); border: 1px solid var(--gold); color: var(--gold-text);
+    border-radius: 6px; padding: 1px 7px; font: inherit; font-weight: 700; cursor: pointer;
+  }
+  .ta-client-link:hover { background: var(--gold); color: #fff; }
   #ta-itinerary-modal-body table { width: 100%; border-collapse: collapse; margin: 0 0 14px; font-size: 13px; }
   #ta-itinerary-modal-body th, #ta-itinerary-modal-body td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(0,0,0,0.08); }
   #ta-itinerary-modal-body th { background: #faf6ee; font-weight: 700; color: var(--sage-darker); }
@@ -13260,12 +13265,65 @@ Tommie McLaren`
   // standalone file from — the modal body only ever holds the rendered
   // HTML, not something worth re-parsing back into a document.
   let lastItineraryModalText = null;
+
+  // Reported live (Aug 2026): a to-do answer's "View full details"
+  // pop-out showed a table with a client's name sitting there as inert
+  // text — no way to act on it besides closing the modal and finding
+  // that client by hand. This turns any real Client Tracker client's
+  // name, wherever it appears in a rendered answer (a table cell, bold
+  // text, a plain sentence), into a click that jumps straight to their
+  // real profile. Walks real text nodes with a TreeWalker rather than
+  // string-replacing the HTML, so it can never land inside a tag or
+  // attribute by accident, and only wraps the first match per text node
+  // (a name repeated twice in one line is rare, and matching it once is
+  // enough to make it actionable).
+  function wireClientProfileLinks(container) {
+    if (!window.__ctListClients) return;
+    let clients;
+    try { clients = window.__ctListClients(); } catch (e) { return; }
+    if (!clients || !clients.length) return;
+    // Longest names first, so "Tom Reyes Jr." isn't cut short by a
+    // partial match on "Tom Reyes" landing first.
+    const sorted = clients.slice().sort((a, b) => b.name.length - a.name.length);
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) textNodes.push(node);
+    textNodes.forEach(textNode => {
+      const text = textNode.textContent;
+      for (const c of sorted) {
+        if (!c.name) continue;
+        const idx = text.indexOf(c.name);
+        if (idx === -1) continue;
+        const frag = document.createDocumentFragment();
+        if (idx > 0) frag.appendChild(document.createTextNode(text.slice(0, idx)));
+        const link = document.createElement('button');
+        link.type = 'button';
+        link.className = 'ta-client-link';
+        link.textContent = c.name;
+        link.dataset.clientId = c.id;
+        frag.appendChild(link);
+        const rest = text.slice(idx + c.name.length);
+        if (rest) frag.appendChild(document.createTextNode(rest));
+        textNode.parentNode.replaceChild(frag, textNode);
+        break;
+      }
+    });
+    container.querySelectorAll('.ta-client-link').forEach(btn => {
+      btn.addEventListener('click', () => {
+        closeItineraryModal();
+        if (window.__ctOpenClientProfile) window.__ctOpenClientProfile(btn.dataset.clientId);
+      });
+    });
+  }
+
   function openItineraryModal(fullText) {
     const overlay = getItineraryOverlay();
     const body = getItineraryModalBody();
     if (!overlay || !body) return;
     lastItineraryModalText = fullText;
     body.innerHTML = renderMarkdownLite(fullText);
+    wireClientProfileLinks(body);
     overlay.classList.add('open');
   }
   function closeItineraryModal() {
@@ -15530,6 +15588,19 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     ctRender();
     if (ctDetailId === id) ctRenderDetail();
     return true;
+  };
+  // Exposed for the Trip Assistant's "click a client's name in an answer
+  // to jump to their real card" feature (see wireClientProfileLinks in
+  // that script block) — deliberately just {id, name} pairs, not full
+  // records, since text-matching is all that feature needs.
+  window.__ctListClients = () => ctClients.map(c => ({ id: c.id, name: c.name }));
+  // Opens the Client Tracker panel and jumps straight to one client's
+  // profile, skipping the list view entirely — same two steps a DE would
+  // take by hand (tap 📋, tap the card), just triggered programmatically.
+  window.__ctOpenClientProfile = (id) => {
+    const btn = document.getElementById('ct-btn');
+    if (btn) btn.click();
+    ctOpenDetail(id);
   };
 })();
 </script>

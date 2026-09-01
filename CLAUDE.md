@@ -1467,6 +1467,46 @@ request in the middle of an unrelated client's conversation history.
   jarring — both need a real browser/Word combination to check, not
   something this environment can confirm.
 
+## Clickable client names in Trip Assistant answers (Aug 2026, unverified live)
+
+Direct response to a screenshot: a to-do answer's "View full details"
+pop-out showed a table with a client's name ("Amanda Jackson") sitting
+there as inert text — the only way to actually act on it was to close
+the modal and go find that client by hand in the Client Tracker.
+
+- **`wireClientProfileLinks()`** runs right after `openItineraryModal()`
+  sets the pop-out's HTML, turning any real Client Tracker client's name
+  — wherever it appears in the rendered answer, a table cell, bold text,
+  a plain sentence — into a click that jumps straight to their actual
+  profile. Walks real text nodes with a `TreeWalker` rather than string-
+  replacing the rendered HTML, so a match can never land inside a tag or
+  attribute by accident. Sorts candidate names longest-first before
+  matching, so "Tom Reyes Jr." isn't cut short by a partial hit on
+  "Tom Reyes" landing first.
+- **New minimal exports**: `window.__ctListClients()` (just `{id, name}`
+  pairs — text-matching is all this needs, no reason to expose full
+  records for it) and `window.__ctOpenClientProfile(id)` (opens the
+  Client Tracker panel and jumps straight to that client's profile,
+  skipping the list view — the same two taps a DE would make by hand,
+  triggered programmatically). Clicking a linked name closes the
+  itinerary pop-out first, then calls this — the same "drive the real
+  UI, don't rebuild it" pattern `ctDraftOutreach()`/
+  `prefillQuoteBuilder()` already use in the other direction.
+- Only wraps the first match per text node (a name repeated twice in one
+  line is rare, and matching it once is already actionable) — kept
+  simple rather than handling every repeat occurrence.
+- Logic-tested in Node: the longest-name-first matching decision against
+  an exact single match, a name that's a substring of a longer client's
+  name (correctly prefers the longer one), a name with no longer
+  conflicting name present (still matches correctly), no match at all,
+  and an empty client list — all resolved as expected. All 15
+  `<script>` blocks parse; div-tag balance unchanged (no new `<div>`s,
+  only buttons/text nodes).
+- **Unverified live**: the actual click-and-jump behavior, and whether
+  the button styling reads clearly inline within a table cell versus a
+  plain sentence, haven't been seen in a real browser from this
+  environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
