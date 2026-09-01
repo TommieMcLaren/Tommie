@@ -18,6 +18,11 @@ relearn this the hard way" list still applies verbatim.
   fetch-to-Claude bridge work? No guide, no dependencies.
 - `diagnostic-tools/mic-test.html` — isolated test: does microphone access +
   speech recognition work in this environment?
+- `sw.js` — Client Tracker's companion service worker (see "Installable app
+  + best-effort background reminders" below). Must be hosted in the same
+  directory as `Spain_Destination_Guide.html` for its registration to
+  succeed; has zero effect if missing, and nothing else in this project
+  depends on it being present.
 
 Use the diagnostic tools FIRST whenever something in the live-AI or voice
 layer breaks, before touching the 14k-line main file.
@@ -1065,6 +1070,77 @@ later, more careful pass. This was that pass.
   closes) since the removed functions built HTML template strings, not
   just logic. No behavior change for the DE — this is pure removal of code
   that `send()` was already never calling.
+
+## Installable app + best-effort background reminders (Aug 2026, unverified live)
+
+The other half of "what would help next" alongside the dead-code cleanup
+above. CLAUDE.md's "Still open" already named this gap explicitly: the
+Client Tracker's browser-notification reminders only fire while the tab
+is actually open — no service worker meant no way to check for due
+follow-ups with the tab or browser closed. Real OAuth-backed Outlook read
+access remains blocked (DE has no admin rights on the KT tenant, see the
+hot-lead-nudge section above) — this is the other, no-admin-rights-needed
+way to close part of that gap, though it's a narrower fix than Outlook
+would be.
+
+- **New file: `sw.js`**, hosted alongside `Spain_Destination_Guide.html`.
+  This is the one piece of this project that couldn't be inlined into the
+  single HTML file no matter what — browsers refuse to register a service
+  worker from a `data:`/`blob:` URL, only a real same-origin `.js` file
+  works. Its own header comment carries the full explanation; short
+  version: it reads a lightweight IndexedDB mirror of Client Tracker
+  follow-up dates (service workers can't read `localStorage`, a different
+  storage world) and calls `registration.showNotification()` for anything
+  overdue or due today, deduped per-client-per-day the same way the
+  existing same-tab `ctCheckDueReminders()` already does.
+- **Installability**: a base64-encoded Web App Manifest is now linked from
+  `<head>` via a `data:application/manifest+json;base64,...` URL — unlike
+  the service worker, browsers do accept a data-URI manifest, so this
+  stayed inline. Lets the DE "Install" the guide as a standalone app (own
+  window, own icon, no browser chrome) where the browser supports it.
+  Silently does nothing if the browser doesn't support installable web
+  apps or ignores a data-URI icon.
+- **`ctMirrorRemindersToIndexedDb()`** writes just `{id, name, status,
+  nextFollowUp}` — not the full client record — into IndexedDB every time
+  `ctSaveData()` runs, so the service worker has something current to read
+  independent of whether any tab is open. `ctRegisterServiceWorker()`
+  registers `./sw.js` on load; `ctTryEnableBackgroundSync()` asks for
+  Periodic Background Sync after notification permission is granted.
+- **Genuinely best-effort, stated as such everywhere it's surfaced** —
+  this is the honest ceiling of what's achievable with zero backend and
+  zero admin rights, not a corner that was cut. Periodic Background Sync:
+  only implemented in Chrome/Chromium (not Firefox/Safari), only wakes a
+  service worker for an *installed* app, and even then only if Chrome's
+  own site-engagement heuristics judge the app "used enough" — there's no
+  manual override for that, the DE can't just toggle it on. And none of
+  this works at all over `file://` — service workers require a real
+  `https://` or `http://localhost` origin, a hard browser restriction, so
+  on `file://` (this guide's typical usage) `ctRegisterServiceWorker()`
+  fails immediately and silently, and the same-tab-only reminders that
+  already existed remain the only ones — nothing regresses. `sw.js` not
+  being hosted next to the HTML file (e.g. only the HTML got copied
+  somewhere) fails the same way, same silently. `ctRefreshNotifyUI()`'s
+  own copy reflects this honestly — it says "possibly in the background
+  too... not guaranteed either way," never "on."
+- Logic-tested in Node: `sw.js`'s core due-date decision (extracted and
+  run against synthetic clients — overdue, due today, closed, future, and
+  already-notified-today all resolved correctly, matching
+  `ctCheckDueReminders()`'s same rule). `node --check sw.js` passes
+  standalone. All 15 `<script>` blocks in the main file still pass syntax
+  parsing; div-tag balance unchanged (1,610/1,610).
+- **Unverified live, and unusually hard to verify from this environment
+  even in principle**: everything about the actual service worker
+  lifecycle (registration succeeding, `periodicsync` actually firing,
+  `showNotification()` actually displaying) needs a real https-hosted
+  origin, an installed PWA, and enough real usage for Chrome's engagement
+  heuristics to grant the permission — none of which can be faked or
+  fast-forwarded. Test the parts that CAN be checked first: confirm the
+  install prompt/option appears when hosted over https, confirm
+  `sw.js` registers without error in DevTools' Application panel, confirm
+  the IndexedDB `kt-reminders` store actually populates after saving a
+  client with a follow-up date. Whether Periodic Background Sync itself
+  ever fires is realistically a "live with it for a while and see" thing,
+  not a same-day test.
 
 ## Design decisions to preserve, not "helpfully" change
 

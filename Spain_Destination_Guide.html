@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <title>Destination Certification — Master Training Doc | Kensington Tours</title>
+<!-- Installability (Aug 2026, unverified live) — lets the DE "Install" this
+     as a standalone app (own window, own taskbar icon, no browser chrome)
+     instead of always opening it as a browser tab. Inlined as a base64 data
+     URI rather than a separate manifest.json file, to keep the guide itself
+     a single file per this project's own rule — only sw.js (see below)
+     couldn't avoid being a second file, since browsers won't let a service
+     worker be registered from a data:/blob: URL, only a real same-origin
+     .js file. Silently has no effect if the browser doesn't support
+     installable web apps, or ignores a data-URI manifest icon — nothing
+     else in this file depends on it. -->
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiS2Vuc2luZ3RvbiBUb3VycyDigJQgU3BhaW4gR3VpZGUgJiBUcmlwIEFzc2lzdGFudCIsInNob3J0X25hbWUiOiJLVCBTcGFpbiBHdWlkZSIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZGY5IiwidGhlbWVfY29sb3IiOiIjNGY2YjUyIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPVwiaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmdcIiB3aWR0aD1cIjUxMlwiIGhlaWdodD1cIjUxMlwiPjxyZWN0IHdpZHRoPVwiNTEyXCIgaGVpZ2h0PVwiNTEyXCIgcng9XCI5NlwiIGZpbGw9XCIlMjM0ZjZiNTJcIi8+PHRleHQgeD1cIjI1NlwiIHk9XCIzMzBcIiBmb250LWZhbWlseT1cIkdlb3JnaWEsc2VyaWZcIiBmb250LXNpemU9XCIyMjBcIiBmb250LXdlaWdodD1cIjcwMFwiIGZpbGw9XCIlMjNmNmYxZTdcIiB0ZXh0LWFuY2hvcj1cIm1pZGRsZVwiPktUPC90ZXh0Pjwvc3ZnPiIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIiwicHVycG9zZSI6ImFueSJ9XX0=">
+<meta name="theme-color" content="#4f6b52">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Baloo+2:wght@500;600;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -14326,6 +14338,82 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     } catch (e) {
       ctSetStatus('Could not save — try again');
     }
+    ctMirrorRemindersToIndexedDb();
+  }
+
+  // ---------- Background reminders via a companion service worker
+  // (sw.js, Aug 2026, unverified live) — a best-effort upgrade layered on
+  // top of the same-tab notifications below; see sw.js's own header
+  // comment for the full explanation of what this can and can't do, and
+  // why it needs a second file (browsers won't register a service worker
+  // from a data:/blob: URL, only a real same-origin .js file — the one
+  // thing in this project that couldn't stay inside the single HTML
+  // file). Everything here is wrapped so any failure — file:// origin,
+  // unsupported browser, sw.js not actually hosted next to this file,
+  // IndexedDB unavailable — just leaves the existing same-tab reminders
+  // as the only ones. Nothing here is required for the Client Tracker
+  // itself to work.
+  const CT_REMINDER_DB = 'kt-reminders';
+  const CT_REMINDER_DB_VERSION = 1;
+
+  function ctOpenReminderDb() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) { reject(new Error('no indexedDB')); return; }
+      const req = indexedDB.open(CT_REMINDER_DB, CT_REMINDER_DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('clients')) db.createObjectStore('clients', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('notified')) db.createObjectStore('notified');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // Mirrors only the fields a reminder actually needs — not the full
+  // client record — into IndexedDB, since a service worker can't read
+  // this page's localStorage at all (a different storage world). Called
+  // every time ctSaveData() runs; failures are silent and non-blocking.
+  async function ctMirrorRemindersToIndexedDb() {
+    try {
+      const db = await ctOpenReminderDb();
+      const tx = db.transaction('clients', 'readwrite');
+      const store = tx.objectStore('clients');
+      store.clear();
+      ctClients.forEach(c => {
+        if (!c.nextFollowUp || c.status === 'Closed') return;
+        store.put({ id: c.id, name: c.name, status: c.status, nextFollowUp: c.nextFollowUp });
+      });
+    } catch (e) { /* best effort — see header comment above */ }
+  }
+
+  let ctSwRegistration = null;
+  async function ctRegisterServiceWorker() {
+    if (!('serviceWorker' in navigator)) return null;
+    try {
+      ctSwRegistration = await navigator.serviceWorker.register('./sw.js');
+      return ctSwRegistration;
+    } catch (e) {
+      // Expected and silent on file:// (service workers require a real
+      // https/localhost origin — a hard browser restriction) or if sw.js
+      // isn't hosted alongside this file. Same-tab reminders are unaffected.
+      return null;
+    }
+  }
+
+  // Periodic Background Sync has no manual grant the DE can flip on —
+  // Chrome decides based on its own site-engagement heuristics, and only
+  // for an installed app (see the manifest link in <head>). This just
+  // asks; there's no way to know from here whether it will ever actually
+  // be granted or fire, which is why ctRefreshNotifyUI() never claims
+  // background reminders are "on."
+  async function ctTryEnableBackgroundSync() {
+    if (!ctSwRegistration || !('periodicSync' in ctSwRegistration)) return;
+    try {
+      const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+      if (status.state !== 'granted') return;
+      await ctSwRegistration.periodicSync.register('ct-check-followups', { minInterval: 12 * 60 * 60 * 1000 });
+    } catch (e) { /* not supported, not installed, or not granted — best effort */ }
   }
 
   let ctStatusTimer = null;
@@ -14781,13 +14869,16 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
 
   // Browser desktop-notification reminders for due/overdue follow-ups.
-  // Real limitation, not a bug: this is a plain static file with no
-  // server and no service worker, so these can only fire while this tab
-  // is actually open in a browser — closing the browser (or the tab)
-  // means no reminder, unlike a real push notification. That's the
-  // tradeoff for "no backend, works from a downloaded file." The
-  // "Add to Outlook" button remains the way to get a reminder that
-  // survives the tab being closed (via Outlook's own notifications),
+  // This same-tab path is the one guaranteed to work — it needs no
+  // backend, no OAuth, no hosting, and runs fine from a plain downloaded
+  // file: closing the tab (or the browser) just means no more reminders
+  // until it's reopened. sw.js (see ctRegisterServiceWorker below) adds a
+  // best-effort layer on top when this file happens to be hosted at a
+  // real https/localhost origin and installed as an app — never a
+  // replacement for this path, since Periodic Background Sync has no
+  // guarantee of firing even when it's set up correctly. The "Add to
+  // Outlook" button remains the other way to get a reminder that survives
+  // the tab being closed for certain (via Outlook's own notifications),
   // once that's confirmed working.
   const CT_NOTIFIED_KEY = 'kt-client-tracker:notified:v1';
 
@@ -14801,7 +14892,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     }
     if (Notification.permission === 'granted') {
       btn.textContent = '🔔';
-      btn.title = 'Reminders on — you\'ll get a browser notification when a follow-up is due, while this tab is open.';
+      btn.title = 'Reminders on — you\'ll get a browser notification when a follow-up is due, while this tab is open (and possibly in the background too, if this page is hosted online and installed as an app — not guaranteed either way).';
       btn.classList.add('on');
     } else if (Notification.permission === 'denied') {
       btn.textContent = '🚫';
@@ -14885,6 +14976,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         if (Notification.permission === 'granted') {
           new Notification('📋 Reminders on', { body: "You'll be notified here when a client follow-up is due, as long as this tab stays open." });
           ctCheckDueReminders();
+          ctTryEnableBackgroundSync(); // best-effort, silent no-op if unsupported/not installed — see comment above
         }
       });
     } else if (Notification.permission === 'denied') {
@@ -14901,6 +14993,17 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   // becomes due mid-session (or a day rolling over overnight on a tab
   // left open) still gets caught without the panel being reopened.
   setInterval(ctCheckDueReminders, 5 * 60 * 1000);
+  // Registers sw.js (if it's actually hosted alongside this file over
+  // https/localhost — silently does nothing otherwise) and does the first
+  // IndexedDB mirror so a Periodic Background Sync wake-up has something
+  // to check from the moment the worker exists, not just after the next
+  // save. If notification permission was already granted in an earlier
+  // session, also try to enable background sync right away rather than
+  // waiting for the DE to click the bell button again.
+  ctRegisterServiceWorker().then(() => {
+    ctMirrorRemindersToIndexedDb();
+    if ('Notification' in window && Notification.permission === 'granted') ctTryEnableBackgroundSync();
+  });
 
   // Exposed for the Trip Assistant's get_todo_list/propose_todo_update
   // tools (a separate script/IIFE — see the window.__ta* exports at the
