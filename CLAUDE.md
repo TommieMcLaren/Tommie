@@ -746,6 +746,125 @@ rather than the compact card (keeping the earlier declutter work intact):
   real browser — check that the Edit form (with a section or two
   expanded) now scrolls all the way to the Save/Cancel buttons.
 
+## Trip Assistant: rebuilt as one always-conversational surface (Aug 2026, unverified live)
+
+Direct response to explicit feedback that the panel was "so cluttered" and
+a request to make it "more of a Google Assistant" — talk to it, pull up
+the to-do list, action it, draft emails/SMS, get recommendations without
+over-explaining. Deliberately a redesign of the *interaction model and
+UI*, not a rewrite of the underlying engine — the BYOK auth, streaming,
+real tool-calling, retry handling, and the hallucination safety net were
+already confirmed working live this session (see "Trip Assistant panel"
+above) and are untouched here; throwing that away and rebuilding it would
+have reintroduced already-fixed bugs for no benefit, since none of it was
+what anyone called cluttered.
+
+- **One input, always live, no mode toggle.** Removed `#ta-chips` (the
+  five quick-fill buttons) and `#ta-convo-bar` ("Start Conversation" /
+  "Just Type — Skip Voice"). Previously, plain typed input defaulted to
+  the offline pattern-matcher (`handleResult` — keyword matching,
+  template drafts, itinerary lookup tables) and reaching the live AI
+  needed an explicit toggle; HANDOFF/CLAUDE.md have called this
+  "deliberately not the default... confusing" since the very first
+  version of this file. `send()` no longer branches on that at all —
+  every message (after the small local fast-paths below) goes straight
+  to the live AI, unconditionally. `handleResult()` and everything it
+  called (`wantsScenarioBuild`, `buildScenarioPlan`,
+  `scoreAllItineraries`, `renderItineraryChoices`, `buildDraftsFromText`,
+  `searchGuideKnowledge`'s presentation layer, `detectAdjustment`/
+  `applyDraftAdjustment`, the "🧠 Actually think this through" escalation
+  button) are now **unreachable dead code** — deliberately left in place
+  rather than physically deleted in this pass (verifying every one of
+  those ~250 lines has no other caller, with no way to test live from
+  this environment, was judged higher-risk than leaving unreachable code
+  behind for a follow-up cleanup once the new flow is confirmed working
+  well in practice).
+- **Kept as cheap local fast-paths** (instant, free, no API round trip):
+  history search ("what did I discuss with X before"),
+  Quote-Builder-prefill, and the "new client" reset phrase. These are
+  navigational shortcuts, not answers — not the kind of "clutter" the
+  feedback was about, and worth keeping fast.
+- **Retired, not replaced**: the "Polish an itinerary → email" chip's
+  Google-Drive-doc-by-name lookup (`pendingItineraryPolish` +
+  `TA_DRIVE_MCP`) and the "📅 Check follow-ups due" chip. Both are still
+  reachable in spirit — paste an itinerary and ask conversationally, or
+  (once calendar OAuth exists — see "Still open" below, Calendar MCP is
+  confirmed broken under BYOK regardless) ask about follow-ups — but
+  neither has a dedicated one-click entry point anymore. The ambient
+  once-a-day background check (`maybeRunDailyFollowUpCheck`) is
+  untouched and still runs on panel open.
+- **Mic unified into one button.** `#ta-mic` used to be a simple
+  dictate-into-the-textbox button, separate from the "Start
+  Conversation" voice loop. Now tapping it *is* the loop: listen → send
+  to the live AI → speak the reply → listen again, until tapped again or
+  a stop phrase is said — reusing the existing, already-tested
+  `convoListenOnce`/`speakText`/error-recovery machinery, just renamed
+  off `convoBtn` onto `micBtn` (`.listening` red pulse, new `.speaking`
+  gold state). Typed messages never auto-speak the reply (matches normal
+  chat expectations); voice-loop replies always do (the whole point of
+  using the mic). `convoVoiceBlocked` and the separate "conversation
+  (typed)" quasi-mode were dropped — moot now that typed input always
+  reaches the live AI anyway, so a blocked mic just ends the loop
+  cleanly with an explanation instead of degrading into a second mode.
+- **To-do list, read + propose-then-confirm write.** Two new tools,
+  `get_todo_list` and `propose_todo_update`, alongside the existing
+  `search_guide`/`get_city_data`/`find_matching_itinerary`. Confirmed
+  with the DE before building: **propose, never apply directly** — same
+  "draft only, DE confirms" rule this file already uses for every
+  Outlook action. `get_todo_list` reads the Client Tracker (a separate
+  script/IIFE) via a new `window.__ctGetTodoSummary()` export, reusing
+  its own `ctGroupClients()` bucketing rather than duplicating date
+  logic. `propose_todo_update` resolves the named client via a new
+  `window.__ctFindClientByName()` export (exact match, falling back to
+  substring) and returns a proposed field patch — never writes anything.
+  The actual write only happens through a new `addPendingActionCard()`
+  Confirm/Cancel card rendered under the AI's reply, wired to a third
+  export, `window.__ctApplyPatch(id, fields)` (a plain field-merge, same
+  shape `ctHandleSave()` already writes, plus a live re-render). All
+  three exports follow the same "call fresh inside a handler invoked
+  much later, never cache at parse time" rule the itinerary-modal
+  DOM-lookup bug taught earlier this session — safe despite the Trip
+  Assistant's script running before the Client Tracker's.
+- **Draft detection, so "draft an email/text" still gets its buttons.**
+  The system prompt now tells the model to write a ready-to-send email
+  as literally `Subject: <line>\n\n<body>` — the same shape the old
+  offline template system produced. A new `renderAiReply()` helper
+  (replacing direct `addAiAnswerMsg()` calls at every live-AI display
+  site) checks every reply for that shape; a match routes through the
+  existing `renderAndTrackDrafts()`/`wireDraftButtons()` machinery
+  (Outlook draft, schedule follow-up, text-message condense — all
+  unchanged), so those buttons still show up on an AI-drafted email
+  exactly like they did on a template-drafted one. Anything else is the
+  normal condensed chat bubble.
+- **Tone**: added an explicit system-prompt rule against restating the
+  question or narrating "let me check that" before answering — the
+  concrete complaint behind "recommend without over-explaining itself."
+  Works alongside the existing `SUMMARY:`/chat-bubble-condensing
+  mechanism rather than replacing it.
+- Logic-tested in Node: `runGetTodoListTool()`/`runProposeTodoUpdateTool()`
+  against a mocked `window.__ct*` (found client with valid changes,
+  unknown client, no-actual-changes, and Client-Tracker-not-loaded for
+  both tools); the real `window.__ctGetTodoSummary`/
+  `__ctFindClientByName`/`__ctApplyPatch` implementations against
+  synthetic `ctClients` (Closed correctly excluded from the to-do
+  buckets, partial-name match, a successful patch merge, and an unknown
+  id correctly returning `false`); `renderAiReply()`'s Subject: detection
+  against a real draft, a normal answer, and a decoy that merely
+  mentions the word "subject" mid-sentence (correctly not triggering);
+  and `addPendingActionCard()` against an XSS probe in a proposed change
+  description — inert. Full div-tag balance re-verified after the HTML
+  changes (1,661 opens / 1,661 closes across the whole file). All 16
+  `<script>` blocks pass `node --check`.
+- **Unverified live, and this is the big one**: none of `send()`'s new
+  unconditional live-AI routing, the merged mic/voice loop, the to-do
+  tools actually firing end-to-end against a real Client Tracker, the
+  Confirm/Cancel card's real click behavior, or the draft-detection
+  regex against genuine model output has been exercised in a real
+  browser from this environment. This is a bigger behavioral change than
+  anything else this session — test it thoroughly before trusting it in
+  front of a client: ask about the to-do list, ask it to draft an email,
+  propose and confirm an update, and try both typed and voice input.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
@@ -756,6 +875,11 @@ rather than the compact card (keeping the earlier declutter work intact):
   heritage-site interest, not a dietary assumption.
 - Official KT itineraries are the anchor; personal recommendations are always
   explicitly flagged as separate, never blended in unmarked.
+- The live AI never writes to the Client Tracker directly — `propose_todo_update`
+  only ever prepares a change; the DE's explicit Confirm tap on the card
+  it produces is the only thing that actually calls `window.__ctApplyPatch`.
+  Same "draft only, DE confirms" principle as the Outlook rule above,
+  extended to the one other place this file lets an AI touch real data.
 
 ## Still open (from HANDOFF, unresolved as of the move here)
 

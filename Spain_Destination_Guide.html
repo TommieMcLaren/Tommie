@@ -11518,6 +11518,7 @@ ${resultsBody}
   .ta-rec-confirm { background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; }
   .ta-rec-other { background: #fff; border: 1px solid rgba(0,0,0,0.12); color: #3a382e; }
   .ta-rec-notquite { background: #fff; border: 1px solid rgba(0,0,0,0.12); color: #8a5a3a; }
+  .ta-rec-cancel { background: #fff; border: 1px solid rgba(0,0,0,0.12); color: #8a8776; padding: 7px 14px; }
   .ta-rec-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
   .ta-rec-btn:disabled { cursor: default; }
   .ta-choice-btn {
@@ -11528,16 +11529,18 @@ ${resultsBody}
   .ta-choice-btn b { display: block; font-size: 12.5px; margin-bottom: 1px; }
   .ta-choice-btn small { color: #7a7767; }
 
-  #ta-chips { padding: 8px 12px 0; display: flex; gap: 6px; flex-wrap: wrap; }
-  .ta-chip { background: #f3ead9; border: 1px solid rgba(0,0,0,0.07); border-radius: 14px; padding: 5px 11px; font-size: 11px; cursor: pointer; color: #5c5a4d; transition: background .12s ease, transform .12s ease; }
-  .ta-chip:hover { background: var(--gold-light); transform: translateY(-1px); }
-
   #ta-inputrow { border-top: 1px solid rgba(0,0,0,0.06); padding: 11px 12px; display: flex; gap: 7px; align-items: flex-end; background: #fffefb; }
   #ta-input { flex: 1; resize: none; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 9px 12px; font-family: 'Lato', sans-serif; font-size: 13px; max-height: 90px; transition: border-color .12s ease, box-shadow .12s ease; }
   #ta-input:focus { outline: none; border-color: var(--sage-dark); box-shadow: 0 0 0 3px rgba(90,120,90,0.12); }
   #ta-mic { background: #f3ead9; border: 1px solid rgba(0,0,0,0.07); border-radius: 50%; width: 38px; height: 38px; font-size: 15px; cursor: pointer; flex-shrink: 0; transition: background .12s ease; }
   #ta-mic:hover { background: var(--gold-light); }
+  /* .listening = actively recording (red pulse); .speaking = reading
+     the reply back aloud (gold, no pulse) — both toggled by the merged
+     voice loop (convoListenOnce/speakText) that used to live on a
+     separate "Start Conversation" button (#ta-convo-btn) before the
+     mic became the single always-available entry point for voice. */
   #ta-mic.listening { background: #c0392b; color: #fff; animation: ta-pulse 1s infinite; }
+  #ta-mic.speaking { background: linear-gradient(135deg, var(--gold), #a97d1e); color: #fff; animation: none; }
   @keyframes ta-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
   #ta-send { background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; border: none; border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: transform .12s ease, box-shadow .12s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   #ta-send:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
@@ -11554,26 +11557,12 @@ ${resultsBody}
   #ta-image-remove { background: none; border: none; color: #b5473f; cursor: pointer; font-size: 13px; flex-shrink: 0; }
   .ta-msg-image { max-width: 220px; border-radius: 10px; display: block; margin-top: 6px; }
 
-  #ta-convo-bar {
-    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-    background: linear-gradient(135deg, rgba(90,120,90,0.08), rgba(224,184,98,0.08));
-    border-top: 1px solid rgba(0,0,0,0.06); border-bottom: 1px solid rgba(0,0,0,0.06);
-  }
-  #ta-convo-btn {
-    background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; border: none;
-    border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; gap: 6px; transition: transform .12s ease, box-shadow .12s ease;
-  }
-  #ta-convo-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
-  #ta-convo-btn.listening { background: linear-gradient(135deg, #c0392b, #922b21); animation: ta-convo-pulse 1.4s infinite; }
-  #ta-convo-btn.speaking { background: linear-gradient(135deg, var(--gold), #a97d1e); }
-  #ta-text-convo-btn {
-    background: #fff; border: 1px solid var(--sage-dark); color: var(--sage-darker);
-    border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
-  }
-  #ta-text-convo-btn:hover { background: rgba(90,120,90,0.08); }
-  @keyframes ta-convo-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.4); } 50% { box-shadow: 0 0 0 6px rgba(192,57,43,0); } }
-  #ta-convo-hint { font-size: 10.5px; color: #8a8776; line-height: 1.3; }
+  /* Now lives in the settings panel (bumpLiveAiCounter() still targets
+     this id) rather than its own always-visible bar — the bar and the
+     separate "Start Conversation"/"Just Type" buttons it sat next to
+     were removed with the rest of the chip row; the mic button is the
+     single entry point for voice now. */
+  #ta-convo-hint { font-size: 11px; color: #6a7d63; line-height: 1.4; margin: 0; }
 
   #random-tip-btn, #tell-me-more-btn, #quickSearchBtn, #why-reopen-btn { display: none !important; }
 
@@ -11587,7 +11576,7 @@ ${resultsBody}
 
 <div id="ta-panel">
   <div id="ta-head">
-    <div><b>Trip Assistant</b><span id="ta-head-subtitle">Drafts, live itineraries &amp; guide tools</span></div>
+    <div><b>Trip Assistant</b><span id="ta-head-subtitle">Just ask</span></div>
     <button type="button" id="ta-settings" title="API key settings">⚙️</button>
     <button id="ta-close">✕</button>
   </div>
@@ -11611,7 +11600,7 @@ ${resultsBody}
     </div>
     <p id="ta-apikey-status"></p>
     <p style="margin-top:16px;">
-      🔊 <b>Spoken voice</b> (Conversation Mode + "read aloud" buttons). Browsers only expose
+      🔊 <b>Spoken voice</b> (used when you talk via the 🎤 mic, and by any "read aloud" button). Browsers only expose
       their own built-in voices — there's no real David Attenborough or Morgan Freeman available
       here, and cloning a real person's voice without their consent isn't something this app will
       do. Pick your browser's deepest available voice and slow/lower it a touch for a similar
@@ -11623,21 +11612,10 @@ ${resultsBody}
       <label>Pitch <input type="range" id="ta-voice-pitch" min="0.6" max="1.4" step="0.05" value="1"></label>
     </div>
     <button type="button" id="ta-voice-test">🔊 Preview voice</button>
+    <p id="ta-convo-hint" style="margin-top:14px;">Live AI, talks back — billed to your own Anthropic API key</p>
   </div>
   <div id="ta-msgs">
-    <div class="ta-msg bot"><span>Hi! I can draft emails/SMS, pull live Kensington itineraries, answer questions from this guide (hotels, restaurants, DMC rates, exam traps — anything in here), or explain your last pick — tap a tool above, or just ask, e.g. "start the outreach email, client's name is Sarah, going to Barcelona" or "what's a good Premier hotel in Seville?"</span></div>
-  </div>
-  <div id="ta-chips">
-    <button type="button" class="ta-chip" data-fill="start the outreach email and sms, client Sarah, Barcelona">Outreach email + SMS</button>
-    <button type="button" class="ta-chip" data-fill="first follow up for a client going to Madrid">First follow-up</button>
-    <button type="button" class="ta-chip" data-fill="last follow up, client has gone quiet, Seville">Last follow-up</button>
-    <button type="button" class="ta-chip" id="ta-chip-polish">Polish an itinerary → email</button>
-    <button type="button" class="ta-chip" id="ta-chip-followups">📅 Check follow-ups due</button>
-  </div>
-  <div id="ta-convo-bar">
-    <button type="button" id="ta-convo-btn"><span id="ta-convo-icon">🎙️</span><span id="ta-convo-label">Start Conversation</span></button>
-    <button type="button" id="ta-text-convo-btn">💬 Just Type — Skip Voice</button>
-    <span id="ta-convo-hint">Live AI, talks back — billed to your own Anthropic API key</span>
+    <div class="ta-msg bot"><span>Hi — just ask or say what you need: draft an email or text, pull up an itinerary, check what's on your to-do list, or ask anything in this guide. e.g. "what's on my plate today?" or "draft an outreach email for Sarah, she's going to Barcelona."</span></div>
   </div>
   <div id="ta-image-preview" hidden>
     <img id="ta-image-preview-thumb" alt="Attached image">
@@ -11662,7 +11640,6 @@ ${resultsBody}
   const input = document.getElementById('ta-input');
   const sendBtn = document.getElementById('ta-send');
   const micBtn = document.getElementById('ta-mic');
-  const chipsEl = document.getElementById('ta-chips');
   const contextEl = document.getElementById('ta-context');
   const contextTextEl = document.getElementById('ta-context-text');
   const contextResetBtn = document.getElementById('ta-context-reset');
@@ -11693,8 +11670,8 @@ ${resultsBody}
     apiKeyInput.value = has ? key : '';
     apiKeyStatus.textContent = has ? '✓ Key saved in this browser.' : 'No key saved yet — live AI chat is disabled until you add one.';
     headSubtitleEl.textContent = has
-      ? 'Drafts, live itineraries & guide tools — live AI on'
-      : 'Drafts, live itineraries & guide tools — add your API key to enable live AI';
+      ? 'Just ask — live AI on'
+      : 'Add your API key to start talking to it';
   }
 
   settingsBtn.addEventListener('click', () => {
@@ -11759,10 +11736,6 @@ ${resultsBody}
   if (voicePitchInput) voicePitchInput.addEventListener('input', saveVoicePrefsFromUI);
   if (voiceTestBtn) voiceTestBtn.addEventListener('click', () => {
     speakText("Good afternoon. This is how I'll sound when I'm reading you an itinerary.");
-  });
-
-  chipsEl.querySelectorAll('.ta-chip').forEach(chip => {
-    chip.addEventListener('click', () => { input.value = chip.dataset.fill; send(); });
   });
 
   // ---------- Session memory ----------
@@ -11856,7 +11829,11 @@ Ground rules:
 - When a calendar tool (outlook_calendar_search) is available, use it only for what you're explicitly asked about — never assume every event is client-related; internal team meetings are common and should be recognized as such, not misreported as client follow-ups.
 - When drafting client emails or itinerary copy, match Kensington's existing warm, professional tone — search_guide for "email templates" if unsure of the house voice.
 - Always note when something needs live confirmation in TMT before it's quoted to a client — this guide's own data is a snapshot, not a live feed.
-- Keep spoken/conversational replies concise (2-4 sentences) unless the DE is asking for a full draft or itinerary — this may be read aloud.`;
+- Keep spoken/conversational replies concise (2-4 sentences) unless the DE is asking for a full draft or itinerary — this may be read aloud.
+- Answer directly — lead with the actual recommendation or answer, not a restatement of the question or a preamble about what you're about to do ("Let me look into that," "Based on the data I found," "I'll check..."). Skip narrating your own process; just give the answer and, only if it genuinely helps, the one-line reason behind it. This app shows your reply in a compact chat bubble — treat every extra sentence of throat-clearing as a real cost to how usable that bubble is, not free.
+- When the DE asks you to draft a client-ready email, write your ENTIRE reply as just the email — no preamble, no "here's a draft" — starting with "Subject: <subject line>" as the literal first line, then a blank line, then the body. This exact shape is how the app recognizes a real draft and attaches its Outlook/text-message/schedule-follow-up buttons automatically; without it those buttons never appear. Don't use this format for anything that isn't actually a ready-to-send email.
+- get_todo_list reads the DE's real Client Tracker (their actual follow-up list) — use it whenever asked what's due, what's on their plate, or which clients need attention, and answer from the real data it returns, never guess.
+- propose_todo_update drafts a change to one client's Client Tracker record (status, lead category, next follow-up, or a note) when the DE asks to mark something done, reschedule, or update a client from conversation. It NEVER applies anything by itself — the app shows the DE a Confirm/Cancel card, and only their tap actually changes data. After calling it, just confirm in plain language what you've prepared; don't claim the change is already made.`;
 
   const TA_TOOLS = [
     { type: 'web_search_20260209', name: 'web_search' },
@@ -11874,6 +11851,26 @@ Ground rules:
       name: 'find_matching_itinerary',
       description: "Find the closest-matching REAL, official Kensington Tours live itinerary (the actual bookable products on kensingtontours.com) for a client scenario, scored by city overlap and day count. ALWAYS call this FIRST for any itinerary-building or recommendation request, before adding personal picks — the official KT product is the anchor, not an afterthought. If a good match comes back, build the recommendation around it (same route/pacing, its real price/link) and layer in additional restaurant/site suggestions on top, clearly labeled as personal recommendations rather than part of the official listing. If nothing matches well, say so plainly and flag the whole recommendation as fully custom rather than KT-anchored. May also return a separate 'PERSONAL GO-TO ITINERARIES' section — this DE's own go-to picks, distinct from official KT product — present those under their own clearly-labeled heading too, never merged into the official section.",
       input_schema: { type: 'object', properties: { cities: { type: 'array', items: { type: 'string' }, description: 'Cities the client wants' }, days: { type: 'number', description: 'Approximate total day count' } }, required: ['cities'] }
+    },
+    {
+      name: 'get_todo_list',
+      description: "Read the DE's real Client Tracker — overdue and upcoming client follow-ups, grouped the same way the Client Tracker panel groups them. Use this whenever asked what's due, what's on their plate today, or which clients need attention.",
+      input_schema: { type: 'object', properties: {}, required: [] }
+    },
+    {
+      name: 'propose_todo_update',
+      description: "Prepare a change to one client's Client Tracker record — status, lead category, next follow-up date, or a note to add. Never applies anything directly: the app shows the DE a Confirm/Cancel card and only their tap changes real data. Use this when asked to mark something done, reschedule a follow-up, or update a client's status/notes from conversation. Only include the fields actually being changed.",
+      input_schema: {
+        type: 'object',
+        properties: {
+          clientName: { type: 'string', description: "The client's name, matched against the Client Tracker (case-insensitive, partial match is fine)" },
+          status: { type: 'string', description: 'New status, only if changing it: Inquiry, Quote sent, Booked, Traveling, Follow-up needed, or Closed' },
+          leadTemp: { type: 'string', description: 'New lead category, only if changing it: Hot Lead, Warm Lead, Check Back Later, Cold Lead, or "" to clear it' },
+          nextFollowUp: { type: 'string', description: 'New next-follow-up date as YYYY-MM-DD, only if changing it, or "" to clear it' },
+          noteToAdd: { type: 'string', description: "A note to append to the client's existing notes, only if adding one" }
+        },
+        required: ['clientName']
+      }
     }
   ];
 
@@ -12002,6 +11999,47 @@ Ground rules:
     return results.map(r => `### ${r.title}\n${cleanSearchText(r.text).slice(0, 600)}`).join('\n\n---\n\n');
   }
 
+  // Reads the real Client Tracker (a separate panel/script — see the
+  // window.__ct* exports at the end of that script block) rather than
+  // duplicating its date-bucketing logic here.
+  function runGetTodoListTool() {
+    if (!window.__ctGetTodoSummary) return "Client Tracker data isn't available right now — the panel script may not have loaded.";
+    const s = window.__ctGetTodoSummary();
+    const fmt = (label, list) => list.length
+      ? `${label} (${list.length}):\n` + list.map(c => `- ${c.name}${c.leadTemp ? ' [' + c.leadTemp + ']' : ''} — ${c.status}` +
+          (c.nextFollowUp ? `, follow-up ${c.nextFollowUp}` : '') + (c.destination ? `, ${c.destination}` : '') +
+          (c.notes ? ` — notes: ${c.notes}` : '')).join('\n')
+      : '';
+    return [fmt('Overdue', s.overdue), fmt('Due this week', s.dueThisWeek), fmt('Upcoming', s.upcoming), fmt('No follow-up date set', s.noDate)]
+      .filter(Boolean).join('\n\n') || 'Nothing on the to-do list right now — the Client Tracker is empty, or everything in it is Closed.';
+  }
+
+  // Never applies anything — resolves the named client and builds the
+  // proposed field changes, but the actual localStorage write only
+  // happens if the DE taps Confirm on the card this produces (see
+  // addPendingActionCard). Returns {text, patch}: text is what the model
+  // reads back as the tool_result (so it can confirm in its own words
+  // without claiming the change already happened); patch — or null if
+  // nothing could be resolved — is threaded up through callClaudeAI's
+  // return value for the UI to actually render that card from.
+  function runProposeTodoUpdateTool(input) {
+    const name = input && input.clientName;
+    if (!window.__ctFindClientByName) return { text: "Client Tracker data isn't available right now — the panel script may not have loaded.", patch: null };
+    const client = window.__ctFindClientByName(name);
+    if (!client) return { text: `Couldn't find a client matching "${name || '(no name given)'}" in the Client Tracker.`, patch: null };
+    const fields = {};
+    const changes = [];
+    if (input.status) { fields.status = input.status; changes.push(`status → ${input.status}`); }
+    if (input.leadTemp !== undefined) { fields.leadTemp = input.leadTemp; changes.push(`lead category → ${input.leadTemp || '(cleared)'}`); }
+    if (input.nextFollowUp !== undefined) { fields.nextFollowUp = input.nextFollowUp; changes.push(`next follow-up → ${input.nextFollowUp || '(cleared)'}`); }
+    if (input.noteToAdd) { fields.notes = (client.notes ? client.notes + '\n' : '') + input.noteToAdd; changes.push('note added'); }
+    if (!changes.length) return { text: `No actual field changes were specified for ${client.name}.`, patch: null };
+    return {
+      text: `Prepared for ${client.name}: ${changes.join(', ')}. Not applied yet — needs the DE's confirmation.`,
+      patch: { clientId: client.id, clientName: client.name, changes, fields }
+    };
+  }
+
   // messages: array of {role:'user'|'assistant', content:string|array}
   // Returns { text, error }. Handles the client-side search_guide tool
   // loop; web_search is a server tool Anthropic resolves automatically,
@@ -12027,7 +12065,9 @@ Ground rules:
   const TA_ROUND_LABELS = {
     search_guide: 'Searching this guide…',
     get_city_data: 'Pulling hotel/restaurant/tour data…',
-    find_matching_itinerary: 'Checking real Kensington itineraries…'
+    find_matching_itinerary: 'Checking real Kensington itineraries…',
+    get_todo_list: 'Checking your to-do list…',
+    propose_todo_update: 'Preparing that update…'
   };
 
   // Single source of truth for the model — was 'claude-opus-5', reverted to
@@ -12260,6 +12300,11 @@ Ground rules:
     const system = TA_SYSTEM_PROMPT + (extraSystemNote ? '\n\n' + extraSystemNote : '');
     let convo = messages.slice();
     let citiesUsed = [];
+    // Set inside the tool-dispatch block below when propose_todo_update
+    // fires, in an earlier round than the one that finally returns — kept
+    // at this scope (like citiesUsed) so it survives across rounds and
+    // rides along on whichever return statement actually ends the call.
+    let pendingAction = null;
     for (let round = 0; round < 7; round++) {
       let data;
       let clientToolUses, textBlocks;
@@ -12302,7 +12347,7 @@ Ground rules:
         if (!data.content) {
           return { text: '', error: "The AI layer didn't return a usable response — try again." };
         }
-        clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary'));
+        clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary' || b.name === 'get_todo_list' || b.name === 'propose_todo_update'));
         textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
       } catch (e) {
         if (e && e.name === 'ClientTimeout') {
@@ -12319,7 +12364,7 @@ Ground rules:
         }
         // No client tool needed (or only the server-resolved web_search was used) —
         // this response is already final.
-        return { text: textBlocks || "I didn't have a clear answer for that — could you rephrase?", error: null, cities: [...new Set(citiesUsed)] };
+        return { text: textBlocks || "I didn't have a clear answer for that — could you rephrase?", error: null, cities: [...new Set(citiesUsed)], pendingAction };
       }
       // Another round is coming — say what it's actually doing instead of
       // leaving a static, unexplained animation for however long this takes.
@@ -12334,6 +12379,12 @@ Ground rules:
           }
           if (tu.name === 'get_city_data') return { type: 'tool_result', tool_use_id: tu.id, content: runGetCityDataTool(tu.input && tu.input.cities) };
           if (tu.name === 'find_matching_itinerary') return { type: 'tool_result', tool_use_id: tu.id, content: runFindMatchingItineraryTool(tu.input && tu.input.cities, tu.input && tu.input.days) };
+          if (tu.name === 'get_todo_list') return { type: 'tool_result', tool_use_id: tu.id, content: runGetTodoListTool() };
+          if (tu.name === 'propose_todo_update') {
+            const result = runProposeTodoUpdateTool(tu.input || {});
+            if (result.patch) pendingAction = result.patch; // last one wins if the model somehow proposes more than one in a turn
+            return { type: 'tool_result', tool_use_id: tu.id, content: result.text };
+          }
           return { type: 'tool_result', tool_use_id: tu.id, content: runSearchGuideTool(tu.input && tu.input.query) };
         });
         convo.push({ role: 'user', content: toolResults });
@@ -12371,7 +12422,7 @@ Ground rules:
       if (finalText && looksLikeHallucinatedToolCall(finalText)) {
         return { text: '', error: "This looked like the AI narrating a fake tool call instead of returning real, grounded guide data — refusing to show it rather than risk a fabricated itinerary reaching a client. Use the offline Quote Builder for now, or tap retry." };
       }
-      if (finalText) return { text: finalText, error: null, cities: [...new Set(citiesUsed)] };
+      if (finalText) return { text: finalText, error: null, cities: [...new Set(citiesUsed)], pendingAction };
     } catch (e) { /* fall through to the honest error below */ }
     return { text: '', error: "This needed more steps than usual and didn't wrap up cleanly — the request itself was fine, this was on the AI's end. Tap retry." };
   }
@@ -13609,11 +13660,10 @@ Tommie McLaren`
     input.style.height = 'auto';
 
     // An attached image always goes through this dedicated one-off path,
-    // regardless of Conversation Mode — the offline engine can't see images
-    // at all, and this is deliberately NOT folded into convoHistory (a
-    // base64 image is easily hundreds of KB; letting that silently
-    // accumulate in localStorage on every turn was worth avoiding for a
-    // "attach one photo, ask about it" feature).
+    // deliberately NOT folded into convoHistory (a base64 image is easily
+    // hundreds of KB; letting that silently accumulate in localStorage on
+    // every turn was worth avoiding for a "attach one photo, ask about it"
+    // feature).
     if (pendingImage) {
       const img = pendingImage;
       const caption = text;
@@ -13631,8 +13681,9 @@ Tommie McLaren`
           typingDiv.remove();
           if (result.error) { addErrorWithRetry(result.error, runImageQuestion); return; }
           const { fullText, summaryText } = splitSummary(result.text, false);
-          addAiAnswerMsg(summaryText, fullText);
+          renderAiReply(summaryText, fullText);
           renderCitiesMapMsg(result.cities);
+          if (result.pendingAction) addPendingActionCard(result.pendingAction);
         }).catch(e => {
           typingDiv.remove();
           addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runImageQuestion);
@@ -13644,79 +13695,66 @@ Tommie McLaren`
 
     addMsg('user', escapeHtml(text), true);
 
-    if (convoActive) {
-      if (CONVO_STOP_RE.test(text)) { stopConversationMode(); return; }
-      // convoRespond() unconditionally pushes the user turn onto convoHistory
-      // before it knows whether the call will fail — on error, pop that
-      // unanswered turn back off before retrying, or a retry would push the
-      // same text a second time and leave two consecutive user turns in the
-      // history sent to Claude.
-      const runConvoSend = () => {
-        const typingDiv = showTyping();
-        convoRespond(text, typingDiv).then(({ text: replyText, full, cities, error }) => {
-          typingDiv.remove();
-          if (error) { convoHistory.pop(); addErrorWithRetry(replyText, runConvoSend); return; }
-          addAiAnswerMsg(replyText, full);
-          renderCitiesMapMsg(cities);
-          speakText(replyText);
-        }).catch(e => {
-          typingDiv.remove();
-          convoHistory.pop();
-          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runConvoSend);
-        });
-      };
-      runConvoSend();
-      return;
-    }
-
-    if (pendingItineraryPolish) {
-      pendingItineraryPolish = false;
-      const runPolish = () => {
-        const typingDiv = showTyping();
-        const note = "The DE either pasted a rough itinerary/client notes directly, or is referring to a document in their Google Drive (use the Drive tools to find and read it if the message references a file rather than containing the itinerary text itself). Rewrite it as a polished, warm, client-ready outreach email in Kensington's voice — preserve every factual detail (hotel names, dates, tour names, prices) exactly as given, don't invent or drop anything, don't add hotels/tours that weren't mentioned. Output just the email body, ready to send.";
-        callClaudeAI([{ role: 'user', content: text }], note, [TA_DRIVE_MCP], typingDiv).then(result => {
-          typingDiv.remove();
-          if (result.error) { addErrorWithRetry(result.error, runPolish); return; }
-          renderAndTrackDrafts([{ key: 'polishedItinerary', label: '📋 Polished Itinerary Email', subject: null, body: result.text }]);
-        }).catch(e => {
-          typingDiv.remove();
-          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runPolish);
-        });
-      };
-      runPolish();
-      return;
-    }
-
     if (isNewClientSignal(foldLower(text))) {
       archiveCurrentSession();
       taState.clientName = null; taState.destination = null; taState.tier = null;
       taState.itinerary = null; taState.occasion = null; taState.lastVibes = null;
       pendingResume = null;
       lastDraftContext = null;
-      lastKnowledgeContext = null;
       updateContextBar();
       addMsg('bot', "Got it — starting fresh. What do you need for the new client?", false);
       return;
     }
 
-    // A follow-up like "make it warmer" or "shorten it" regenerates the
-    // most recently shown draft(s) instead of being treated as a new request.
-    const adjustment = lastDraftContext ? detectAdjustment(text) : null;
-    if (adjustment) {
-      const typingDiv = showTyping();
-      setTimeout(() => {
-        typingDiv.remove();
-        const adjusted = lastDraftContext.drafts.map(d => ({ ...d, body: applyDraftAdjustment(d.body, adjustment) }));
-        renderAndTrackDrafts(adjusted);
-      }, 260);
+    // Cheap, instant, local — kept as fast-paths so common navigational
+    // asks (open a tool, look something up in past sessions) don't need
+    // a live API round-trip for something this file can already do itself.
+    if (wantsHistorySearch(text)) { presentHistorySearch(searchArchive(extractHistoryQuery(text))); return; }
+    if (wantsQuoteBuilderPrefill(text)) {
+      prefillQuoteBuilder();
+      addMsg('bot', "Opened the Quote Builder and filled in what I know so far — client name, tier, day count, and interests, where I have them. Take it from there.", false);
       return;
     }
 
-    const typingDiv = showTyping();
-    setTimeout(() => {
-      typingDiv.remove();
-      handleResult(text);
-    }, 260);
+    const extractedName = extractClientName(text);
+    const extractedDest = extractDestination(text);
+    const extractedTier = extractTier(text);
+    const extractedOccasion = extractOccasion(text);
+    // Check BEFORE overwriting taState.clientName — only nudge on a name
+    // that's actually new to this conversation, not every message where
+    // the same name gets re-extracted from context.
+    if (extractedName && extractedName !== taState.clientName) maybeSurfaceClientHistory(extractedName);
+    if (extractedName) taState.clientName = extractedName;
+    if (extractedDest) taState.destination = extractedDest;
+    if (extractedTier) taState.tier = extractedTier;
+    if (extractedOccasion) taState.occasion = extractedOccasion;
+    const extractedVibes = extractVibes(text);
+    if (extractedVibes.length) taState.lastVibes = extractedVibes;
+    updateContextBar();
+
+    // Everything else — every real question, draft, itinerary build, or
+    // to-do ask — always goes straight to the live AI now; there's no
+    // more offline-vs-live routing to guess at. convoRespond()
+    // unconditionally pushes the user turn onto convoHistory before it
+    // knows whether the call will fail — on error, pop that unanswered
+    // turn back off before retrying, or a retry would push the same text
+    // a second time and leave two consecutive user turns in the history
+    // sent to Claude.
+    const runSend = () => {
+      const typingDiv = showTyping();
+      convoRespond(text, typingDiv).then(({ text: replyText, full, cities, error, pendingAction }) => {
+        typingDiv.remove();
+        if (error) { convoHistory.pop(); addErrorWithRetry(replyText, runSend); return; }
+        renderAiReply(replyText, full);
+        renderCitiesMapMsg(cities);
+        if (pendingAction) addPendingActionCard(pendingAction);
+      }).catch(e => {
+        typingDiv.remove();
+        convoHistory.pop();
+        addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runSend);
+      });
+    };
+    runSend();
   }
 
   sendBtn.addEventListener('click', send);
@@ -13776,52 +13814,30 @@ Tommie McLaren`
     reader.readAsDataURL(file);
   });
 
-  // ---------- Voice input (Web Speech API — Chrome/Edge only) ----------
+  // ---------- Voice — tap the mic for a real back-and-forth: listen →
+  // send to the live AI (same tools/data as typed input) → speak the
+  // reply → listen again, until tapped again or a stop phrase is said.
+  // Used to be a separate "Start Conversation" toggle plus a second,
+  // simpler dictate-into-textbox mic — merged into one button, since
+  // there's no more offline-vs-live routing left for it to toggle
+  // between (see send() above — everything already goes to the live AI).
+  // Browsers won't allow a silent always-on wake word for privacy
+  // reasons, so "tap to start, then it stays open" is the honest version.
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRec) {
-    const rec = new SpeechRec();
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.lang = 'en-US';
-    let listening = false;
-
-    rec.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      input.value = (input.value ? input.value + ' ' : '') + transcript;
-    };
-    rec.onend = () => { listening = false; micBtn.classList.remove('listening'); };
-    rec.onerror = () => { listening = false; micBtn.classList.remove('listening'); };
-
-    micBtn.addEventListener('click', () => {
-      if (listening) { rec.stop(); return; }
-      listening = true;
-      micBtn.classList.add('listening');
-      try { rec.start(); } catch (e) { listening = false; micBtn.classList.remove('listening'); }
-    });
-  } else {
-    micBtn.title = 'Voice input is not supported in this browser — try Chrome or Edge.';
-    micBtn.addEventListener('click', () => {
-      addMsg('sys', 'Voice input isn\'t supported in this browser. It works in Chrome and Edge — for now, just type your request.', false);
-    });
-    micBtn.style.opacity = '0.5';
-  }
-
-  // ---------- Conversation Mode — continuous voice loop backed by the
-  // live Claude API (callClaudeAI above). Press once, then it's a real
-  // back-and-forth: listen → send to Claude (with search_guide/web_search
-  // tools) → speak the reply → listen again, until you say "stop" or tap
-  // the button. This always uses the live AI layer, never the offline
-  // pattern-matcher — that's the point of Conversation Mode. Browsers
-  // won't allow a silent always-on wake word for privacy reasons, so
-  // "press to start, then it stays open" is the honest version of this.
-  const convoBtn = document.getElementById('ta-convo-btn');
-  const convoIcon = document.getElementById('ta-convo-icon');
-  const convoLabel = document.getElementById('ta-convo-label');
   let convoActive = false;
-  let convoVoiceBlocked = false; // mic denied/unavailable, but conversation mode stays alive via typing
   let convoHistory = []; // capped conversation turns, {role, content: string}
   let convoConsecutiveErrors = 0;
   const CONVO_STOP_RE = /^\s*(stop|that'?s all|goodbye|end conversation|we'?re done)\.?\s*$/i;
+
+  if (!SpeechRec) {
+    micBtn.title = 'Voice input is not supported in this browser — try Chrome or Edge.';
+    micBtn.style.opacity = '0.5';
+    micBtn.addEventListener('click', () => {
+      addMsg('sys', "Voice input isn't supported in this browser. It works in Chrome and Edge — for now, just type your request.", false);
+    });
+  } else {
+    micBtn.addEventListener('click', () => { convoActive ? stopConversationMode() : startConversationMode(); });
+  }
 
   function speakText(text, onDone) {
     if (!('speechSynthesis' in window) || !text) { if (onDone) onDone(); return; }
@@ -13830,9 +13846,9 @@ Tommie McLaren`
     const clean = text.replace(/[*_#>`]/g, '').replace(/\n{2,}/g, '. ').replace(/\n/g, ' ');
     const utter = new SpeechSynthesisUtterance(clean);
     applyVoicePrefs(utter);
-    convoBtn.classList.add('speaking');
-    utter.onend = () => { convoBtn.classList.remove('speaking'); if (onDone) onDone(); };
-    utter.onerror = () => { convoBtn.classList.remove('speaking'); if (onDone) onDone(); };
+    micBtn.classList.add('speaking');
+    utter.onend = () => { micBtn.classList.remove('speaking'); if (onDone) onDone(); };
+    utter.onerror = () => { micBtn.classList.remove('speaking'); if (onDone) onDone(); };
     window.speechSynthesis.speak(utter);
   }
 
@@ -13848,7 +13864,7 @@ Tommie McLaren`
   // never lost). Short conversational replies already stay brief per the
   // main system prompt, so this only matters for the itinerary/draft case
   // that prompt explicitly exempts from brevity.
-  const TA_SUMMARY_NOTE = `Your reply may be read aloud (Conversation Mode) and is always shown in a compact chat bubble first, with the full text available in a separate "View full details" pop-out — the DE does not have to read or hear everything in the bubble itself. If your answer is long and detailed (a full itinerary, a draft, anything more than a few sentences), write the complete answer as normal first — nothing needs to be shortened or left out, it's still fully available. Then, on its own final line, add exactly one sentence starting with "SUMMARY: " that's a warm, natural-sounding one-line overview of the key point (as if you're telling a colleague the headline, not reciting the itinerary) — e.g. "SUMMARY: I've built an 8-day Madrid and Barcelona trip anchored to a real Kensington itinerary, with Premier hotels and a few food-forward picks layered in." If your answer is already short (a few sentences), skip the SUMMARY line entirely — just answer normally.`;
+  const TA_SUMMARY_NOTE = `Your reply may be read aloud (the DE is using voice) and is always shown in a compact chat bubble first, with the full text available in a separate "View full details" pop-out — the DE does not have to read or hear everything in the bubble itself. If your answer is long and detailed (a full itinerary, a draft, anything more than a few sentences), write the complete answer as normal first — nothing needs to be shortened or left out, it's still fully available. Then, on its own final line, add exactly one sentence starting with "SUMMARY: " that's a warm, natural-sounding one-line overview of the key point (as if you're telling a colleague the headline, not reciting the itinerary) — e.g. "SUMMARY: I've built an 8-day Madrid and Barcelona trip anchored to a real Kensington itinerary, with Premier hotels and a few food-forward picks layered in." If your answer is already short (a few sentences), skip the SUMMARY line entirely — just answer normally.`;
 
   function convoContextNote() {
     const bits = [];
@@ -14010,6 +14026,48 @@ Tommie McLaren`
     return div;
   }
 
+  // The one place a live-AI conversation can actually change Client
+  // Tracker data — and only via this explicit tap, never on its own.
+  // pendingAction comes from callClaudeAI's propose_todo_update handling
+  // (runProposeTodoUpdateTool); window.__ctApplyPatch is the Client
+  // Tracker's own export (a separate script/IIFE) that does the real
+  // localStorage write and re-render.
+  function addPendingActionCard(pendingAction) {
+    if (!pendingAction) return;
+    const html = `<div class="ta-rec-actions"><button type="button" class="ta-rec-confirm" data-action="confirm-update">✓ Confirm — ${escapeHtml(pendingAction.changes.join(', '))}</button><button type="button" class="ta-rec-cancel" data-action="cancel-update">Cancel</button></div>`;
+    const div = addMsg('bot', html, true);
+    const confirmBtn = div.querySelector('[data-action="confirm-update"]');
+    const cancelBtn = div.querySelector('[data-action="cancel-update"]');
+    if (confirmBtn) confirmBtn.addEventListener('click', () => {
+      const ok = window.__ctApplyPatch && window.__ctApplyPatch(pendingAction.clientId, pendingAction.fields);
+      if (cancelBtn) cancelBtn.disabled = true;
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = ok ? `✓ Updated ${pendingAction.clientName}` : 'Could not update — open Client Tracker to edit directly';
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', () => {
+      if (confirmBtn) confirmBtn.disabled = true;
+      cancelBtn.disabled = true;
+      cancelBtn.textContent = 'Cancelled';
+    });
+  }
+
+  // Every live-AI reply passes through here now, whether typed or spoken.
+  // If it's shaped like the email-draft format the system prompt asks for
+  // ("Subject: ...\n\n<body>"), route it through the existing draft
+  // renderer instead of a plain chat bubble — that's what actually
+  // attaches the Outlook/text-message/schedule-follow-up buttons
+  // (renderDrafts already rebuilds the "Subject: " line from d.subject,
+  // so it's split out here rather than left in d.body to avoid doubling
+  // it). Anything else is just the normal condensed bubble.
+  function renderAiReply(summaryText, fullText) {
+    const m = (fullText || '').match(/^Subject:\s*(.+)\n\n?([\s\S]*)$/i);
+    if (m) {
+      renderAndTrackDrafts([{ key: 'aiDraft', label: '✉️ Email draft', subject: m[1].trim(), body: m[2].trim() }]);
+      return;
+    }
+    addAiAnswerMsg(summaryText, fullText);
+  }
+
   async function convoRespond(transcript, progressDiv) {
     convoHistory.push({ role: 'user', content: transcript });
     if (convoHistory.length > 12) convoHistory = convoHistory.slice(-12);
@@ -14019,7 +14077,7 @@ Tommie McLaren`
     // Store the clean full text (no SUMMARY line) in history, not the raw
     // reply — keeps later turns' context free of the summary-only tag.
     if (!result.error) convoHistory.push({ role: 'assistant', content: fullText });
-    return { text: summaryText, full: fullText, cities: result.cities || [], error: !!result.error };
+    return { text: summaryText, full: fullText, cities: result.cities || [], error: !!result.error, pendingAction: result.pendingAction || null };
   }
 
   function convoListenOnce() {
@@ -14033,25 +14091,26 @@ Tommie McLaren`
       const transcript = e.results[0][0].transcript;
       addMsg('user', escapeHtml(transcript), true);
       if (CONVO_STOP_RE.test(transcript)) { stopConversationMode(); return; }
-      convoBtn.classList.remove('listening');
-      // Same pattern as send()'s typed path: a failed request stops and shows
-      // a real retry button rather than silently auto-looping back into
-      // listening, which could otherwise pile up repeated failures with no
-      // visible acknowledgment if the key/network problem doesn't clear.
-      // Still speaks the error aloud first — voice mode should always talk
-      // back, even to report a problem.
+      micBtn.classList.remove('listening');
+      // A failed request stops and shows a real retry button rather than
+      // silently auto-looping back into listening, which could otherwise
+      // pile up repeated failures with no visible acknowledgment if the
+      // key/network problem doesn't clear. Still speaks the error aloud
+      // first — voice mode should always talk back, even to report a
+      // problem.
       const runVoiceRespond = () => {
         const typingDiv = showTyping();
-        convoRespond(transcript, typingDiv).then(({ text: replyText, full, cities, error }) => {
+        convoRespond(transcript, typingDiv).then(({ text: replyText, full, cities, error, pendingAction }) => {
           typingDiv.remove();
           if (error) {
-            convoHistory.pop(); // same dup-turn guard as send()'s convoActive branch
+            convoHistory.pop(); // same dup-turn guard as send()'s unified path
             speakText(replyText);
             addErrorWithRetry(replyText, runVoiceRespond);
             return;
           }
-          addAiAnswerMsg(replyText, full);
+          renderAiReply(replyText, full);
           renderCitiesMapMsg(cities);
+          if (pendingAction) addPendingActionCard(pendingAction);
           speakText(replyText, () => { if (convoActive) convoListenOnce(); });
         }).catch(err => {
           typingDiv.remove();
@@ -14080,100 +14139,58 @@ Tommie McLaren`
           'audio-capture': "No microphone was found or available.",
           'network': "A network error interrupted speech recognition."
         }[errType] || ('Speech recognition stopped with an error (' + (errType || 'unknown') + ').');
-        convoVoiceBlocked = true;
-        convoBtn.classList.remove('listening');
-        convoIcon.textContent = '⌨️';
-        convoLabel.textContent = 'Conversation (typed) — tap to end';
-        addMsg('sys', '🎙️ ' + explain + " I can't listen, but I can still talk — type below and I'll answer with the live AI and speak the reply out loud. Tap the button to end this mode entirely.", false);
+        addMsg('sys', '🎙️ ' + explain + " Voice is off for now — just type below and I'll still answer (without speaking back).", false);
+        resetConvoUI();
         return;
       }
       if (convoActive) setTimeout(convoListenOnce, 700);
     };
     rec.onend = () => { /* next listen is chained from onresult/speakText, or the retry logic above */ };
-    try { convoBtn.classList.add('listening'); rec.start(); }
+    try { micBtn.classList.add('listening'); rec.start(); }
     catch (e) {
-      convoVoiceBlocked = true;
-      convoBtn.classList.remove('listening');
-      convoIcon.textContent = '⌨️';
-      convoLabel.textContent = 'Conversation (typed) — tap to end';
-      addMsg('sys', "🎙️ Couldn't start the microphone (" + (e && e.message ? e.message : 'unknown error') + "). I can still talk — type below and I'll answer with the live AI and speak the reply out loud. Tap the button to end this mode entirely.", false);
+      addMsg('sys', "🎙️ Couldn't start the microphone (" + (e && e.message ? e.message : 'unknown error') + "). Voice is off for now — just type below and I'll still answer (without speaking back).", false);
+      resetConvoUI();
     }
   }
 
   function startConversationMode() {
-    if (!SpeechRec) { addMsg('sys', "Conversation Mode needs voice support — try Chrome or Edge.", false); return; }
+    if (!SpeechRec) { addMsg('sys', "Voice needs Chrome or Edge to work in this browser.", false); return; }
     convoActive = true;
-    convoVoiceBlocked = false;
-    // Deliberately NOT resetting convoHistory here — it used to be wiped on
-    // every Start/Stop toggle, so ending a conversation (including after an
-    // error) and starting again lost all context, even mid-session. History
-    // now only clears via "Start new client" (contextResetBtn) — a real
-    // topic change, not just a mode toggle.
-    convoBtn.classList.add('listening');
-    convoIcon.textContent = '🔴';
-    convoLabel.textContent = 'End Conversation';
+    // Deliberately NOT resetting convoHistory here — ending and restarting
+    // the voice loop (including after an error) shouldn't lose context.
+    // History only clears via "Start new client" (contextResetBtn) — a
+    // real topic change, not just a mic toggle.
+    micBtn.classList.add('listening');
+    micBtn.title = 'Listening — tap to stop';
     addMsg('sys', convoHistory.length
-      ? '🎙️ Conversation mode on — picking up where we left off. Say "stop" or tap the button to end.'
-      : '🎙️ Conversation mode on — just talk, I\'ll answer out loud using the live AI (not just this guide\'s offline data). Say "stop" or tap the button to end.', false);
+      ? '🎙️ Listening — picking up where we left off. Say "stop" or tap the mic to end.'
+      : '🎙️ Listening — just talk, I\'ll answer out loud using the live AI. Say "stop" or tap the mic to end.', false);
     convoListenOnce();
   }
 
-  function stopConversationMode() {
+  // Shared UI reset for both an explicit stop and a fatal mic error (the
+  // latter already shows its own explanation, so it calls this directly
+  // rather than stopConversationMode() to avoid a redundant second
+  // "Conversation ended" message right after).
+  function resetConvoUI() {
     convoActive = false;
-    convoVoiceBlocked = false;
-    convoBtn.classList.remove('listening', 'speaking');
-    convoIcon.textContent = '🎙️';
-    convoLabel.textContent = 'Start Conversation';
+    micBtn.classList.remove('listening', 'speaking');
+    micBtn.title = 'Speak your request';
     window.speechSynthesis.cancel();
+  }
+
+  function stopConversationMode() {
+    resetConvoUI();
     if (convoHistory.length) addMsg('sys', 'Conversation ended.', false);
   }
 
-  // Skips the microphone entirely — goes straight into the same live-AI
-  // conversational state Conversation Mode falls back to when voice is
-  // blocked, without ever attempting to listen first. This is the direct
-  // "just talk to it via typing" entry point — nothing routes through the
-  // offline pattern-matcher while this is active, regardless of what the
-  // message looks like (unlike the plain input box, which still runs the
-  // offline engine first).
-  function startTypedConversationMode() {
-    convoActive = true;
-    convoVoiceBlocked = true;
-    // See the comment in startConversationMode() — convoHistory persists
-    // across mode toggles now, only "Start new client" clears it.
-    convoBtn.classList.remove('listening');
-    convoIcon.textContent = '⌨️';
-    convoLabel.textContent = 'Conversation (typed) — tap to end';
-    addMsg('sys', convoHistory.length
-      ? "💬 Continuing with the live AI — picking up where we left off. Tap \"Start Conversation\" to end."
-      : "💬 Talking with the live AI now — type below, I'll reason it through and speak the answer back too. This bypasses the offline guide lookup entirely. Tap \"Start Conversation\" to end.", false);
-    input.focus();
-  }
-  const textConvoBtn = document.getElementById('ta-text-convo-btn');
-  if (textConvoBtn) textConvoBtn.addEventListener('click', () => { convoActive ? stopConversationMode() : startTypedConversationMode(); });
-
-  if (convoBtn) {
-    if (!SpeechRec) { convoBtn.style.opacity = '0.5'; convoBtn.title = 'Needs Chrome or Edge'; }
-    convoBtn.addEventListener('click', () => { convoActive ? stopConversationMode() : startConversationMode(); });
-  }
-
-  // ---------- Itinerary → polished email (live AI). Click primes the
-  // input with instructions; paste/type the rough itinerary as the next
-  // message and it routes to the live AI instead of the offline matcher.
-  let pendingItineraryPolish = false;
-  const chipPolish = document.getElementById('ta-chip-polish');
-  if (chipPolish) {
-    chipPolish.addEventListener('click', () => {
-      pendingItineraryPolish = true;
-      addMsg('sys', "Paste the rough itinerary or client notes below — or name a Google Drive doc (\"pull my draft for the Martinez family\") — and I'll turn it into a polished, client-ready email using the live AI, keeping every fact exactly as given.", false);
-      input.focus();
-    });
-  }
-
-  // Reusable so both the manual chip and the once-a-day ambient check
-  // (wired at panel-open, below) share one implementation. Asks the
-  // model for an explicit FOLLOWUPS_FOUND/FOLLOWUPS_NONE token on its
-  // own first line so the ambient path can stay silent when there's
-  // nothing to report, instead of guessing from free text.
+  // Used by the once-a-day ambient check below (the manual "Check
+  // follow-ups due" chip that used to also call this was removed along
+  // with the rest of the chip row — calendar MCP is confirmed broken
+  // under BYOK regardless, see CLAUDE.md, so nothing was lost live).
+  // Asks the model for an explicit FOLLOWUPS_FOUND/FOLLOWUPS_NONE token
+  // on its own first line so the ambient path can stay silent when
+  // there's nothing to report, instead of guessing from free text.
   function runFollowUpCheck(progressDiv) {
     const knownClients = getKnownClientNames();
     const note = `Use outlook_calendar_search (search the signed-in user's Outlook calendar for the next 10 days) to check for anything that looks like a client follow-up or check-in.
@@ -14186,25 +14203,6 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       // If the model didn't follow the format, default to showing the raw
       // answer rather than silently swallowing something that might matter.
       return m ? { found: m[1] === 'FOLLOWUPS_FOUND', text: m[2].trim(), error: null } : { found: true, text: result.text, error: null };
-    });
-  }
-
-  const chipFollowups = document.getElementById('ta-chip-followups');
-  if (chipFollowups) {
-    chipFollowups.addEventListener('click', () => {
-      addMsg('user', '📅 Check follow-ups due', false);
-      const runCheck = () => {
-        const typingDiv = showTyping();
-        runFollowUpCheck(typingDiv).then(res => {
-          typingDiv.remove();
-          if (res.error) { addErrorWithRetry(res.error, runCheck); return; }
-          addMsg('bot', escapeHtml(res.text || "Didn't find anything to report."), true);
-        }).catch(e => {
-          typingDiv.remove();
-          addErrorWithRetry("Something unexpected broke: " + (e && e.message ? e.message : String(e)), runCheck);
-        });
-      };
-      runCheck();
     });
   }
 
@@ -15702,6 +15700,44 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   // becomes due mid-session (or a day rolling over overnight on a tab
   // left open) still gets caught without the panel being reopened.
   setInterval(ctCheckDueReminders, 5 * 60 * 1000);
+
+  // Exposed for the Trip Assistant's get_todo_list/propose_todo_update
+  // tools (a separate script/IIFE — see the window.__ta* exports at the
+  // end of that block for the same pattern in the other direction).
+  // Trip Assistant's own script loads and runs BEFORE this one, but it
+  // only ever calls these fresh, inside a tool handler invoked much
+  // later at runtime (never cached at its own parse time) — same fix as
+  // the itinerary-modal DOM-lookup bug taught: safe as long as nothing
+  // captures these at load time instead of calling them live.
+  window.__ctGetTodoSummary = () => {
+    const groups = ctGroupClients(ctClients);
+    const fmt = list => list.map(c => ({
+      id: c.id, name: c.name, status: c.status, leadTemp: c.leadTemp || '',
+      destination: c.destination || '', nextFollowUp: c.nextFollowUp || '',
+      lastContact: c.lastContact || '', notes: c.notes || ''
+    }));
+    return { overdue: fmt(groups.overdue), dueThisWeek: fmt(groups.soon), upcoming: fmt(groups.later), noDate: fmt(groups.noDate) };
+  };
+  window.__ctFindClientByName = name => {
+    if (!name) return null;
+    const q = String(name).trim().toLowerCase();
+    if (!q) return null;
+    return ctClients.find(c => c.name.toLowerCase() === q) || ctClients.find(c => c.name.toLowerCase().includes(q)) || null;
+  };
+  // Applies a proposed patch (see the Trip Assistant's propose_todo_update
+  // tool) after the DE confirms it in chat — the ONLY place client data
+  // gets written to from outside this panel, deliberately narrow (a plain
+  // field-merge, same shape ctHandleSave already writes) rather than a
+  // general-purpose setter.
+  window.__ctApplyPatch = (id, fields) => {
+    const idx = ctClients.findIndex(c => c.id === id);
+    if (idx === -1) return false;
+    ctClients[idx] = { ...ctClients[idx], ...fields };
+    ctSaveData();
+    ctRender();
+    if (ctDetailId === id) ctRenderDetail();
+    return true;
+  };
 })();
 </script>
 
