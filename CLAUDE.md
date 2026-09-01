@@ -1594,6 +1594,35 @@ purpose, in line with that steer.
   there instead of in Trip Assistant — worth noticing over the next few
   days of actual use.
 
+## Daily Brief: real greeting + clickable names (Aug 2026, unverified live)
+
+Direct request: "Hello, here is your day at a glance," plus wanting the
+brief's items directly actionable. Small, tightly-scoped follow-up to the
+Daily Brief consolidation above — reuses two things that already existed
+rather than building anything new.
+
+- **Real chat bubble, not a quiet system aside.** The brief used to post
+  as a `sys`-role message (small italic gray text, easy to skim past) —
+  now posts as a normal `bot` bubble opening with "Hello — here's your
+  day at a glance," reading like an assistant actually greeting the DE
+  rather than a log line.
+- **Every name in the brief is clickable**, reusing
+  `wireClientProfileLinks()` exactly as built for the itinerary pop-out —
+  no new matching/linking logic, just called on the brief's own message
+  div right after `addMsg()` returns it. Tapping a name jumps straight to
+  that client's real profile, same as everywhere else this now works.
+- Logic-tested the HTML-building + escaping in Node: a normal two-line
+  brief renders as expected, and an XSS probe embedded in what would be a
+  flagged line (`<script>alert(1)</script>`) comes back fully escaped, no
+  raw tag in the output. All 15 `<script>` blocks parse; div-tag balance
+  unchanged (no new markup, just a different `addMsg` call).
+- **Unverified live**: whether `.ta-client-link`'s pill styling (a
+  `--ct-gold-soft`/`#f3ead9` fill) stays visually distinct against the
+  bot bubble's own near-identical background color, or reads as flatter
+  than it does inside the itinerary pop-out's lighter background — the
+  gold border should still make it readable as a button either way, but
+  this hasn't been seen in a real browser.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

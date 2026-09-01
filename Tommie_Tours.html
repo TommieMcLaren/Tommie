@@ -13622,7 +13622,16 @@ ${renderMarkdownLite(fullText)}
       listLine(`🔥 ${flaggedHot.length} hot lead${flaggedHot.length === 1 ? '' : 's'} worth a look`, flaggedHot)
     ].filter(Boolean);
     if (!lines.length) return; // clean day — stay silent, same as every ambient check in this file
-    addMsg('sys', `☀️ Here's what's worth knowing today:\n${lines.join('\n')}\n\nJust ask and I can draft outreach or pull up anyone's details.`, false);
+    // A real greeting in a proper chat bubble (not the faint italic
+    // system-aside styling) — meant to read like a right-hand assistant
+    // actually saying hello, not a quiet log line easy to skim past.
+    // Reuses wireClientProfileLinks() (built for the itinerary pop-out)
+    // so every name mentioned here is immediately actionable too — click
+    // it to jump straight to that client's real profile, not just read
+    // about them.
+    const html = `<b>Hello — here's your day at a glance:</b><br>${lines.map(l => escapeHtml(l)).join('<br>')}<br><br>Just ask, and I can draft outreach or pull up anyone's details.`;
+    const div = addMsg('bot', html, true);
+    wireClientProfileLinks(div);
   }
 
   // ---------- Knowledge Q&A — answers general guide questions (hotels,
