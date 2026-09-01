@@ -13906,6 +13906,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
   .ct-match-apply:hover { background: var(--sage-darker); }
   .ct-match-empty { font-size: 12px; color: var(--ct-ink-soft); font-style: italic; }
+  #ct-ai-match-btn {
+    background: none; border: 1px solid var(--gold); color: var(--gold-text); border-radius: 20px;
+    padding: 2px 10px; font-size: 10.5px; font-weight: 700; cursor: pointer; font-style: normal;
+    font-family: 'Lato', sans-serif; margin-left: 4px;
+  }
+  #ct-ai-match-btn:hover { background: var(--ct-gold-soft); }
   .ct-match-personal-label { font-size: 10.5px; font-weight: 700; color: var(--gold-text); margin-top: 2px; }
   .ct-form-grid input, .ct-form-grid select, .ct-form-grid textarea {
     width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--ct-line); border-radius: 7px;
@@ -14036,7 +14042,14 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   .ct-note-entry { padding: 8px 0 8px 12px; border-left: 2px solid var(--ct-line); font-size: 13.5px; line-height: 1.55; color: var(--dark); }
   .ct-note-date { display: block; font-size: 11px; font-weight: 700; color: var(--gold-text); margin-bottom: 2px; }
   .ct-note-text { white-space: pre-wrap; }
-  .ct-profile-cta { margin-top: 8px; }
+  .ct-profile-cta { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .ct-draft-btn {
+    background: var(--ct-gold-soft, #f3ead9); border: 1px solid var(--gold); color: var(--gold-text);
+    font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 20px; cursor: pointer;
+    font-family: 'Lato', sans-serif; white-space: nowrap;
+  }
+  .ct-draft-btn:hover { background: var(--gold); color: #fff; }
+  .ct-draft-btn:disabled { opacity: 0.6; cursor: default; }
   .ct-tmt-sync { font-size: 11px; font-weight: 700; margin-left: 6px; }
   .ct-tmt-sync.ok { color: var(--sage-darker); }
   .ct-tmt-sync.pending { color: var(--ct-overdue); }
@@ -14368,33 +14381,107 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     </div>`;
   }
 
+  function ctWireMatchApplyButtons(container) {
+    container.querySelectorAll('.ct-match-apply').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('ct-f-itinerary').value = btn.dataset.itineraryId;
+        const suggestEl = document.getElementById('ct-itinerary-suggest');
+        suggestEl.hidden = true;
+        suggestEl.innerHTML = '';
+      });
+    });
+  }
+
+  // The offline city-only match above is deliberately simple (free,
+  // instant, no live-AI call) — it can't reason about Trip Vision,
+  // budget, or traveler details the way a real answer would need to.
+  // Rather than trying to teach the local scorer that nuance, this is the
+  // explicit, opt-in escape hatch: only fires on a real click (never
+  // automatically, since it's a real API call with real latency and
+  // cost), and hands the model everything on the card worth knowing, not
+  // just city names.
+  function ctNoMatchHtml(msg) {
+    return `<div class="ct-match-empty">${ctEscapeHtml(msg)} <button type="button" id="ct-ai-match-btn">🧠 Ask AI to match</button></div>`;
+  }
+
+  async function ctRunAiItineraryMatch() {
+    const suggestEl = document.getElementById('ct-itinerary-suggest');
+    if (!suggestEl) return;
+    if (!window.__taCallClaudeAI || !window.__taHasApiKey || !window.__taHasApiKey()) {
+      suggestEl.innerHTML = '<div class="ct-match-empty">Add your Anthropic API key in Trip Assistant’s ⚙️ Settings to use AI matching.</div>';
+      suggestEl.hidden = false;
+      return;
+    }
+    suggestEl.innerHTML = '<div class="ct-match-empty">🧠 Asking the AI to match an itinerary…</div>';
+    suggestEl.hidden = false;
+    const bits = [];
+    const destination = document.getElementById('ct-f-destination').value.trim();
+    const tripVision = document.getElementById('ct-f-tripvision').value.trim();
+    const budget = document.getElementById('ct-f-budget').value.trim();
+    const travelerAges = document.getElementById('ct-f-travelerages').value.trim();
+    const dietary = document.getElementById('ct-f-dietary').value.trim();
+    if (destination) bits.push('Destination: ' + destination);
+    if (tripVision) bits.push('What they want: ' + tripVision);
+    if (budget) bits.push('Budget: ' + budget);
+    if (travelerAges) bits.push('Travelers: ' + travelerAges);
+    if (dietary) bits.push('Dietary needs: ' + dietary);
+    const prompt = 'Which official Kensington Spain itinerary (or personal pick) best matches this client, if any? ' + (bits.length ? bits.join('. ') + '.' : '(no details entered yet on this card)');
+    const note = 'Call find_matching_itinerary — proposing your own best-guess candidate cities from the details given, since none may be stated explicitly — and answer with ONLY the exact itinerary title on the first line, then one short sentence of reasoning on the next line. If nothing is a good match, write "No close match" as the first line instead.';
+    let result;
+    try {
+      result = await window.__taCallClaudeAI([{ role: 'user', content: prompt }], note, null, null);
+    } catch (e) {
+      suggestEl.innerHTML = '<div class="ct-match-empty">Something went wrong asking the AI — try again.</div>';
+      return;
+    }
+    if (result.error) {
+      suggestEl.innerHTML = `<div class="ct-match-empty">${ctEscapeHtml(result.error)}</div>`;
+      return;
+    }
+    const firstLine = (result.text.split('\n')[0] || '').trim();
+    const allItins = [
+      ...(typeof KT_LIVE_ITINERARIES !== 'undefined' ? KT_LIVE_ITINERARIES : []),
+      ...(typeof PERSONAL_ITINERARIES !== 'undefined' ? PERSONAL_ITINERARIES : [])
+    ];
+    const matched = allItins.find(it => firstLine.toLowerCase().includes(it.title.toLowerCase()));
+    const applyBtn = matched ? `<button type="button" class="ct-match-apply" data-itinerary-id="${ctEscapeHtml(matched.id)}">Apply</button>` : '';
+    suggestEl.innerHTML = `<div class="ct-match-option"><div><div class="ct-match-personal-label">🧠 AI suggestion</div><b>${ctEscapeHtml(firstLine)}</b><small>${ctEscapeHtml(result.text.split('\n').slice(1).join(' ').trim())}</small></div>${applyBtn}</div>`;
+    ctWireMatchApplyButtons(suggestEl);
+  }
+
+  function ctWireAiMatchFallback() {
+    const btn = document.getElementById('ct-ai-match-btn');
+    if (btn) btn.addEventListener('click', ctRunAiItineraryMatch);
+  }
+
   function ctRunItineraryMatch() {
     const suggestEl = document.getElementById('ct-itinerary-suggest');
     if (!suggestEl) return;
-    const text = document.getElementById('ct-f-destination').value;
-    const cities = ctExtractCities(text);
-    if (!cities.length || !window.__taMatchItinerary) {
+    const destText = document.getElementById('ct-f-destination').value.trim();
+    if (!destText) {
       suggestEl.hidden = true;
       suggestEl.innerHTML = '';
       return;
     }
+    const cities = ctExtractCities(destText);
+    if (!cities.length || !window.__taMatchItinerary) {
+      suggestEl.innerHTML = ctNoMatchHtml('No recognized Spain city in the destination yet.');
+      suggestEl.hidden = false;
+      ctWireAiMatchFallback();
+      return;
+    }
     const { official, personal } = window.__taMatchItinerary(cities, null);
     if (!official.length && !personal.length) {
-      suggestEl.innerHTML = `<div class="ct-match-empty">No official or personal itinerary matches [${ctEscapeHtml(cities.join(', '))}] closely — this may be a fully custom trip.</div>`;
+      suggestEl.innerHTML = ctNoMatchHtml(`No official or personal itinerary matches [${cities.join(', ')}] closely — this may be a fully custom trip.`);
       suggestEl.hidden = false;
+      ctWireAiMatchFallback();
       return;
     }
     const top = official.slice(0, 2).map(s => ctRenderMatchOption(s, false)).join('')
       + personal.slice(0, 1).map(s => ctRenderMatchOption(s, true)).join('');
     suggestEl.innerHTML = top;
     suggestEl.hidden = false;
-    suggestEl.querySelectorAll('.ct-match-apply').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.getElementById('ct-f-itinerary').value = btn.dataset.itineraryId;
-        suggestEl.hidden = true;
-        suggestEl.innerHTML = '';
-      });
-    });
+    ctWireMatchApplyButtons(suggestEl);
   }
 
   // Debounced so it runs once typing pauses, not on every keystroke — this
@@ -14871,6 +14958,43 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     ctSetStatus(`Opened Outlook in a new tab for "${client.name}" — check it and tap Save to add the event.`);
   }
 
+  // "✉️ Draft outreach" (Aug 2026, unverified live) — picking a matched
+  // itinerary used to be a dead end (nothing happened after). This sends
+  // the request into the Trip Assistant's own chat exactly as if the DE
+  // had typed it: open the panel, fill the input, click Send. Simulates
+  // the real UI interaction rather than duplicating Trip Assistant's
+  // drafting/streaming/draft-detection/Outlook-and-SMS-button logic a
+  // second time here — same pattern prefillQuoteBuilder() already uses
+  // for its own handoff into the Quote Builder. A useful side effect:
+  // send()'s own extractClientName()/extractDestination() calls run on
+  // whatever text is in the input box, so they naturally pick this
+  // client's name/destination out of the constructed message — Trip
+  // Assistant's context bar ends up reflecting this client too, with no
+  // extra wiring needed for that.
+  function ctDraftOutreach(client) {
+    const taBtn = document.getElementById('ta-btn');
+    const taInput = document.getElementById('ta-input');
+    const taSendBtn = document.getElementById('ta-send');
+    if (!taBtn || !taInput || !taSendBtn) return;
+    const bits = [`Draft an outreach email for ${client.name}.`];
+    const itinerary = ctFindItinerary(client.itineraryId);
+    if (itinerary) bits.push(`Anchor it to the "${itinerary.title}" itinerary.`);
+    else if (client.destination) bits.push(`They're interested in ${client.destination}.`);
+    if (client.tripVision) bits.push(`What they're hoping for: ${client.tripVision}.`);
+    if (client.budget) bits.push(`Budget: ${client.budget}.`);
+    if (client.travelerAges) bits.push(`Travelers: ${client.travelerAges}.`);
+    if (client.dietaryRestrictions) bits.push(`Dietary needs: ${client.dietaryRestrictions}.`);
+    if (client.specialOccasion) bits.push(`Special occasion: ${client.specialOccasion}.`);
+    // #ct-overlay is a full-screen z-index:10000 backdrop, above
+    // #ta-panel's 9999 — Trip Assistant would open invisibly behind it
+    // if this stayed open, so close it first, same as any other handoff
+    // out of this panel.
+    ctCloseOverlay();
+    taBtn.click();
+    taInput.value = bits.join(' ');
+    taSendBtn.click();
+  }
+
   // Deliberately minimal — name, status, and the one line that actually
   // drives the grouping (last contact / next follow-up). Everything
   // else (destination, itinerary, TMT link, phone, email, notes,
@@ -15005,11 +15129,16 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       ${ctSection('Restaurants', restaurantRows)}
       ${ctSection('Other', otherRows)}
       ${ctRenderNotesLog(c.notes)}
-      ${showOutlookBtn ? `<div class="ct-profile-cta"><button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button></div>` : ''}
+      <div class="ct-profile-cta">
+        <button type="button" class="ct-draft-btn" id="ct-detail-draft-btn">✉️ Draft outreach</button>
+        ${showOutlookBtn ? `<button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button>` : ''}
+      </div>
     `;
 
     const outlookBtn = document.getElementById('ct-detail-outlook-btn');
     if (outlookBtn) outlookBtn.addEventListener('click', () => ctAddToOutlook(c));
+    const draftBtn = document.getElementById('ct-detail-draft-btn');
+    if (draftBtn) draftBtn.addEventListener('click', () => ctDraftOutreach(c));
   }
 
   let ctDetailId = null;

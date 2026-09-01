@@ -1346,6 +1346,72 @@ the Trip Assistant chat.
   button placement reads clearly at a glance — none of this has been
   tried in a real browser from this environment.
 
+## Draft outreach button + AI-assisted itinerary matching (Aug 2026, unverified live)
+
+Two direct follow-ups to Match Itinerary, picked from "what would help
+next": matching an itinerary was a dead end (nothing happened after), and
+the offline city-only matcher had no answer when Destination didn't
+contain a recognized Spain city name.
+
+- **"✉️ Draft outreach" in the profile view** (`ctDraftOutreach()`) sends
+  a request into the Trip Assistant's own chat exactly as if the DE had
+  typed it — opens the panel (`#ta-btn.click()`), fills `#ta-input` from
+  the client's name, matched itinerary (or destination if none is set
+  yet), trip vision, budget, traveler ages, dietary needs, and special
+  occasion, then clicks `#ta-send`. Deliberately drives the real UI
+  instead of duplicating Trip Assistant's drafting/streaming/draft-
+  detection/Outlook-and-SMS-button logic a second time here — same
+  pattern `prefillQuoteBuilder()` already uses for its own handoff into
+  the Quote Builder. Closes `#ct-overlay` first — it's a full-screen
+  `z-index: 10000` backdrop, above `#ta-panel`'s `9999`, so Trip
+  Assistant would otherwise open invisibly behind it. A free side effect:
+  `send()`'s own `extractClientName()`/`extractDestination()` calls run
+  on whatever text is in the input box, so they naturally pick this
+  client's name/destination out of the constructed message — Trip
+  Assistant's context bar ends up reflecting this client too, with no
+  extra wiring for that specifically. Always visible in the profile view
+  (not conditional on having a matched itinerary) — the model already
+  handles "no clear KT match" gracefully via `find_matching_itinerary`'s
+  own custom-trip fallback, so even a bare client card can still produce
+  something useful.
+- **AI-assisted matching, opt-in only, when the free local matcher comes
+  up empty.** The offline city-only matcher (`ctRunItineraryMatch()`)
+  can't reason about Trip Vision, budget, or traveler details — teaching
+  it that nuance would mean re-implementing judgment a model already has.
+  Instead, both empty cases (`ctNoMatchHtml()`: no recognized city in
+  Destination at all, or recognized cities that scored zero official/
+  personal matches) now show an inline "🧠 Ask AI to match" button rather
+  than just a dead-end message. Only fires on an explicit click, never
+  automatically — unlike the free instant local matcher, this is a real
+  API call with real latency and cost, so it stays opt-in the same way
+  every other live-AI action in this file does. `ctRunAiItineraryMatch()`
+  builds a prompt from Destination/Trip Vision/Budget/Traveler ages/
+  Dietary needs, sends it through the already-exported
+  `window.__taCallClaudeAI` with a note asking for just an itinerary
+  title on the first line (`find_matching_itinerary`, same tool, same
+  data, richer input), then tries to resolve that title against
+  `KT_LIVE_ITINERARIES`/`PERSONAL_ITINERARIES` — a confident match gets
+  the same "Apply" button as a local match card; anything else still
+  shows the AI's one-line reasoning as plain text so the attempt wasn't
+  wasted even without a clean auto-detected title.
+- Local-match "Apply" wiring was pulled out into a shared
+  `ctWireMatchApplyButtons()` (both the local-match render path and the
+  AI-match render path call it) rather than two copies of the same three
+  lines.
+- Logic-tested in Node: the outreach prompt built correctly across three
+  cases (itinerary set, destination-only, bare-minimum client with just a
+  name); the AI-match title-detection regex-free substring match against
+  an exact title, a title with trailing text, and a genuine "no match"
+  response (correctly returns nothing to auto-apply in that last case).
+  All 15 `<script>` blocks parse; div-tag balance stayed even.
+- **Unverified live**: whether the drafted email actually reads well
+  when built from this specific bit of client-card context (versus how
+  it reads when typed conversationally in chat), whether opening Trip
+  Assistant on top of a just-closed Client Tracker feels smooth or
+  jarring, and whether the AI-match fallback's title-detection ever
+  mis-fires on a real model response shaped slightly differently than
+  expected — none of this has been tried in a real browser.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
