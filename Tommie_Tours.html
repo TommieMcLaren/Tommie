@@ -11509,8 +11509,20 @@ ${resultsBody}
        instead of relying on the parent's overflow:hidden to somehow
        show everything. Capped well under #ta-panel's own height so the
        message list and input row below it stay visible/usable while
-       Settings is open. */
-    max-height: 46vh; overflow-y: auto;
+       Settings is open.
+       Confirmed STILL broken after the first attempt at this fix — the
+       max-height+overflow-y:auto pair alone wasn't enough. flexbox's
+       default flex-shrink:1 could still compress this element BELOW its
+       own max-height (auto-overflow only ever creates a scrollbar once
+       the box's actual rendered height is less than its content, and
+       flex shrinking happens before that comparison), so it kept getting
+       silently squeezed with no scrollbar ever appearing, same visible
+       symptom as before. flex-shrink:0 is the actual fix: it stops
+       flexbox from touching this element's height at all, so it always
+       renders at min(content height, 46vh) — genuinely fixed height, not
+       just capped — which is what makes overflow-y:auto's scrollbar
+       reliably appear once content exceeds that. */
+    max-height: 46vh; overflow-y: auto; flex-shrink: 0;
   }
   #ta-settings-panel p { margin: 0 0 8px; line-height: 1.5; }
   #ta-settings-panel a { color: var(--sage-darker); font-weight: 700; }

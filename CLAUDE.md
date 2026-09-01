@@ -2360,6 +2360,24 @@ genuine signal, not speculation. Two real bugs found and fixed:
   of a chosen ElevenLabs voice via "🔊 Preview voice" and in a real
   conversation is still the one thing genuinely unverified from this
   environment — ask what it sounds like next.
+- **Confirmed the first attempt at the clipping fix above was not
+  enough** — the DE reported "no way to scroll to see if it's there"
+  even after `max-height: 46vh; overflow-y: auto;` shipped. Root cause
+  of THAT: `overflow-y: auto` only ever produces a real scrollbar once
+  an element's rendered height is actually less than its content height
+  — and without `flex-shrink: 0`, flexbox's default shrink behavior
+  could still compress `#ta-settings-panel` below its own `max-height`
+  before that comparison ever happens, silently squeezing it with no
+  scrollbar, same visible symptom as the original bug. Added
+  `flex-shrink: 0` alongside the existing `max-height`/`overflow-y`
+  pair — this is what actually locks the element to `min(content
+  height, 46vh)` as a genuinely fixed height rather than a soft cap
+  flexbox could still override, which is what makes the scrollbar
+  reliably show up once content exceeds it. **Not yet re-confirmed
+  live** — ask the DE to reload and check Settings again after this
+  ships; if it's STILL clipped, the next thing to check is whether
+  `#ta-inputrow`/other flex siblings also need `flex-shrink: 0` to stop
+  the compression from just relocating there instead.
 
 ## Design decisions to preserve, not "helpfully" change
 
