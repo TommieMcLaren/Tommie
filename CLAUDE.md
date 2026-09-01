@@ -2379,6 +2379,80 @@ genuine signal, not speculation. Two real bugs found and fixed:
   `#ta-inputrow`/other flex siblings also need `flex-shrink: 0` to stop
   the compression from just relocating there instead.
 
+## "Open Amanda Jackson's lead card" — a local UI command (Sep 2026, unverified live)
+
+Request: "build the assistant the abilities to open the lead cards and
+other files it generates," with "please open Amanda Jackson's lead
+card" as the example phrasing. Confirmed as a real gap via the DE's own
+screenshot: asked over voice "do you have the capabilities to open up
+the lead card," and the live AI correctly answered no — it genuinely
+can't, since none of its tools (`search_guide`/`get_city_data`/
+`find_matching_itinerary`/`get_todo_list`/`propose_todo_update`) do
+anything with the UI.
+
+- **A local fast-path, not a new AI tool.** Opening a panel is a pure
+  client-side action with no data to reason about — routing it through
+  the live API would mean asking the model to describe an action it
+  fundamentally cannot perform. Handled the same way the three existing
+  fast-paths (history search, Quote Builder prefill, "start new client")
+  already are: checked before the live-AI call, not instead of a tool.
+- **Wired into BOTH the typed path (`send()`) and Conversation Mode's
+  voice loop** (`getConvoRec()`'s `onresult`), unlike the three existing
+  fast-paths, which are typed-only. This is a deliberate difference: the
+  original report happened over voice, and "pull up so-and-so's card"
+  is exactly the kind of hands-free command worth saying mid-call rather
+  than typing — the single most compelling use case for this feature.
+  `handleOpenClientCard()` returns the plain-text outcome specifically
+  so the voice path can speak it back via `speakText()`, matching voice
+  mode's "always talk back" rule, then resumes listening the same way
+  every other successful voice turn does.
+- **Two phrasings recognized**, via `extractOpenClientCardMatch()`:
+  possessive ("open Amanda Jackson's lead card") and prepositional
+  ("show me the lead card for Amanda Jackson") — both accept "lead
+  card," "client card," "profile," "card," "latest draft," "last
+  draft," or "draft" as the target. A real bug was caught while writing
+  tests, not guessed at: the possessive form's regex, when the
+  possessive `'s` was made optional, let a one-word name capture
+  swallow "lead" itself in "show me the lead card for Amanda Jackson"
+  (extracting a nonexistent client named "lead" instead of "Amanda
+  Jackson"). Fixed by requiring the literal `'s` in the possessive form
+  and adding the prepositional form as an explicit second pattern —
+  this also covers a voice transcript that drops the apostrophe
+  entirely, since that case now falls through to the "for" phrasing
+  instead of silently misparsing.
+- **"Card" opens the Client Tracker profile; "draft"/"latest draft"/
+  "last draft" opens that client's most recent saved draft** (via the
+  existing `openDraftModal()` — a plain in-IIFE function call, not a
+  `window.__ta*` export, since this code lives in the same Trip
+  Assistant script) — reuses `window.__ctFindClientByName` (fuzzy
+  exact-then-substring match, already used by `propose_todo_update`)
+  and `window.__ctOpenClientProfile`, no new Client Tracker exports
+  needed. A client with no saved drafts yet gets a clear "doesn't have
+  any saved drafts yet" message rather than a silent no-op or an error.
+- Verified with a real Node execution-harness test against the actual
+  extracted source (24 cases): both phrasings across several keyword
+  variants, case-insensitivity, an unrelated normal question and an
+  unrelated command ("open the quote builder") correctly NOT matching,
+  the regression case that exposed the "lead"-as-name bug (now fixed),
+  opening a profile, fuzzy name matching, opening the newest of several
+  drafts (not an old one), a client with zero drafts, an unknown client
+  name, the Client Tracker not being loaded yet, `__ctOpenClientProfile`
+  throwing unexpectedly (caught, not an unhandled error), and an XSS
+  probe in a client's name — all as designed. All 16 script blocks
+  parse; div-tag balance unaffected (pure JS change, no new markup).
+- **Deliberately not built**: opening anything other than a client's
+  profile/latest draft (e.g. a specific older draft by description, an
+  itinerary document, the Quote Builder for a named client) — scoped to
+  exactly what was asked and what the DE actually tested live. Worth
+  revisiting once this base version is confirmed working.
+- **Unverified live**: whether the two recognized phrasings actually
+  match what the DE naturally says (both typed and via a real
+  microphone transcript, which can drop words/punctuation Web Speech
+  API's dictation doesn't always render as expected), and whether
+  speaking the confirmation back feels right mid-conversation versus
+  intrusive. Test next: say "please open Amanda Jackson's lead card"
+  and "open Amanda Jackson's latest draft" both typed and over voice.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

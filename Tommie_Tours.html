@@ -13180,6 +13180,8 @@ Tommie McLaren`
       addMsg('bot', "Opened the Quote Builder and filled in what I know so far — client name, tier, day count, and interests, where I have them. Take it from there.", false);
       return;
     }
+    const openCardMatch = extractOpenClientCardMatch(text);
+    if (openCardMatch) { handleOpenClientCard(openCardMatch); return; }
 
     const extractedName = extractClientName(text);
     const extractedDest = extractDestination(text);
@@ -13850,6 +13852,18 @@ ${renderMarkdownLite(fullText)}
       convoConsecutiveErrors = 0;
       addMsg('user', escapeHtml(transcript), true);
       if (CONVO_STOP_RE.test(transcript)) { stopConversationMode(); return; }
+      // "Open Amanda Jackson's lead card" (see extractOpenClientCardMatch
+      // above) — a pure local UI action, so it's handled here directly
+      // instead of going to the live AI, same as the typed path in
+      // send(). Speaks the outcome back and resumes listening, matching
+      // every other voice-turn's flow.
+      const openCardMatch = extractOpenClientCardMatch(transcript);
+      if (openCardMatch) {
+        micBtn.classList.remove('listening');
+        const spokenReply = handleOpenClientCard(openCardMatch);
+        speakText(spokenReply, () => { if (convoActive) convoListenOnce(); });
+        return;
+      }
       micBtn.classList.remove('listening');
       // A failed request stops and shows a real retry button rather than
       // silently auto-looping back into listening, which could otherwise
@@ -14305,6 +14319,75 @@ ${renderMarkdownLite(fullText)}
     }
     const openBtn = document.getElementById('quoteBuilderBtn');
     if (openBtn) openBtn.click();
+  }
+
+  // ---------- "Open Amanda Jackson's lead card" (Sep 2026) — a pure
+  // local UI action (jump to a real Client Tracker profile, or reopen a
+  // saved draft), so this is a fast-path like the ones above rather than
+  // a live-AI round trip: the model has no tool for "open this panel,"
+  // only ones for reading/proposing data — confirmed live via voice, the
+  // DE asked "do you have the capabilities to open up the lead card" and
+  // the model correctly said no, it can't. Wired into BOTH the typed
+  // path (send() below) and Conversation Mode's voice loop
+  // (getConvoRec()'s onresult below) — unlike the other fast-paths above
+  // (typed-only), this one is exactly the kind of hands-free command
+  // worth saying mid-call, and that's genuinely how it was tested live.
+  // handleOpenClientCard() returns the plain-text outcome so the voice
+  // path can speak it back, matching voice mode's "always talk back" rule.
+  function extractOpenClientCardMatch(t) {
+    // Two phrasings, tried in order. Form 1 (possessive) needs the
+    // literal 's — without it, "show me the lead card for Amanda
+    // Jackson" would misparse as a client literally named "lead"
+    // (confirmed via testing: the bare "card" alternative let a
+    // one-word name capture swallow "lead" right before it). Form 2
+    // (prepositional, "... card for <name>") is the natural fallback
+    // phrasing, and also covers speech-to-text dropping a possessive
+    // apostrophe entirely.
+    let m = t.match(/\b(?:open|pull up|show me|bring up)\s+(?:up\s+)?(?:the\s+)?([a-z][a-z\s.'-]{1,40}?)'s\s+(lead\s+card|client\s+card|profile|card|latest\s+draft|last\s+draft|draft)\b/i);
+    if (m) return { name: m[1].trim(), what: m[2].toLowerCase() };
+    m = t.match(/\b(?:open|pull up|show me|bring up)\s+(?:up\s+)?(?:the\s+)?(lead\s+card|client\s+card|profile|card|latest\s+draft|last\s+draft|draft)\s+for\s+([a-z][a-z\s.'-]{1,40})\b/i);
+    if (m) return { name: m[2].trim(), what: m[1].toLowerCase() };
+    return null;
+  }
+  function handleOpenClientCard(match) {
+    if (!window.__ctFindClientByName) {
+      const msg = "Couldn't open that — the Client Tracker panel hasn't loaded yet. Try again in a moment.";
+      addMsg('sys', msg, false);
+      return msg;
+    }
+    const client = window.__ctFindClientByName(match.name);
+    if (!client) {
+      const msg = `I couldn't find a client matching "${match.name}" in the Client Tracker.`;
+      addMsg('bot', escapeHtml(msg), false);
+      return msg;
+    }
+    try {
+      if (/draft/.test(match.what)) {
+        const drafts = client.drafts || [];
+        if (!drafts.length) {
+          const msg = `${client.name} doesn't have any saved drafts yet.`;
+          addMsg('bot', escapeHtml(msg), false);
+          return msg;
+        }
+        openDraftModal(drafts[0].subject, drafts[0].body);
+        const msg = `Opened ${client.name}'s latest draft.`;
+        addMsg('bot', escapeHtml(msg), false);
+        return msg;
+      }
+      if (window.__ctOpenClientProfile) {
+        window.__ctOpenClientProfile(client.id);
+        const msg = `Opened ${client.name}'s lead card.`;
+        addMsg('bot', escapeHtml(msg), false);
+        return msg;
+      }
+      const msg = "Couldn't open that client — the Client Tracker panel hasn't loaded yet. Try again in a moment.";
+      addMsg('sys', msg, false);
+      return msg;
+    } catch (e) {
+      const msg = "Couldn't open that: " + (e && e.message ? e.message : String(e));
+      addMsg('sys', msg, false);
+      return msg;
+    }
   }
 
   // ---------- Past-client history — completed sessions (ones that had a
