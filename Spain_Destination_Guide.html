@@ -11665,6 +11665,7 @@ ${resultsBody}
     requestAnimationFrame(() => panel.classList.add('shown'));
     input.focus();
     maybeRunDailyFollowUpCheck();
+    maybeSurfaceHotLeadNudge();
   });
   closeBtn.addEventListener('click', () => {
     panel.classList.remove('shown');
@@ -14315,6 +14316,46 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       if (res.error || !res.found) return; // stay silent on errors or a clean calendar
       addMsg('sys', '📅 Heads up — ' + res.text, false);
     }).catch(() => { /* ambient check — fail silently, the manual chip is still there */ });
+  }
+
+  // ---------- Proactive hot-lead nudge (Aug 2026) — the calendar-based
+  // ambient check above needs Outlook MCP (broken under BYOK — see
+  // CLAUDE.md's "Still open"; a real fix needs an Azure AD app registration
+  // this DE doesn't have admin rights for). This is the no-dependency
+  // alternative: same once-a-day, stay-silent-on-a-clean-day pattern, but
+  // grounded entirely in Client Tracker data that's already local — no live
+  // AI round trip needed, just plain filtering, same "instant, free,
+  // offline" spirit as the rest of the rule-based engine. Flags a Hot Lead
+  // client only when there's an actual reason to: their follow-up is
+  // overdue or due this week, or they haven't been contacted in a while
+  // with nobody chasing it. Warm/Cold/Check Back Later leads are left
+  // alone on purpose — the whole point is calling out what's actually
+  // urgent, not repeating the full to-do list unprompted.
+  const TA_HOTLEAD_CHECK_KEY = 'kt-trip-assistant:last-hotlead-check';
+  const TA_HOTLEAD_STALE_DAYS = 5;
+  function maybeSurfaceHotLeadNudge() {
+    let today;
+    try {
+      today = new Date().toISOString().slice(0, 10);
+      if (localStorage.getItem(TA_HOTLEAD_CHECK_KEY) === today) return;
+      localStorage.setItem(TA_HOTLEAD_CHECK_KEY, today);
+    } catch (e) { return; }
+    if (!window.__ctGetTodoSummary) return; // Client Tracker script hasn't loaded
+    let summary;
+    try { summary = window.__ctGetTodoSummary(); } catch (e) { return; }
+    const flagged = [];
+    (summary.overdue || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flagged.push(`${c.name} (follow-up overdue)`); });
+    (summary.dueThisWeek || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flagged.push(`${c.name} (follow-up due this week)`); });
+    const alreadyFlaggedNames = new Set(flagged.map(f => f.split(' (')[0]));
+    [...(summary.upcoming || []), ...(summary.noDate || [])].forEach(c => {
+      if (c.leadTemp !== 'Hot Lead' || !c.lastContact || alreadyFlaggedNames.has(c.name)) return;
+      const daysSince = Math.floor((new Date(today) - new Date(c.lastContact)) / 86400000);
+      if (daysSince >= TA_HOTLEAD_STALE_DAYS) flagged.push(`${c.name} (no contact in ${daysSince} days)`);
+    });
+    if (!flagged.length) return;
+    const shown = flagged.slice(0, 5).join(', ');
+    const more = flagged.length > 5 ? `, +${flagged.length - 5} more` : '';
+    addMsg('sys', `🔥 ${flagged.length} hot lead${flagged.length > 1 ? 's' : ''} could use attention: ${shown}${more}. Just ask and I can draft outreach or pull up their details.`, false);
   }
 
   // Shared by the knowledge-answer cards below — scrolls

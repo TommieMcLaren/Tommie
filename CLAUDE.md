@@ -963,6 +963,57 @@ speculative hardening.
   turns and watch whether the permission prompt reappears, and scroll up
   mid-conversation to confirm the "↓ New messages" pill appears and works.
 
+## Proactive hot-lead nudge (Aug 2026, unverified live)
+
+Direct follow-up to a "what's the next big upgrade" conversation: real
+Outlook/Calendar read access was the obvious next step, but it needs an
+Azure AD app registration (this DE confirmed no admin rights on the KT
+tenant) plus real `https://` hosting (OAuth redirect URIs can't be
+`file://`) — both true architecture changes, not something to build
+speculatively without them. Picked the no-dependency alternative instead:
+lean harder on Client Tracker data that's already local, rather than reach
+for Outlook again.
+
+- **`maybeSurfaceHotLeadNudge()`**, called alongside the existing
+  `maybeRunDailyFollowUpCheck()` every time the Trip Assistant panel opens.
+  Same once-a-day, stay-silent-on-a-clean-day pattern (`localStorage`-gated
+  via `TA_HOTLEAD_CHECK_KEY`, dated to today so it won't repeat until
+  tomorrow) — but where the calendar check needs a live AI round trip (and
+  is broken under BYOK regardless, see "Still open"), this is pure local
+  filtering over `window.__ctGetTodoSummary()` (the same Client Tracker
+  export the `get_todo_list` tool already uses) — instant, free, no API
+  call, same spirit as the rest of this file's offline rule-based engine.
+- **Deliberately narrow trigger, not the full to-do list unprompted.** Only
+  clients tagged `Hot Lead` get surfaced, and only when there's an actual
+  reason: their follow-up is overdue, due within the week, or they've gone
+  `TA_HOTLEAD_STALE_DAYS` (5) days with no logged contact and no follow-up
+  date set to explain the silence. A Hot Lead already flagged as overdue/
+  due-this-week isn't also counted under the stale-contact check (a
+  `alreadyFlaggedNames` set prevents double-listing the same person two
+  ways). Warm/Cold/Check Back Later leads are never included — the point is
+  calling out what's actually urgent among the leads worth chasing hardest,
+  not re-surfacing everything already visible in the Client Tracker.
+  Message caps at 5 names before switching to "+N more" so a bad day
+  doesn't produce a wall of text in the chat bubble.
+- Logic-tested in Node against a mocked `window.__ctGetTodoSummary`: an
+  overdue Hot Lead, a due-this-week Hot Lead, and a stale-contact (8 days)
+  Hot Lead all correctly flagged together in one message; a Hot Lead
+  contacted only 1 day ago correctly NOT flagged (under the 5-day
+  threshold); a Warm Lead correctly never flagged regardless of staleness;
+  a clean day (nothing to report) correctly produces no message at all;
+  calling the function twice in the same day correctly fires only once
+  (dedup); a missing `window.__ctGetTodoSummary` (Client Tracker script not
+  loaded) correctly no-ops instead of throwing; and the same client
+  appearing in both the overdue bucket and the noDate bucket correctly
+  gets listed once, not twice. All 15 `<script>` blocks still pass
+  `node --check`; div-tag balance unchanged (1,662/1,662).
+- **Unverified live**: whether 5 days is the right staleness threshold in
+  practice, and whether the nudge's tone/timing feels genuinely useful
+  versus intrusive, haven't been tested against real Client Tracker data
+  in a real browser — the threshold especially is a reasonable-sounding
+  guess, not something tuned against real usage patterns. Worth adjusting
+  `TA_HOTLEAD_STALE_DAYS` after living with it for a week or two.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
