@@ -2108,6 +2108,79 @@ a rate limit — pinned down and fixed, not just retried past.
   question likely to trigger a live web search) to confirm the 400 is
   actually gone.
 
+## Client Tracker backup/restore + a real Text version for drafts (Sep 2026, unverified live)
+
+Two features picked from "what's missing" — a real risk (no way to back
+up the Client Tracker) and a quick win (an SMS option orphaned by the
+draft-renderer rebuild earlier this session).
+
+- **Backup/restore.** Every client record, note, and draft lives only in
+  this browser's `localStorage` — no backend, by design, so a cleared
+  cache or a new machine wiped the whole CRM with zero recovery. Two new
+  icon buttons in `#ct-head` (📥/📤, styled to match the existing 🔕/✕
+  circular buttons) call `ctExportBackup()`/`ctImportBackup(file)`.
+  Export is the same `Blob`+`<a download>` trick already used for the
+  Quote Builder and itinerary document exports, just `application/json`
+  instead of `.doc` — downloads `ctClients` as-is, pretty-printed, named
+  `kensington-tours-clients-backup-<today>.json`. Import reads the picked
+  file via `FileReader`, validates it's actually an array, then **adds
+  rather than replaces**: a client whose `id` already exists is skipped,
+  not overwritten, and one with a new or missing `id` is added (a
+  missing one gets a fresh `ctUid()`). Deliberately non-destructive by
+  construction — on the actual "I cleared my browser, restore
+  everything" case this exists for, `ctClients` starts empty so
+  everything in the backup is simply added; the skip path only matters
+  if a backup gets re-imported by mistake, where silently skipping
+  duplicates is much safer than a wholesale replace that could nuke
+  newer data. A hidden `#ct-import-file` input (`accept="application/
+  json,.json"`) is triggered by the 📤 button rather than shown directly,
+  and its value is reset after each pick so re-selecting the same file
+  still fires `change`. Status (added/skipped/unreadable counts, or a
+  clear rejection for invalid JSON or a non-array file) reports through
+  the existing `ctSetStatus()` toast.
+- **Draft "📱 Text version".** CLAUDE.md's own history names this as a
+  feature that existed before the big draft-rendering rebuild (`renderDrafts`/
+  `wireDraftButtons`, deleted as dead code, are gone along with whatever
+  SMS-condensing they had) — this is a fresh build inside the new
+  `#ta-draft-modal`, not a restore of lost code. A third button next to
+  Copy/Open-in-Outlook calls the live AI (`callClaudeAI`, same call this
+  file already makes everywhere else) with the draft's subject+body and
+  an instruction to condense it into a ~320-character SMS with no
+  preamble. Real network latency unlike the other two buttons, so it's
+  opt-in on click only, disables itself and shows "Condensing…" while in
+  flight (guards against a double-click firing two requests), and
+  re-enables afterward either way. Result renders into a new
+  `#ta-draft-sms-result` block below the action row, with its own
+  "📋 Copy text version" button — a genuine network/model error surfaces
+  inline there rather than crashing, matching this file's
+  `.catch()`-backstop discipline everywhere else `callClaudeAI` is
+  called. Cleared on every `openDraftModal()` call so a stale condensed
+  text from a previously-viewed draft can never look like it belongs to
+  whichever draft is open now.
+- Verified with real Node execution-harness tests against the actual
+  extracted `ctExportBackup()`/`ctImportBackup()`/`wireDraftModalActions()`/
+  `openDraftModal()` source (not paraphrased copies): export against a
+  normal client list, an empty list, and singular/plural wording; import
+  against a fresh restore into an empty tracker, a re-import that's
+  entirely skipped as duplicates, a mixed batch (one new, one colliding
+  id, one invalid entry with no name), a record with no `id` at all,
+  invalid JSON, valid-but-non-array JSON, no file selected, an unreadable
+  file, and an XSS probe in an imported name; the SMS button's happy
+  path, an AI-returned error, a rejected promise, the double-click guard,
+  sms-result clearing on reopening with a different draft, an XSS probe
+  in the model's own condensed reply, and a regression check that Copy
+  still works unchanged. All 16 script blocks parse; div-tag balance
+  held (1,652/1,652 → 1,655/1,655, matching the new static markup added).
+- **Unverified live**: the actual file-picker/download flow in a real
+  browser (particularly on `file://`, where downloads and file input
+  behave slightly differently than over `https://`), whether 320
+  characters is the right SMS length target in practice, and whether the
+  condensed text's tone reads naturally — none of this has been tried
+  outside this environment. Test next: export a backup, clear the
+  browser's site data (or open in a different browser) and import it
+  back, then draft a message and tap "Text version" to see what the
+  model actually produces.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
