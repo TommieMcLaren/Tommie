@@ -2522,6 +2522,57 @@ back on demand.
   needs its own summarization pass — worth trying on a genuinely long
   multi-day itinerary answer, not just a short one-line reply.
 
+## Short structured lists were being condensed too, right after the Read-aloud fix (Sep 2026, unverified live)
+
+Reported immediately after the Read-aloud button shipped, from a real
+screenshot: asked "top three restaurants in Barcelona," got "No
+problem! Top three restaurants in Barcelona:" in the bubble with only a
+"📋 View full details" button — the actual three restaurant names were
+hidden behind the pop-out. The DE's own framing of why this mattered:
+"if I am having a conversation with it I want to be able to narrow
+down the right information before exporting it" — a quick back-and-
+forth needs the actual content inline, with the pop-out reserved for
+something genuinely long enough to be document-like.
+
+- **Root cause: `looksLikeStructuredMarkdown()`'s "2+ structural
+  lines" threshold had no length component.** A 3-item bulleted list —
+  three short restaurant recommendations, well under what anyone would
+  call "a wall of text" — has 3 bullet lines, comfortably over the old
+  "≥2" bar, so the deterministic backstop (see the entry two sections
+  up on why this backstop exists at all — a real earlier bug where raw
+  markdown landed in the bubble) fired and hid it, exactly backwards
+  from what a short conversational list needs.
+- **Fixed by adding a length gate**: `structural >= 2 && text.length >
+  500`. Structure alone is no longer sufficient — now it also has to be
+  long enough that condensing is actually worth it. 500 characters was
+  picked as a rough middle ground (a short list easily clears it as
+  "not condensed"; the original to-do-list bug case this backstop was
+  built to catch — headers, multiple bulleted client entries — clears
+  it the other way, correctly still condensed). Nothing else about the
+  mechanism changed: an explicit model-provided `SUMMARY:` line still
+  takes priority regardless of length, and error text still bypasses
+  this logic entirely.
+- Verified with a real Node execution-harness test against the actual
+  extracted `looksLikeStructuredMarkdown()`/`splitSummary()` source,
+  using the DE's own reported wording as one of the cases: the 3-item
+  Barcelona restaurant list (231 characters) now correctly stays
+  inline (`summaryText === fullText`, nothing hidden); a synthetic
+  version of the original to-do-list bug case (559 characters) still
+  correctly gets condensed to a short summary, confirming no
+  regression; an explicit `SUMMARY:` tag still wins regardless of
+  length; a short plain (non-structured) reply is unaffected as
+  before; and two boundary cases just above/below the 500-character
+  cutoff land on the correct side. All 16 script blocks parse; div-tag
+  balance unaffected (pure logic change, no markup touched).
+- **Unverified live**: whether 500 characters is actually the right
+  cutoff in practice — it's a reasonable-sounding number picked from
+  one real example and one synthetic regression case, not tuned
+  against a range of real DE questions. Worth revisiting if a
+  medium-length answer (a top-5 or top-10 list, say) still gets
+  condensed when it shouldn't, or conversely if a short-looking answer
+  with long descriptions per bullet slips through uncondensed when it
+  probably should collapse.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

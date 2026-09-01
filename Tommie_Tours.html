@@ -13438,9 +13438,21 @@ Tommie McLaren`
   // first" contract as an explicit SUMMARY:, just derived locally when
   // the model didn't provide one.
   function looksLikeStructuredMarkdown(text) {
+    const t = text || '';
     const structuralLineRe = /^#{1,3}\s|^[-*]\s|^\d+\.\s|^\|.*\|$|^-{3,}$/;
-    const structural = (text || '').split('\n').filter(l => structuralLineRe.test(l.trim())).length;
-    return structural >= 2;
+    const structural = t.split('\n').filter(l => structuralLineRe.test(l.trim())).length;
+    // Confirmed live (Sep 2026): "top three restaurants in Barcelona" — a
+    // short 3-item list, easily read in one glance — still got hidden
+    // behind "View full details" because it had 3 bullet lines, well
+    // over the old "2+" threshold. That's exactly backwards for a
+    // conversational back-and-forth: the DE explicitly wants short,
+    // structured answers to stay inline while narrowing down options,
+    // reserving the pop-out for something genuinely long enough to
+    // clutter the bubble (a multi-day itinerary, a long to-do list — the
+    // original case this backstop was built to catch). Structure alone
+    // isn't a good enough signal on its own; a length gate is what
+    // actually distinguishes "a few short bullets" from "a wall of text."
+    return structural >= 2 && t.length > 500;
   }
 
   function splitSummary(text, isError) {
