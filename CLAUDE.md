@@ -1800,6 +1800,63 @@ happened to be built first.
   build-only check). All 15 `<script>` blocks parse; div-tag balance
   unchanged (one function call added, no new markup).
 
+## Profile task sidebar + card quick-notes (Aug 2026, unverified live)
+
+Two direct requests from the same conversation: the wide profile modal
+left roughly half its width blank once the info column hit its
+`max-width: 520px` reading cap, and adding a fast way to jot a note on a
+client without opening the full form.
+
+- **Two-column profile view.** `ctRenderDetail()`'s template now wraps
+  the existing info sections in `.ct-detail-main` and adds a new
+  `.ct-detail-sidebar` (`grid-template-columns: 1fr 300px`, collapsing to
+  one column under the existing 700px mobile breakpoint) using the space
+  that used to sit empty. The sidebar holds, top to bottom: a new task
+  callout, the action buttons (Draft outreach / Add to Outlook — moved up
+  from the very bottom, now visible without scrolling past a long
+  profile), and the call-notes log (also moved up for the same reason).
+- **`ctBuildTaskCallout()`** answers "why does this client need me right
+  now" — the same overdue/due-within-7-days/hot-and-stale-contact rules
+  the Daily Brief already uses (`5` days duplicated as a literal here
+  rather than importing `TA_HOTLEAD_STALE_DAYS` across the IIFE
+  boundary for one number, same call this file already makes elsewhere).
+  Unlike the Daily Brief, which stays silent on a clean day, this always
+  shows something — a calm "✓ Nothing urgent right now" state when
+  there's genuinely nothing flagged, since this is a profile someone
+  opened on purpose, not a repeating ambient nudge; reassurance reads
+  better than a blank space here. Never shown for a Closed client.
+- **Quick note on the card itself** (`ct-card-note-btn`, a small 📝 in the
+  card's name row) toggles an inline textarea + Save/Cancel right in the
+  card, via a new `ctQuickNoteOpenId` render-flag (same state-driven-
+  redraw pattern `ctActiveTempTab`/`ctDetailId` already use — at most one
+  card's note panel open at a time). Saving reuses `ctTimestampedNote()`
+  directly — the exact same append-only, dated-and-stacked mechanism the
+  full Edit form's own "Add a note for this call" box already uses — so
+  this is a faster door into the same one note system, not a second one.
+  `e.stopPropagation()` on the toggle button, the panel itself, and both
+  action buttons is load-bearing: the whole card is already a click
+  target for "open profile," so without it every click meant for the
+  note (including just clicking into the textarea to type) would also
+  open the full profile underneath. The `<textarea>` is explicitly
+  `.focus()`ed right after the re-render that creates it, rather than
+  relying on a static `autofocus` attribute, which mostly doesn't fire
+  reliably for content injected via `innerHTML` after initial page load.
+- Logic-tested in Node: the task-callout decision tree across seven
+  cases (Closed → nothing shown, overdue, due-in-2-days, due-today, a
+  genuinely stale Hot Lead, a Hot Lead contacted recently correctly
+  falling through to "clean" rather than staying flagged, and a plain
+  clean day); the quick-note save computation (a real note stacks
+  correctly above existing history, an empty/whitespace-only note is a
+  no-op rather than adding a blank entry, and a client's very first note
+  renders without a stray leading newline). All 15 `<script>` blocks
+  parse; div-tag balance held (opens === closes) after the new markup.
+- **Unverified live**: whether 300px is the right sidebar width at
+  various window sizes, whether the task callout's four states read
+  clearly at a glance, and whether the quick-note textarea's focus
+  behavior and stopPropagation actually prevent the profile from
+  accidentally opening underneath it — none of this has been tried in a
+  real browser from this environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

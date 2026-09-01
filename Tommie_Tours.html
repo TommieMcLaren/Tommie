@@ -14218,6 +14218,34 @@ ${renderMarkdownLite(fullText)}
   .ct-flag.temp.checkback { background: #E4E9F0; color: #3d5470; }
   .ct-flag.temp.cold { background: #E7ECEF; color: #5c7080; }
   .ct-meta-line { font-size: 12px; color: var(--ct-ink-soft); margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--ct-line); }
+  .ct-card-note-btn {
+    margin-left: auto; background: none; border: none; font-size: 14px; cursor: pointer; padding: 2px 4px;
+    border-radius: 5px; line-height: 1; opacity: 0.55; transition: opacity .12s ease, background .12s ease;
+  }
+  .ct-card-note-btn:hover { opacity: 1; background: var(--ct-gold-soft); }
+  .ct-card-quicknote { margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--ct-line); cursor: default; }
+  .ct-card-quicknote textarea {
+    width: 100%; box-sizing: border-box; min-height: 52px; resize: vertical; padding: 7px 9px;
+    border: 1px solid var(--ct-line); border-radius: 6px; font-family: 'Lato', sans-serif; font-size: 12.5px;
+    color: var(--dark); background: #fffdf9;
+  }
+  .ct-card-quicknote textarea:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
+  .ct-card-quicknote-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+  .ct-card-quicknote-cancel, .ct-card-quicknote-save {
+    font-size: 11.5px; font-weight: 700; padding: 4px 11px; border-radius: 6px; cursor: pointer;
+    font-family: 'Lato', sans-serif; border: 1px solid var(--ct-line); background: #fff; color: var(--ct-ink-soft);
+  }
+  .ct-card-quicknote-save { background: var(--sage-dark); color: #fff; border-color: var(--sage-dark); }
+  .ct-card-quicknote-save:hover { background: var(--sage-darker); }
+  .ct-card-quicknote-cancel:hover { border-color: var(--gold); color: var(--dark); }
+
+  .ct-detail-columns { display: grid; grid-template-columns: 1fr 300px; gap: 32px; align-items: start; }
+  .ct-detail-sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .ct-task-callout { padding: 11px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+  .ct-task-callout.overdue { background: var(--ct-overdue-soft); color: var(--ct-overdue); }
+  .ct-task-callout.soon { background: var(--ct-gold-soft); color: var(--gold-text); }
+  .ct-task-callout.hot { background: #F7DFD3; color: #B4502A; }
+  .ct-task-callout.clean { background: var(--ct-closed-soft); color: var(--ct-ink-soft); font-weight: 600; }
   .ct-outlook-btn {
     background: #eef4ea; border: 1px solid var(--sage-dark); color: var(--sage-darker);
     font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 20px; cursor: pointer;
@@ -14277,6 +14305,7 @@ ${renderMarkdownLite(fullText)}
     #ct-panel { border-radius: 0; }
     #ct-head, #ct-toolbar, #ct-tabs, #ct-form-panel, #ct-list, #ct-detail, #ct-status-msg { padding-left: 16px; padding-right: 16px; }
     .ct-group-cards { grid-template-columns: 1fr; }
+    .ct-detail-columns { grid-template-columns: 1fr; }
   }
   @media (max-width: 480px) {
     #ct-btn { bottom: 78px; left: 16px; width: 52px; height: 52px; font-size: 19px; }
@@ -14538,6 +14567,11 @@ ${renderMarkdownLite(fullText)}
   const CT_STORAGE_KEY = 'kt-client-tracker:v1';
   let ctClients = [];
   let ctEditingId = null;
+  // Which card (by id) currently has its inline "quick note" panel open —
+  // at most one at a time. Not persisted; purely a rendering flag re-read
+  // by ctCardHTML() on every ctRender(), same state-driven-redraw pattern
+  // ctActiveTempTab/ctDetailId already use.
+  let ctQuickNoteOpenId = null;
   // Tracks whether the form currently open is a fresh Qualifying Call —
   // used only to decide where to land the DE after Save (see
   // ctHandleSave below); has no effect on what actually gets saved.
@@ -15251,6 +15285,13 @@ ${renderMarkdownLite(fullText)}
       else followText = `Follow-up ${ctFormatDate(c.nextFollowUp)}, in ${diff} day${diff === 1 ? '' : 's'}`;
     }
     const lastText = c.lastContact ? `Last contact ${ctFormatDate(c.lastContact)}` : 'No last contact logged';
+    // A quick way to log a note without opening the full profile/edit
+    // form — for jotting something down mid-conversation or right after
+    // hanging up. Same append-only, timestamped mechanism as the form's
+    // own "Add a note for this call" (ctTimestampedNote/ctHandleSave) —
+    // deliberately not a second note system, just a faster door into the
+    // same one.
+    const quickNoteOpen = ctQuickNoteOpenId === c.id;
 
     return `
       <div class="ct-card ${isOverdue ? 'overdue' : ''} ${c.status === 'Closed' ? 'closed' : ''}" data-open="${c.id}">
@@ -15259,9 +15300,43 @@ ${renderMarkdownLite(fullText)}
           <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
           ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
           ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
+          <button type="button" class="ct-card-note-btn" data-quicknote-toggle="${c.id}" title="Add a quick note">📝</button>
         </div>
         <p class="ct-meta-line">${lastText} · ${followText}</p>
+        ${quickNoteOpen ? `
+        <div class="ct-card-quicknote" data-quicknote-panel="${c.id}">
+          <textarea placeholder="Quick note..." data-quicknote-input="${c.id}"></textarea>
+          <div class="ct-card-quicknote-actions">
+            <button type="button" class="ct-card-quicknote-cancel" data-quicknote-cancel="${c.id}">Cancel</button>
+            <button type="button" class="ct-card-quicknote-save" data-quicknote-save="${c.id}">Save note</button>
+          </div>
+        </div>` : ''}
       </div>`;
+  }
+
+  // Direct response to feedback that the wide profile modal left half its
+  // width blank: this fills that space with the answer to "why does this
+  // client need me right now," instead of just showing what's already on
+  // file. Same overdue/due-soon/hot-and-stale rules the Daily Brief uses
+  // (TA_HOTLEAD_STALE_DAYS there, 5 here — small deliberate duplication of
+  // one number rather than a cross-IIFE export for it, same call this
+  // file already makes elsewhere). A calm "nothing urgent" state is shown
+  // rather than nothing at all — this is a static profile view someone
+  // opened on purpose, not a repeating ambient nudge, so reassurance reads
+  // better here than silence.
+  function ctBuildTaskCallout(c, diff, isOverdue) {
+    if (c.status === 'Closed') return '';
+    if (isOverdue) {
+      return `<div class="ct-task-callout overdue">⚑ Follow-up overdue — was due ${ctEscapeHtml(ctFormatDate(c.nextFollowUp))}</div>`;
+    }
+    if (diff !== null && diff <= 7) {
+      return `<div class="ct-task-callout soon">📅 Follow-up due ${diff === 0 ? 'today' : `in ${diff} day${diff === 1 ? '' : 's'}`}</div>`;
+    }
+    if (c.leadTemp === 'Hot Lead' && c.lastContact) {
+      const daysSince = Math.floor((new Date(ctTodayISO()) - new Date(c.lastContact)) / 86400000);
+      if (daysSince >= 5) return `<div class="ct-task-callout hot">🔥 Hot Lead — no contact in ${daysSince} days</div>`;
+    }
+    return `<div class="ct-task-callout clean">✓ Nothing urgent right now</div>`;
   }
 
   // Profile view: everything the compact card doesn't show, plus every
@@ -15354,23 +15429,30 @@ ${renderMarkdownLite(fullText)}
         ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
         ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
       </div>
-      ${tripRows.length ? `<div class="ct-profile-section"><h4>Trip</h4>${tripRows.join('')}</div>` : ''}
-      ${contactRows.length ? `<div class="ct-profile-section"><h4>Contact</h4>${contactRows.join('')}</div>` : ''}
-      <div class="ct-profile-section">
-        <h4>Follow-up</h4>
-        <div class="ct-profile-row">Last contact: ${lastText}</div>
-        <div class="ct-profile-row">Next follow-up: ${followText}</div>
-      </div>
-      ${ctSection('Client Details', clientDetailsRows)}
-      ${ctSection('Trip Vision', visionRows)}
-      ${ctSection('Hotel Preferences', hotelRows)}
-      ${ctSection('Transfers', transferRows)}
-      ${ctSection('Restaurants', restaurantRows)}
-      ${ctSection('Other', otherRows)}
-      ${ctRenderNotesLog(c.notes)}
-      <div class="ct-profile-cta">
-        <button type="button" class="ct-draft-btn" id="ct-detail-draft-btn">✉️ Draft outreach</button>
-        ${showOutlookBtn ? `<button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button>` : ''}
+      <div class="ct-detail-columns">
+        <div class="ct-detail-main">
+          ${tripRows.length ? `<div class="ct-profile-section"><h4>Trip</h4>${tripRows.join('')}</div>` : ''}
+          ${contactRows.length ? `<div class="ct-profile-section"><h4>Contact</h4>${contactRows.join('')}</div>` : ''}
+          <div class="ct-profile-section">
+            <h4>Follow-up</h4>
+            <div class="ct-profile-row">Last contact: ${lastText}</div>
+            <div class="ct-profile-row">Next follow-up: ${followText}</div>
+          </div>
+          ${ctSection('Client Details', clientDetailsRows)}
+          ${ctSection('Trip Vision', visionRows)}
+          ${ctSection('Hotel Preferences', hotelRows)}
+          ${ctSection('Transfers', transferRows)}
+          ${ctSection('Restaurants', restaurantRows)}
+          ${ctSection('Other', otherRows)}
+        </div>
+        <div class="ct-detail-sidebar">
+          ${ctBuildTaskCallout(c, diff, isOverdue)}
+          <div class="ct-profile-cta">
+            <button type="button" class="ct-draft-btn" id="ct-detail-draft-btn">✉️ Draft outreach</button>
+            ${showOutlookBtn ? `<button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button>` : ''}
+          </div>
+          ${ctRenderNotesLog(c.notes)}
+        </div>
       </div>
     `;
 
@@ -15469,6 +15551,57 @@ ${renderMarkdownLite(fullText)}
 
     list.querySelectorAll('[data-open]').forEach(el => {
       el.addEventListener('click', () => ctOpenDetail(el.dataset.open));
+    });
+
+    // Quick note on the card itself — stopPropagation() everywhere here
+    // is load-bearing: the whole card is a click target for "open
+    // profile" (the listener just above), so without it every click
+    // meant to toggle the note, type in it, or save/cancel would also
+    // open the profile underneath.
+    list.querySelectorAll('[data-quicknote-toggle]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasOpen = ctQuickNoteOpenId === btn.dataset.quicknoteToggle;
+        ctQuickNoteOpenId = wasOpen ? null : btn.dataset.quicknoteToggle;
+        ctRender();
+        // The <textarea> is freshly re-created by that render, so a
+        // static `autofocus` attribute wouldn't reliably focus it
+        // (browsers largely only honor autofocus on elements present at
+        // initial parse, not ones injected via innerHTML afterward) —
+        // focus it explicitly instead, right after it exists.
+        if (!wasOpen) {
+          const input = list.querySelector(`[data-quicknote-input="${ctQuickNoteOpenId}"]`);
+          if (input) input.focus();
+        }
+      });
+    });
+    list.querySelectorAll('[data-quicknote-panel]').forEach(panel => {
+      panel.addEventListener('click', (e) => e.stopPropagation());
+    });
+    list.querySelectorAll('[data-quicknote-cancel]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ctQuickNoteOpenId = null;
+        ctRender();
+      });
+    });
+    list.querySelectorAll('[data-quicknote-save]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.quicknoteSave;
+        const input = list.querySelector(`[data-quicknote-input="${id}"]`);
+        const text = input ? input.value.trim() : '';
+        ctQuickNoteOpenId = null;
+        if (!text) { ctRender(); return; }
+        const idx = ctClients.findIndex(c => c.id === id);
+        if (idx > -1) {
+          const existing = ctClients[idx].notes || '';
+          ctClients[idx] = { ...ctClients[idx], notes: ctTimestampedNote(text) + (existing ? '\n' + existing : '') };
+          ctSaveData();
+          if (ctDetailId === id) ctRenderDetail();
+        }
+        ctRender();
+      });
     });
   }
 
