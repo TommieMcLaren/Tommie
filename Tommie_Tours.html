@@ -13755,6 +13755,24 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   window.__taCallClaudeAI = callClaudeAI;
   window.__taCalendarMcp = TA_CALENDAR_MCP;
   window.__taHasApiKey = () => !!getStoredApiKey();
+  // Exposed for the Client Tracker's "Match Itinerary" feature (see
+  // ctRunItineraryMatch in that script block) — wraps the exact same
+  // scoreItinerariesByCities() the live find_matching_itinerary tool uses,
+  // so a client-card suggestion and a chat answer can never disagree
+  // about which official/personal itinerary a set of cities matches.
+  // Returns raw scored objects, not the markdown string
+  // runFindMatchingItineraryTool builds for the model — the Client
+  // Tracker needs real itinerary objects to populate a dropdown with, not
+  // prose.
+  window.__taMatchItinerary = (cities, days) => {
+    if (typeof KT_LIVE_ITINERARIES === 'undefined') return { official: [], personal: [] };
+    const reqCities = normalizeCitiesInput(cities).map(c => String(c).toLowerCase());
+    if (!reqCities.length) return { official: [], personal: [] };
+    return {
+      official: scoreItinerariesByCities(KT_LIVE_ITINERARIES, reqCities, days),
+      personal: typeof PERSONAL_ITINERARIES !== 'undefined' ? scoreItinerariesByCities(PERSONAL_ITINERARIES, reqCities, days) : []
+    };
+  };
 })();
 </script>
 
@@ -13868,6 +13886,27 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   .ct-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
   .ct-field-full { grid-column: 1 / -1; }
   .ct-form-grid label { display: block; font-size: 11.5px; color: var(--ct-ink-soft); margin-bottom: 4px; font-weight: 600; }
+  #ct-match-btn {
+    float: right; background: none; border: 1px solid var(--gold); color: var(--gold-text);
+    border-radius: 20px; padding: 2px 10px; font-size: 10.5px; font-weight: 700; cursor: pointer;
+    font-family: 'Lato', sans-serif; text-transform: none; transition: background .12s ease;
+  }
+  #ct-match-btn:hover { background: var(--ct-gold-soft); }
+  #ct-itinerary-suggest { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .ct-match-option {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--ct-gold-soft, #f3ead9); border: 1px solid var(--gold); border-radius: 8px;
+    padding: 8px 12px; font-size: 12.5px;
+  }
+  .ct-match-option b { font-family: 'Playfair Display', serif; font-weight: 700; color: var(--sage-darker); }
+  .ct-match-option small { display: block; color: var(--ct-ink-soft); font-size: 11px; margin-top: 1px; }
+  .ct-match-apply {
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 6px; padding: 5px 12px;
+    font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; font-family: 'Lato', sans-serif;
+  }
+  .ct-match-apply:hover { background: var(--sage-darker); }
+  .ct-match-empty { font-size: 12px; color: var(--ct-ink-soft); font-style: italic; }
+  .ct-match-personal-label { font-size: 10.5px; font-weight: 700; color: var(--gold-text); margin-top: 2px; }
   .ct-form-grid input, .ct-form-grid select, .ct-form-grid textarea {
     width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--ct-line); border-radius: 7px;
     font-family: 'Lato', sans-serif; font-size: 13.5px; color: var(--dark); background: #fffdf9;
@@ -14080,11 +14119,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
         <label for="ct-f-destination">Destination / trip</label>
         <input type="text" id="ct-f-destination" placeholder="Spain — Madrid, Barcelona">
       </div>
-      <div>
-        <label for="ct-f-itinerary">Itinerary</label>
+      <div class="ct-field-full">
+        <label for="ct-f-itinerary">Itinerary <button type="button" id="ct-match-btn">🎯 Match Itinerary</button></label>
         <select id="ct-f-itinerary">
           <option value="">— Not selected —</option>
         </select>
+        <div id="ct-itinerary-suggest" hidden></div>
       </div>
       <div>
         <label for="ct-f-tmtlink">TMT Link</label>
@@ -14298,6 +14338,73 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const live = typeof KT_LIVE_ITINERARIES !== 'undefined' ? KT_LIVE_ITINERARIES : [];
     const personal = typeof PERSONAL_ITINERARIES !== 'undefined' ? PERSONAL_ITINERARIES : [];
     return live.find(it => it.id === id) || personal.find(it => it.id === id) || null;
+  }
+
+  // ---------- Match Itinerary (Aug 2026, unverified live) — background
+  // suggestion, not an auto-apply. Runs against the Destination field's
+  // free text via window.__taMatchItinerary (the Trip Assistant's export
+  // wrapping the exact same scoreItinerariesByCities() the live
+  // find_matching_itinerary tool uses — one scoring implementation, so a
+  // client-card suggestion here and a chat answer there can never
+  // disagree). Deliberately never writes to the Itinerary dropdown by
+  // itself, even when a new city is typed and a clear match appears —
+  // same "propose, DE confirms" rule this file already uses everywhere
+  // else a change could happen without a human choosing it (Outlook,
+  // propose_todo_update). A silent auto-swap would mean a itinerary the
+  // DE deliberately picked could get replaced by a small destination
+  // wording tweak with no visible confirmation — worse than just asking.
+  function ctExtractCities(text) {
+    if (typeof QB_CITY_ORDER === 'undefined' || !text) return [];
+    const t = text.toLowerCase();
+    return QB_CITY_ORDER.filter(city => t.includes(city.toLowerCase()));
+  }
+
+  function ctRenderMatchOption(scored, isPersonal) {
+    const it = scored.it;
+    const sub = [it.duration, it.price, `${scored.overlap} city match${scored.overlap === 1 ? '' : 'es'}`].filter(Boolean).join(' · ');
+    return `<div class="ct-match-option">
+      <div>${isPersonal ? '<div class="ct-match-personal-label">💡 Personal pick</div>' : ''}<b>${ctEscapeHtml(it.title)}</b><small>${ctEscapeHtml(sub)}</small></div>
+      <button type="button" class="ct-match-apply" data-itinerary-id="${ctEscapeHtml(it.id)}">Apply</button>
+    </div>`;
+  }
+
+  function ctRunItineraryMatch() {
+    const suggestEl = document.getElementById('ct-itinerary-suggest');
+    if (!suggestEl) return;
+    const text = document.getElementById('ct-f-destination').value;
+    const cities = ctExtractCities(text);
+    if (!cities.length || !window.__taMatchItinerary) {
+      suggestEl.hidden = true;
+      suggestEl.innerHTML = '';
+      return;
+    }
+    const { official, personal } = window.__taMatchItinerary(cities, null);
+    if (!official.length && !personal.length) {
+      suggestEl.innerHTML = `<div class="ct-match-empty">No official or personal itinerary matches [${ctEscapeHtml(cities.join(', '))}] closely — this may be a fully custom trip.</div>`;
+      suggestEl.hidden = false;
+      return;
+    }
+    const top = official.slice(0, 2).map(s => ctRenderMatchOption(s, false)).join('')
+      + personal.slice(0, 1).map(s => ctRenderMatchOption(s, true)).join('');
+    suggestEl.innerHTML = top;
+    suggestEl.hidden = false;
+    suggestEl.querySelectorAll('.ct-match-apply').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('ct-f-itinerary').value = btn.dataset.itineraryId;
+        suggestEl.hidden = true;
+        suggestEl.innerHTML = '';
+      });
+    });
+  }
+
+  // Debounced so it runs once typing pauses, not on every keystroke — this
+  // is what makes it feel like it's "working in the background" rather
+  // than something you have to remember to trigger, while still never
+  // firing a live API call (the whole match is local/instant, see above).
+  let ctMatchDebounce = null;
+  function ctScheduleItineraryMatch() {
+    clearTimeout(ctMatchDebounce);
+    ctMatchDebounce = setTimeout(ctRunItineraryMatch, 700);
   }
 
   function ctPopulateItineraryOptions() {
@@ -14539,6 +14646,13 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     document.getElementById('ct-form-panel').classList.add('open');
     document.getElementById('ct-f-name').focus();
     ctUpdateSectionBadges(client);
+    // Editing a client who already has a destination but no itinerary
+    // picked yet gets an immediate suggestion on open, not just on the
+    // next edit — a blank Add form has nothing to match against yet, so
+    // this just clears any suggestion left over from a previous session.
+    const suggestEl = document.getElementById('ct-itinerary-suggest');
+    if (suggestEl) { suggestEl.hidden = true; suggestEl.innerHTML = ''; }
+    if (client && client.destination && !client.itineraryId) ctRunItineraryMatch();
   }
 
   // Lets the DE see at a glance which of the collapsed intake sections
@@ -15121,6 +15235,8 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   document.getElementById('ct-f-name').addEventListener('input', () => {
     document.getElementById('ct-err-name').style.display = 'none';
   });
+  document.getElementById('ct-f-destination').addEventListener('input', ctScheduleItineraryMatch);
+  document.getElementById('ct-match-btn').addEventListener('click', ctRunItineraryMatch);
   document.getElementById('ct-notify-btn').addEventListener('click', () => {
     if (!('Notification' in window)) return;
     if (Notification.permission === 'default') {

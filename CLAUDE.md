@@ -1285,6 +1285,67 @@ Enter to do anything with by default.
   combines well with Enter-to-advance walking through all of them, are
   all "try it on the next few calls" questions, not checkable from here.
 
+## Match Itinerary — background suggestion on the client card (Aug 2026, unverified live)
+
+Direct request: a "Match Itinerary" button/feature on the client card that
+runs while typing and re-suggests when the destination changes, so
+picking the right official (or personal) itinerary doesn't need a trip to
+the Trip Assistant chat.
+
+- **Reuses the live AI tool's own scoring, not a second copy of it.**
+  `find_matching_itinerary`'s real logic is `scoreItinerariesByCities()`
+  inside the Trip Assistant's IIFE — exported as
+  `window.__taMatchItinerary(cities, days)` (returns raw scored
+  `{official, personal}` objects, not the markdown string the tool
+  hands the model) so a client-card suggestion and a chat answer can
+  never disagree about which itinerary a set of cities matches. City
+  extraction from the free-text Destination field
+  (`ctExtractCities()`) is new, small, Client-Tracker-local code — a
+  direct city-name substring check against `QB_CITY_ORDER` (a true
+  global, same as `KT_LIVE_ITINERARIES`/`PERSONAL_ITINERARIES`, so no
+  export needed for that part).
+- **Entirely local/instant — no live-AI call.** "Runs in the background
+  while typing" only works believably if it's free and has no latency;
+  city-overlap matching already is exactly that, so there was no reason
+  to reach for the model here. `ctScheduleItineraryMatch()` debounces the
+  Destination field's `input` event by 700ms so it fires once typing
+  pauses, not on every keystroke — visually "always working," never a
+  real per-keystroke cost.
+- **Suggests, never auto-applies.** Confirmed as the right call against
+  the alternative floated in the request (silently swapping the
+  Itinerary dropdown when a new city is typed): this file's standing rule
+  — Outlook, `propose_todo_update` — is propose, DE confirms, and an
+  itinerary silently swapped by a small wording tweak with no visible
+  confirmation is a worse failure mode than just asking. `#ct-itinerary-
+  suggest` shows up to 2 official + 1 personal match as small cards with
+  their own "Apply" button (`ctRenderMatchOption()`), each just writing
+  `ct-f-itinerary`'s value when tapped — the DE always makes the actual
+  choice.
+- **Also runs once on opening an existing client** that already has a
+  destination but no itinerary picked yet (`ctOpenForm()`'s new check),
+  not just on typing — covers a client card someone else filled in, or
+  one from before this feature existed, without needing to retype
+  anything to trigger a match. A brand-new blank Add form has nothing to
+  match yet, so this just clears any suggestion left over from whichever
+  client was open last.
+- **"🎯 Match Itinerary" button** next to the Itinerary label runs the
+  same match immediately, for a destination that's already been sitting
+  there un-typed-into (paste, or a value set before this button existed)
+  — the debounced auto-trigger only fires on new typing, not on a value
+  that's simply present.
+- Logic-tested in Node: `ctExtractCities()` against multi-city text,
+  single-city text, no-match text, and empty input; the shared scoring
+  logic (mirrored from `scoreItinerariesByCities`) against three
+  synthetic itineraries with a multi-city request, confirming the
+  highest-overlap itinerary sorts first. All 15 `<script>` blocks still
+  parse; div-tag balance stayed even (opens === closes) after the new
+  markup.
+- **Unverified live**: whether 700ms feels responsive or laggy while
+  actually typing, whether showing up to 3 suggestion cards is the right
+  amount versus just the single best match, and whether the "Apply"
+  button placement reads clearly at a glance — none of this has been
+  tried in a real browser from this environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
