@@ -785,6 +785,16 @@
     border-radius: 6px; padding: 1px 7px; font: inherit; font-weight: 700; cursor: pointer;
   }
   .ta-client-link:hover { background: var(--gold); color: #fff; }
+  .ta-brief-actions { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+  .ta-brief-action-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: #fffdf9; border: 1px solid var(--gold); border-radius: 8px; padding: 6px 10px; font-size: 13px;
+  }
+  .ta-brief-draft-btn {
+    background: var(--gold); color: #fff; border: none; border-radius: 6px; padding: 4px 11px;
+    font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; font-family: 'Lato', sans-serif;
+  }
+  .ta-brief-draft-btn:hover { background: var(--gold-text); }
   #ta-itinerary-modal-body table { width: 100%; border-collapse: collapse; margin: 0 0 14px; font-size: 13px; }
   #ta-itinerary-modal-body th, #ta-itinerary-modal-body td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(0,0,0,0.08); }
   #ta-itinerary-modal-body th { background: #faf6ee; font-weight: 700; color: var(--sage-darker); }
@@ -11562,6 +11572,10 @@ ${resultsBody}
   .ta-choice-btn b { display: block; font-size: 12.5px; margin-bottom: 1px; }
   .ta-choice-btn small { color: #7a7767; }
 
+  #ta-voice-caption {
+    padding: 7px 14px; font-size: 12.5px; font-style: italic; color: var(--sage-darker, #4f6b52);
+    background: #f3ead9; border-top: 1px solid rgba(0,0,0,0.06); font-family: 'Lato', sans-serif;
+  }
   #ta-inputrow { border-top: 1px solid rgba(0,0,0,0.06); padding: 11px 12px; display: flex; gap: 7px; align-items: flex-end; background: #fffefb; }
   #ta-input { flex: 1; resize: none; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 9px 12px; font-family: 'Lato', sans-serif; font-size: 13px; max-height: 90px; transition: border-color .12s ease, box-shadow .12s ease; }
   #ta-input:focus { outline: none; border-color: var(--sage-dark); box-shadow: 0 0 0 3px rgba(90,120,90,0.12); }
@@ -11649,7 +11663,7 @@ ${resultsBody}
   </div>
   <div id="ta-msgs-wrap">
     <div id="ta-msgs">
-      <div class="ta-msg bot"><span>Hi — just ask or say what you need: draft an email or text, pull up an itinerary, check what's on your to-do list, or ask anything in this guide. e.g. "what's on my plate today?" or "draft an outreach email for Sarah, she's going to Barcelona."</span></div>
+      <div class="ta-msg bot"><span>Hi — I'm Jarvis. Ask or say what you need: match an itinerary to a client, draft an email or text, check what's on your to-do list, or ask anything in this guide. Tap 🎤 to talk instead of type, or 📎 to ask about a photo — a hotel room, a client's inspiration screenshot, a competitor's itinerary. I'll also check in with a quick brief the first time you open me each day. Try: "what's on my plate today?" or "draft an outreach email for Sarah, she's going to Barcelona."</span></div>
     </div>
     <button type="button" id="ta-jump-latest">↓ New messages</button>
   </div>
@@ -11658,6 +11672,7 @@ ${resultsBody}
     <span id="ta-image-preview-name"></span>
     <button type="button" id="ta-image-remove" title="Remove image">✕</button>
   </div>
+  <div id="ta-voice-caption" hidden></div>
   <div id="ta-inputrow">
     <button id="ta-mic" title="Speak your request">🎤</button>
     <button type="button" id="ta-image-attach" title="Attach an image — a hotel photo, a client's inspiration screenshot, a competitor's itinerary">📎</button>
@@ -13455,15 +13470,35 @@ ${renderMarkdownLite(fullText)}
   // local HTTP server (e.g. `python3 -m http.server`) instead of opening it
   // directly gives Chrome a real origin to remember the grant against.
   let convoRec = null;
+  // Live captions while listening (Aug 2026) — interimResults was false
+  // before, meaning onresult only ever fired once per utterance, with the
+  // final transcript, and nothing was shown until the DE finished talking.
+  // Turning it on fires onresult repeatedly with growing/refining partial
+  // text first; this shows that partial text in #ta-voice-caption instead
+  // of silently waiting, then swaps to the normal flow the moment a
+  // result comes back marked final.
+  function updateVoiceCaption(text) {
+    const el = document.getElementById('ta-voice-caption');
+    if (!el) return;
+    el.textContent = '🎙️ ' + text;
+    el.hidden = false;
+  }
+  function clearVoiceCaption() {
+    const el = document.getElementById('ta-voice-caption');
+    if (el) { el.hidden = true; el.textContent = ''; }
+  }
   function getConvoRec() {
     if (convoRec) return convoRec;
     const rec = new SpeechRec();
     rec.continuous = false;
-    rec.interimResults = false;
+    rec.interimResults = true;
     rec.lang = 'en-US';
     rec.onresult = (e) => {
+      const result = e.results[e.results.length - 1];
+      const transcript = result[0].transcript;
+      if (!result.isFinal) { updateVoiceCaption(transcript); return; }
+      clearVoiceCaption();
       convoConsecutiveErrors = 0;
-      const transcript = e.results[0][0].transcript;
       addMsg('user', escapeHtml(transcript), true);
       if (CONVO_STOP_RE.test(transcript)) { stopConversationMode(); return; }
       micBtn.classList.remove('listening');
@@ -13558,6 +13593,7 @@ ${renderMarkdownLite(fullText)}
     micBtn.classList.remove('listening', 'speaking');
     micBtn.title = 'Speak your request';
     window.speechSynthesis.cancel();
+    clearVoiceCaption();
   }
 
   function stopConversationMode() {
@@ -13600,15 +13636,18 @@ ${renderMarkdownLite(fullText)}
     // to explain the silence. Deliberately can double-list a name already
     // in the overdue/due-soon lines above — that's a different, more
     // urgent fact worth restating (this one's not just late, it's hot),
-    // not a bug.
+    // not a bug. hotClients tracks the real client objects behind each
+    // label too, so the quick-action buttons below can be built from real
+    // data, not re-parsed out of the display strings.
     const flaggedHot = [];
-    (summary.overdue || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flaggedHot.push(`${c.name} (overdue)`); });
-    (summary.dueThisWeek || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flaggedHot.push(`${c.name} (due this week)`); });
+    const hotClients = [];
+    (summary.overdue || []).forEach(c => { if (c.leadTemp === 'Hot Lead') { flaggedHot.push(`${c.name} (overdue)`); hotClients.push(c); } });
+    (summary.dueThisWeek || []).forEach(c => { if (c.leadTemp === 'Hot Lead') { flaggedHot.push(`${c.name} (due this week)`); hotClients.push(c); } });
     const alreadyFlaggedNames = new Set(flaggedHot.map(f => f.split(' (')[0]));
     [...(summary.upcoming || []), ...(summary.noDate || [])].forEach(c => {
       if (c.leadTemp !== 'Hot Lead' || !c.lastContact || alreadyFlaggedNames.has(c.name)) return;
       const daysSince = Math.floor((new Date(today) - new Date(c.lastContact)) / 86400000);
-      if (daysSince >= TA_HOTLEAD_STALE_DAYS) flaggedHot.push(`${c.name} (no contact in ${daysSince} days)`);
+      if (daysSince >= TA_HOTLEAD_STALE_DAYS) { flaggedHot.push(`${c.name} (no contact in ${daysSince} days)`); hotClients.push(c); }
     });
     const listLine = (label, names) => {
       if (!names.length) return null;
@@ -13622,16 +13661,40 @@ ${renderMarkdownLite(fullText)}
       listLine(`🔥 ${flaggedHot.length} hot lead${flaggedHot.length === 1 ? '' : 's'} worth a look`, flaggedHot)
     ].filter(Boolean);
     if (!lines.length) return; // clean day — stay silent, same as every ambient check in this file
+    // Quick actions: every flagged client (overdue, due-soon, or hot for
+    // any reason), deduped by id so someone flagged more than one way
+    // only gets one action row — capped at 5 so a bad day doesn't turn
+    // into a wall of buttons (the summary lines above can still mention
+    // more names than have a button here, same truncation the lines
+    // themselves already use).
+    const actionable = [];
+    const seenActionIds = new Set();
+    [...(summary.overdue || []), ...(summary.dueThisWeek || []), ...hotClients].forEach(c => {
+      if (seenActionIds.has(c.id)) return;
+      seenActionIds.add(c.id);
+      actionable.push(c);
+    });
+    const actionsHtml = actionable.length
+      ? `<div class="ta-brief-actions">${actionable.slice(0, 5).map(c =>
+          `<div class="ta-brief-action-row"><span>${escapeHtml(c.name)}</span><button type="button" class="ta-brief-draft-btn" data-client-id="${escapeHtml(c.id)}">✉️ Draft</button></div>`
+        ).join('')}</div>`
+      : '';
     // A real greeting in a proper chat bubble (not the faint italic
     // system-aside styling) — meant to read like a right-hand assistant
     // actually saying hello, not a quiet log line easy to skim past.
     // Reuses wireClientProfileLinks() (built for the itinerary pop-out)
-    // so every name mentioned here is immediately actionable too — click
-    // it to jump straight to that client's real profile, not just read
-    // about them.
-    const html = `<b>Hello — here's your day at a glance:</b><br>${lines.map(l => escapeHtml(l)).join('<br>')}<br><br>Just ask, and I can draft outreach or pull up anyone's details.`;
+    // so every name mentioned in the summary lines is also clickable —
+    // and the Draft buttons below let the brief itself be acted on
+    // directly (window.__ctDraftOutreachById, Client Tracker's export),
+    // not just read.
+    const html = `<b>Hello — here's your day at a glance:</b><br>${lines.map(l => escapeHtml(l)).join('<br>')}${actionsHtml}<br>Just ask, and I can draft outreach or pull up anyone's details.`;
     const div = addMsg('bot', html, true);
     wireClientProfileLinks(div);
+    div.querySelectorAll('.ta-brief-draft-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.__ctDraftOutreachById) window.__ctDraftOutreachById(btn.dataset.clientId);
+      });
+    });
   }
 
   // ---------- Knowledge Q&A — answers general guide questions (hotels,
@@ -15588,6 +15651,14 @@ ${renderMarkdownLite(fullText)}
     const btn = document.getElementById('ct-btn');
     if (btn) btn.click();
     ctOpenDetail(id);
+  };
+  // Lets the Daily Brief's "✉️ Draft" quick-action buttons trigger a real
+  // draft by id, without the Trip Assistant side ever needing the full
+  // client record — same "resolve internally, act, don't leak data
+  // across the boundary" shape as __ctApplyPatch/__ctOpenClientProfile.
+  window.__ctDraftOutreachById = (id) => {
+    const client = ctClients.find(c => c.id === id);
+    if (client) ctDraftOutreach(client);
   };
 })();
 </script>

@@ -1623,6 +1623,58 @@ rather than building anything new.
   gold border should still make it readable as a button either way, but
   this hasn't been seen in a real browser.
 
+## Three deepening upgrades: brief quick-actions, a real welcome, live captions (Aug 2026, unverified live)
+
+Direct response to "what would be some upgraded assistant features" —
+all three chosen specifically to deepen existing capability rather than
+add new surface area, matching the "master what it already does" steer
+from the Daily Brief work above.
+
+- **Daily Brief quick actions.** Each flagged client's name was already
+  clickable (jumps to their profile); now there's also a small "✉️ Draft"
+  button right in the brief for every flagged client (overdue, due-soon,
+  or hot for any reason), deduped by id so a client flagged three
+  different ways only gets one row, capped at 5. Reuses `ctDraftOutreach`
+  entirely — a new minimal export, `window.__ctDraftOutreachById(id)`,
+  resolves the id to a real client record inside the Client Tracker and
+  calls the existing function, so the Trip Assistant side never needs the
+  full record itself (same "resolve internally, act, don't leak data
+  across the boundary" shape as `__ctApplyPatch`/`__ctOpenClientProfile`).
+- **A welcome message that actually says what Jarvis can do.** The
+  original "Hi — just ask..." bubble predates most of what's since been
+  built (Match Itinerary, voice, image attach, the Daily Brief itself).
+  Rewritten to mention what's actually there today — not a new
+  capability, just making already-shipped ones discoverable instead of
+  quietly accumulating underneath a stale first message.
+- **Live captions while listening.** `interimResults` was `false` on the
+  conversation-mode `SpeechRecognition` instance, so `onresult` only ever
+  fired once per utterance, with nothing shown until the DE finished
+  talking. Now `true`, with `onresult` checking each result's `isFinal`
+  flag: an interim result updates a small caption bar (`#ta-voice-
+  caption`, shown only while actively listening) via
+  `updateVoiceCaption()`; only a final result runs the existing
+  send-to-AI flow, via `clearVoiceCaption()` first. `resetConvoUI()`
+  (already the shared cleanup for both an explicit stop and a fatal mic
+  error) also clears the caption, so nothing lingers once voice mode
+  ends. **Deliberately left the guide's own separate Ctrl+K voice-search
+  feature untouched** — a completely different `SpeechRecognition`
+  instance in an unrelated part of the file that happened to share the
+  same `interimResults` setting name; changing it would have been
+  unrelated scope, not a deepening of anything.
+- Logic-tested in Node: the quick-action dedup (a client flagged three
+  ways → one row; a clean day → zero rows; the same client appearing
+  in two source buckets → still one row) and the interim/final caption
+  branching (two interim updates shown, only the final result committed
+  as the actual transcript) — both matched expected behavior. All 15
+  `<script>` blocks parse; div-tag balance held (opens === closes) after
+  all three changes.
+- **Unverified live**: whether the Draft buttons read clearly stacked
+  inside an already-busy brief bubble, whether the caption bar's
+  placement/timing feels natural while actually talking (there's no way
+  to test real speech recognition from this environment), and whether
+  the new welcome message is now too long — all worth a first look before
+  trusting them in front of a client.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
