@@ -1507,6 +1507,36 @@ the modal and go find that client by hand in the Client Tracker.
   plain sentence, haven't been seen in a real browser from this
   environment.
 
+## Qualifying Call save lands on the new profile (Aug 2026, unverified live)
+
+Self-directed follow-up connecting two features built earlier this
+session that hadn't actually been wired together yet: Qualifying Call
+mode (a call-friendly intake form) and "✉️ Draft outreach" (lives on the
+profile view). Saving a fresh Qualifying Call used to drop the DE back on
+the plain client list — finding the card they just created and tapping
+into it was still a manual step between "call just ended" and "send them
+something."
+
+- **`ctHandleSave()` now opens the new client's own profile
+  (`ctOpenDetail(newId)`) immediately after a Qualifying Call save**,
+  landing the DE exactly where "✉️ Draft outreach" already lives instead
+  of the list view. Scoped tightly: a new `ctIsQualifyingCall` flag is
+  set only by `ctOpenQualifyingCall()` and reset by `ctCloseForm()` (so
+  it can't leak into a later ordinary Add/Edit), and the jump only fires
+  when the save is BOTH a Qualifying Call AND a genuinely new client
+  (`!ctEditingId`) — editing an existing client through any path still
+  lands back on whatever view was already open, unchanged.
+- No new UI at all — this is purely smarter navigation reusing the
+  profile view and Draft-outreach button that already existed.
+- Logic-tested the four-case decision table in isolation (fresh
+  Qualifying Call save → jump; a Qualifying-Call-flagged save that's
+  somehow editing an existing client → no jump; a normal Add → no jump; a
+  normal Edit → no jump) — all four resolved correctly. All 15
+  `<script>` blocks parse; div-tag balance unchanged (no new markup).
+- **Unverified live**: whether landing straight on the profile after
+  Save feels like a natural continuation of the call or an unexpected
+  jump — worth noticing on the next few Qualifying Calls.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

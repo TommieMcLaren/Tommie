@@ -14463,6 +14463,10 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   const CT_STORAGE_KEY = 'kt-client-tracker:v1';
   let ctClients = [];
   let ctEditingId = null;
+  // Tracks whether the form currently open is a fresh Qualifying Call —
+  // used only to decide where to land the DE after Save (see
+  // ctHandleSave below); has no effect on what actually gets saved.
+  let ctIsQualifyingCall = false;
 
   function ctUid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -14913,6 +14917,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   // instead of clicking each section open mid-call.
   function ctOpenQualifyingCall() {
     ctOpenForm(null);
+    ctIsQualifyingCall = true;
     document.getElementById('ct-form-title').textContent = '🎯 Qualifying Lead — New Call';
     document.getElementById('ct-form-panel').classList.add('ct-call-mode');
     document.querySelectorAll('#ct-form-panel .ct-form-section').forEach(sec => { sec.open = true; });
@@ -14928,6 +14933,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       sec.open = (sec.id === 'ct-sec-client');
     });
     ctEditingId = null;
+    ctIsQualifyingCall = false;
   }
 
   // "[Sep 1, 2026 · 3:45 PM] " prefix for a new call-log entry. Kept as a
@@ -15011,16 +15017,27 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       travelInsurance: document.getElementById('ct-f-insurance').value,
       mobilityNeeds: document.getElementById('ct-f-mobility').value.trim()
     };
+    // Captured before ctCloseForm() below, which resets both of these —
+    // a fresh Qualifying Call save should land the DE on the new
+    // client's own profile (where "✉️ Draft outreach" already lives)
+    // instead of back on the list, closing the loop from "call just
+    // ended" to "send them something" in one motion. A routine Add/Edit
+    // is unaffected — this only fires for a brand-new client created via
+    // that specific flow.
+    const wasQualifyingCall = ctIsQualifyingCall && !ctEditingId;
+    let newId = null;
     if (ctEditingId) {
       const idx = ctClients.findIndex(c => c.id === ctEditingId);
       if (idx > -1) ctClients[idx] = { ...ctClients[idx], ...data };
     } else {
-      ctClients.push({ id: ctUid(), ...data });
+      newId = ctUid();
+      ctClients.push({ id: newId, ...data });
     }
     ctCloseForm();
     ctRender();
     if (ctDetailId) ctRenderDetail(); // profile view open on this client — refresh it too, not just the list behind it
     ctSaveData();
+    if (wasQualifyingCall && newId) ctOpenDetail(newId);
   }
 
   function ctHandleDelete(id) {
