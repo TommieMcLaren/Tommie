@@ -1147,6 +1147,61 @@ would be.
   ever fires is realistically a "live with it for a while and see" thing,
   not a same-day test.
 
+## Qualifying Call mode for the Client Tracker (Aug 2026, unverified live)
+
+Direct request: a call-friendly presentation of the same client-intake
+questions (Client Details, Trip Vision, Hotel Preferences, Transfers,
+Restaurants, Other — see "Client Tracker: real intake questionnaire..."
+above) for reading down live while on a call, that still saves as a real
+Client Tracker record rather than a disconnected scratch pad.
+
+- **Reuses the existing Add-client form and fields wholesale — not a
+  second, parallel intake form.** The `<details>`-collapsed sections
+  added earlier this session are exactly the right question set already;
+  what made them awkward mid-call was the collapsing itself, not the
+  questions or the schema. Building a second form with its own field IDs
+  would mean two schemas to keep in sync with `ctHandleSave()` forever;
+  instead, a new **"🎯 Qualifying Call"** button next to "+ Add client" in
+  the toolbar calls `ctOpenQualifyingCall()`, which calls the existing
+  `ctOpenForm(null)` (same as a plain Add) and then just changes how it's
+  presented: force-opens every `.ct-form-section` and adds a `.ct-call-mode`
+  class. Saving goes through the exact same `ctHandleSave()` as every
+  other Add/Edit — a call-qualified lead is a completely normal Client
+  Tracker record, nothing about it is tagged or stored differently.
+- **`.ct-call-mode` styling** — bigger label/input font sizes (13.5px→15px)
+  for glancing at while listening to a client, more spacing between
+  sections, and each section's `▸` toggle arrow and click-to-collapse
+  disabled (`pointer-events: none`) so an accidental click mid-call can't
+  re-collapse a section that's supposed to stay visible. A gold banner
+  ("📞 On a call — ask down the page in order...") appears at the top of
+  the form only in this mode, so it's visually distinct from a routine
+  edit at a glance.
+- **`ctCloseForm()` resets section open/closed state back to the normal
+  default** (only "Client Details" open, matching a plain Add/Edit)
+  whenever the form closes — via Cancel, via Save, or via starting a
+  Qualifying Call and later closing it — so call mode's "everything open"
+  state never bleeds into a later ordinary Add or Edit.
+- Deliberately did **not** pre-select a Lead category or reorder the
+  question sections — the existing Client Details → Trip Vision → Hotel
+  Preferences → Transfers → Restaurants → Other order already reads as a
+  natural call flow (who/when/budget, then what they want, then the
+  specifics), and guessing a lead temperature before the call has actually
+  happened would be backwards. Status still defaults to "Inquiry," which
+  was already correct for a brand-new lead.
+- Logic-tested in Node (the section open/closed boolean logic, isolated
+  from the DOM): force-open sets every section's `open` to `true`; the
+  close-time reset correctly restores only `ct-sec-client` to `open` and
+  every other section to `false`, matching the form's normal default.
+  All 15 `<script>` blocks still pass syntax parsing; div-tag balance
+  incremented by exactly one (the new banner `<div>`), from 1,610/1,610 to
+  1,611/1,611.
+- **Unverified live**: whether the forced font-size bump and the disabled
+  section-collapse actually feel right while on a real call — that's a
+  "use it on the next few calls and see" judgment, not something
+  checkable from here. If the banner or the larger text feels like too
+  much, both are scoped entirely under `.ct-call-mode` in the CSS and
+  easy to tune independently of the normal Add/Edit form.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
