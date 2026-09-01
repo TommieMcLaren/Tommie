@@ -12758,11 +12758,18 @@ Ground rules:
     if (isHtml) span.innerHTML = htmlOrText; else span.textContent = htmlOrText;
     div.appendChild(span);
     msgsEl.appendChild(div);
-    // The DE's own just-sent message always scrolls into view — they were
-    // just at the input box, right at the bottom, by definition. A bot/sys
-    // message arriving while they've scrolled up to read history should not
-    // yank them back down; scrollMsgsToBottom() shows the jump pill instead.
-    scrollMsgsToBottom(role === 'user');
+    // Confirmed live (Sep 2026): "can it be programmed to show me the new
+    // info without clicking new message, like it just automatically
+    // scrolls to the new info" — direct override of the earlier
+    // deliberate design here (only force-scroll when already near the
+    // bottom, otherwise show the #ta-jump-latest pill instead of
+    // yanking the DE away from re-reading something they'd scrolled up
+    // to see). That earlier tradeoff is now explicitly NOT what's
+    // wanted: every new message always scrolls into view. The pill/
+    // its manual-scroll listener are left in place, not removed — they
+    // still work if the DE scrolls up between messages, they just won't
+    // stay scrolled-up once the next message arrives.
+    scrollMsgsToBottom(true);
     persistState();
     return div;
   }
@@ -12772,7 +12779,7 @@ Ground rules:
     div.className = 'ta-msg bot ta-typing-wrap';
     div.innerHTML = '<span class="ta-typing"><span></span><span></span><span></span></span><span class="ta-typing-status"></span>';
     msgsEl.appendChild(div);
-    scrollMsgsToBottom(false);
+    scrollMsgsToBottom(true);
     return div;
   }
 
@@ -12797,7 +12804,9 @@ Ground rules:
       div.appendChild(liveEl);
     }
     liveEl.textContent = partialText;
-    scrollMsgsToBottom(false);
+    // Kept scrolling as the answer streams in too — see the note in
+    // addMsg() above on always auto-scrolling now, per live feedback.
+    scrollMsgsToBottom(true);
   }
 
   function escapeHtml(s) {
@@ -13146,7 +13155,7 @@ Tommie McLaren`
           typingDiv.remove();
           if (result.error) { addErrorWithRetry(result.error, runImageQuestion); return; }
           const { fullText, summaryText } = splitSummary(result.text, false);
-          renderAiReply(summaryText, fullText);
+          renderAiReply(summaryText, fullText, true);
           renderCitiesMapMsg(result.cities);
           if (result.pendingAction) addPendingActionCard(result.pendingAction);
         }).catch(e => {
@@ -13212,7 +13221,7 @@ Tommie McLaren`
       convoRespond(text, typingDiv).then(({ text: replyText, full, cities, error, pendingAction }) => {
         typingDiv.remove();
         if (error) { convoHistory.pop(); addErrorWithRetry(replyText, runSend); return; }
-        renderAiReply(replyText, full);
+        renderAiReply(replyText, full, true);
         renderCitiesMapMsg(cities);
         if (pendingAction) addPendingActionCard(pendingAction);
       }).catch(e => {
@@ -13720,7 +13729,7 @@ ${renderMarkdownLite(fullText)}
   // model produced one — i.e. whenever there's more behind the summary than
   // what's shown. A short answer (fullText === summaryText, no split
   // happened) just displays normally with no pop-out, nothing hidden.
-  function addAiAnswerMsg(summaryText, fullText) {
+  function addAiAnswerMsg(summaryText, fullText, opts) {
     const hasMore = fullText && summaryText && fullText.trim() !== summaryText.trim();
     let html = escapeHtml(summaryText);
     // Confirmed live (Sep 2026): the DE typed "would you be able to read
@@ -13741,11 +13750,24 @@ ${renderMarkdownLite(fullText)}
       if (btn) btn.addEventListener('click', () => openItineraryModal(fullText));
     }
     const readBtn = div.querySelector('[data-action="read-aloud"]');
-    if (readBtn) readBtn.addEventListener('click', () => {
+    const startReading = () => {
       readBtn.disabled = true;
       readBtn.textContent = '🔊 Reading…';
       speakText(fullText, () => { readBtn.disabled = false; readBtn.textContent = '🔊 Read aloud'; });
-    });
+    };
+    if (readBtn) readBtn.addEventListener('click', startReading);
+    // autoPlay (Sep 2026): "I don't want to click read aloud, can it not
+    // just action that? I also want the info to show as they are
+    // reading it." — typed replies now open the full-details pop-out
+    // (when there is one) AND start reading automatically, no click
+    // needed, while the manual buttons stay for replay or in case
+    // autoPlay was off (Conversation Mode never sets it — see
+    // renderAiReply). Opening first, then reading, so the DE can follow
+    // along on screen while it plays, matching the request literally.
+    if (opts && opts.autoPlay) {
+      if (hasMore) openItineraryModal(fullText);
+      startReading();
+    }
     // Reported live (Aug 2026): a client mentioned in a normal chat reply
     // (not the Daily Brief, not the itinerary pop-out) read as plain text
     // with no way to act on it — this is the shared bubble every live-AI
@@ -13808,7 +13830,16 @@ ${renderMarkdownLite(fullText)}
   // of a line, not "subject" appearing anywhere mid-sentence, so a normal
   // answer that merely mentions the word (e.g. "the subject of budget
   // flexibility") still doesn't misfire.
-  function renderAiReply(summaryText, fullText) {
+  // autoPlay (Sep 2026) — typed replies (send()'s runSend, the image-
+  // question path) pass true so the reply opens/reads itself with no
+  // click needed, per live feedback ("I don't want to click read aloud,
+  // can it not just action that?"). Conversation Mode's runVoiceRespond
+  // deliberately omits it: that path already speaks replyText (the
+  // SHORT summary, not the full text) itself right after this call and
+  // resumes listening — auto-playing the full text here too would both
+  // double-speak and contradict the deliberate "don't read a whole
+  // itinerary aloud in a live call" design.
+  function renderAiReply(summaryText, fullText, autoPlay) {
     const lines = (fullText || '').trim().split('\n');
     let subjectLineIdx = -1;
     for (let i = 0; i < lines.length; i++) {
@@ -13820,7 +13851,7 @@ ${renderMarkdownLite(fullText)}
       renderAndTrackDrafts([{ key: 'aiDraft', label: '✉️ Email draft', subject, body }]);
       return;
     }
-    addAiAnswerMsg(summaryText, fullText);
+    addAiAnswerMsg(summaryText, fullText, { autoPlay });
   }
 
   async function convoRespond(transcript, progressDiv) {

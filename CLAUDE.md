@@ -2573,6 +2573,89 @@ something genuinely long enough to be document-like.
   with long descriptions per bullet slips through uncondensed when it
   probably should collapse.
 
+## Auto-play typed replies and always-auto-scroll (Sep 2026, unverified live)
+
+Two more requests from the same live-testing thread, right after the
+condensing fix above:
+
+1. On a reply that still had a "View full details" button (a top-two
+   fine-dining pick, apparently long enough to clear the new 500-char
+   gate): **"it never opened the file and read it. I don't want to
+   click read aloud, can it not just action that? I also want the
+   info to show as they are reading it. Don't remove the View full
+   detail buttons though."**
+2. **"can it be programmed to show me the new info without clicking
+   new message, like it just automatically scrolls to the new
+   info"** — the `#ta-jump-latest` pill from earlier this session.
+
+- **Typed replies now auto-open and auto-read, with no click.**
+  `addAiAnswerMsg(summaryText, fullText, opts)` gained an `opts.
+  autoPlay` flag: when true, it opens the "View full details" pop-out
+  first (only if there is one — a short reply with nothing extra has
+  nothing to open) and then immediately starts reading the FULL text
+  aloud via the same `speakText()`/button-disable/relabel machinery
+  the manual button already used — refactored into a shared
+  `startReading()` closure so the click handler and the auto-fire path
+  are the exact same code, not two copies. The manual "🔊 Read aloud"
+  and "📋 View full details" buttons are both still rendered and still
+  work afterward (for replay, or if autoplay is ever off) — nothing
+  was removed, per the explicit "don't remove the button" ask.
+- **Deliberately scoped to the TYPED paths only — Conversation Mode is
+  unaffected on purpose.** `renderAiReply(summaryText, fullText,
+  autoPlay)` threads the flag through to `addAiAnswerMsg`; `send()`'s
+  `runSend` and the 📎 image-question path (`runImageQuestion`) both
+  now pass `true`. Voice mode's `runVoiceRespond` deliberately passes
+  nothing (`renderAiReply(replyText, full)`, no third argument) — it
+  already calls `speakText(replyText, ...)` itself, right after this
+  call, but with `replyText` (the SHORT summary) specifically, not the
+  full text, and then resumes listening. That's a real, tested design
+  choice from earlier this session (don't read a whole itinerary aloud
+  character-by-character in a live phone call) — auto-playing the
+  full text here too would have both double-spoken the reply and
+  quietly undone that choice. Confirmed via a Node test that
+  `renderAiReply` without a third argument leaves `opts.autoPlay`
+  falsy, so voice mode's existing behavior is untouched.
+- **Always auto-scroll to new content — the earlier conditional
+  design is explicitly overridden, not refined.** The "Three deepening
+  upgrades" entry earlier in this file describes a deliberate choice:
+  only force-scroll when the DE was already near the bottom, otherwise
+  leave their scroll position alone and show the `#ta-jump-latest`
+  pill instead, specifically so a new reply wouldn't yank someone away
+  from re-reading something they'd scrolled up to see. That tradeoff
+  is now explicitly not what's wanted — `addMsg()`, `showTyping()`,
+  and `updateTypingText()` (the streaming-answer path) all now call
+  `scrollMsgsToBottom(true)` unconditionally instead of the old
+  near-bottom check. **Real tradeoff, stated plainly**: scrolling up
+  mid-conversation to reread something no longer "sticks" — the next
+  incoming message (or even the next streamed chunk of the current
+  one) will pull the view back to the bottom regardless. The pill and
+  its own manual-scroll listener are left in place, not removed, since
+  they're harmless and still respond to a manual scroll between
+  messages — they just won't stay in the "pill shown, scrolled up"
+  state once anything new arrives.
+- Verified with real Node execution-harness tests against the actual
+  extracted source: `addAiAnswerMsg`'s `autoPlay` behavior across six
+  cases (a long reply auto-opens AND auto-speaks with the full text,
+  not the summary; a short reply auto-speaks but doesn't try to open a
+  nonexistent pop-out; `autoPlay` omitted entirely — the voice path's
+  exact call shape — auto-fires nothing while the manual click still
+  works; `autoPlay: false` explicitly also auto-fires nothing; the
+  button's label correctly resets once the auto-started speech's
+  `onDone` fires; `wireClientProfileLinks` is still called regardless)
+  and `renderAiReply`'s pass-through (three cases: `autoPlay: true`
+  reaches `addAiAnswerMsg`'s opts, an omitted third argument is falsy
+  there, and a draft-shaped reply still routes to
+  `renderAndTrackDrafts` instead of `addAiAnswerMsg` regardless of the
+  flag). All 16 script blocks parse; div-tag balance unaffected (pure
+  JS logic changes, no new markup).
+- **Unverified live**: whether opening the pop-out AND starting speech
+  simultaneously feels smooth or like too much happening at once for
+  a typed question, and whether always-scrolling ever feels
+  disorienting mid-read — both are exactly what was asked for, but
+  worth a genuine "does this feel right after a day of real use"
+  check rather than assuming the literal request is automatically the
+  best long-term feel.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
