@@ -13478,14 +13478,33 @@ ${renderMarkdownLite(fullText)}
   // If it's shaped like the email-draft format the system prompt asks for
   // ("Subject: ...\n\n<body>"), route it through the existing draft
   // renderer instead of a plain chat bubble — that's what actually
-  // attaches the Outlook/text-message/schedule-follow-up buttons
-  // (renderDrafts already rebuilds the "Subject: " line from d.subject,
+  // attaches the draft pop-out/Outlook/save-to-client behavior
+  // (renderAndTrackDrafts rebuilds the "Subject: " line from d.subject,
   // so it's split out here rather than left in d.body to avoid doubling
   // it). Anything else is just the normal condensed bubble.
+  //
+  // Confirmed broken live (Sep 2026): "Draft outreach" kept landing in
+  // the normal chat bubble instead of the draft pop-out. The old regex
+  // was anchored to the literal first character of the reply with zero
+  // tolerance for anything else — but models routinely markdown-bold the
+  // label ("**Subject:**") or add a one-line lead-in ("Here's a draft:")
+  // even when told not to, and either one alone was enough to miss the
+  // match entirely. Now scans the first 3 lines for a Subject: line
+  // (optionally bolded) instead of demanding it be the very first
+  // character, and treats anything before it as a discardable lead-in —
+  // still anchored to the START of a line, not "subject" appearing
+  // anywhere mid-sentence, so a normal answer that merely mentions the
+  // word (e.g. "the subject of budget flexibility") still doesn't misfire.
   function renderAiReply(summaryText, fullText) {
-    const m = (fullText || '').match(/^Subject:\s*(.+)\n\n?([\s\S]*)$/i);
-    if (m) {
-      renderAndTrackDrafts([{ key: 'aiDraft', label: '✉️ Email draft', subject: m[1].trim(), body: m[2].trim() }]);
+    const lines = (fullText || '').trim().split('\n');
+    let subjectLineIdx = -1;
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      if (/^(?:\*\*)?Subject:(?:\*\*)?\s*\S/i.test(lines[i].trim())) { subjectLineIdx = i; break; }
+    }
+    if (subjectLineIdx > -1) {
+      const subject = lines[subjectLineIdx].trim().replace(/^(?:\*\*)?Subject:(?:\*\*)?\s*/i, '').trim();
+      const body = lines.slice(subjectLineIdx + 1).join('\n').replace(/^\n+/, '').trim();
+      renderAndTrackDrafts([{ key: 'aiDraft', label: '✉️ Email draft', subject, body }]);
       return;
     }
     addAiAnswerMsg(summaryText, fullText);

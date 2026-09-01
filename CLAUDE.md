@@ -1977,6 +1977,37 @@ with no notes yet had no Notes section at all.
   opens with the full text readable, confirm it shows up under that
   client's Drafts in their profile afterward, and try Copy and Open in
   Outlook from the modal.
+- **Confirmed still broken live immediately after shipping the above**:
+  the DE reported "Draft outreach" still landed in the normal chat bubble
+  (Drafts still showed "No drafts yet"), meaning `renderAiReply()`'s
+  `Subject: ...` detection never matched at all — `renderAndTrackDrafts()`
+  (and therefore the modal and the client-record save) never even ran.
+  Root cause: the regex was anchored to the *literal first character* of
+  the reply with zero tolerance for anything else. Models routinely
+  markdown-bold the label (`**Subject:**`) or add a one-line lead-in
+  ("Here's a draft:") even when explicitly told not to (see the system
+  prompt rule right above `renderAiReply`) — either deviation alone was
+  enough to miss the match. Fixed by scanning the first 3 lines for a
+  `Subject:` line (optionally bolded) instead of demanding it be the very
+  first character, treating anything before it as a discardable lead-in —
+  still anchored to the *start of a line*, not "subject" appearing
+  anywhere mid-sentence, so a reply that merely mentions the word (e.g.
+  "the subject of budget flexibility") still doesn't misfire, and a
+  `Subject:`-looking line past line 3 (too deep to plausibly be the real
+  draft header) still doesn't either. Verified with a real Node
+  execution-harness test against the actual extracted `renderAiReply()`
+  source (not a paraphrased copy) across ten cases: the original exact
+  format, a bolded label, a one-line preamble, leading/trailing
+  whitespace, the mid-sentence decoy, a too-deep `Subject:` line, a
+  normal short reply, an empty body, multiple blank lines between subject
+  and body, and an XSS probe through the extraction (confirmed the raw
+  text passes through unmangled for `openDraftModal`'s own `escapeHtml()`
+  to actually escape downstream) — all as designed. All 16 script blocks
+  parse; div-tag balance unchanged (pure logic change, no new markup).
+  **Still unverified**: whether this is now the true root cause or the
+  DE's actual reply took some other shape this fix doesn't cover — ask
+  for the literal bubble text next time if this doesn't resolve it, since
+  that's the fastest way to see the real shape without guessing blind.
 
 ## Design decisions to preserve, not "helpfully" change
 
