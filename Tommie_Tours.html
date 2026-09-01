@@ -12058,7 +12058,17 @@ Ground rules:
     if (input.status) { fields.status = input.status; changes.push(`status → ${input.status}`); }
     if (input.leadTemp !== undefined) { fields.leadTemp = input.leadTemp; changes.push(`lead category → ${input.leadTemp || '(cleared)'}`); }
     if (input.nextFollowUp !== undefined) { fields.nextFollowUp = input.nextFollowUp; changes.push(`next follow-up → ${input.nextFollowUp || '(cleared)'}`); }
-    if (input.noteToAdd) { fields.notes = (client.notes ? client.notes + '\n' : '') + input.noteToAdd; changes.push('note added'); }
+    if (input.noteToAdd) {
+      // Matches the Client Tracker's own manual "add a note" path
+      // (ctTimestampedNote/ctHandleSave): a dated line stacked on top of
+      // whatever notes already existed, never overwriting them. Small,
+      // deliberate duplication of that one-line date-stamp format rather
+      // than a cross-script export for something this trivial — same
+      // call this file already makes elsewhere for one-liners like this.
+      const stamp = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      fields.notes = `[${stamp}] ${input.noteToAdd}` + (client.notes ? '\n' + client.notes : '');
+      changes.push('note added');
+    }
     if (!changes.length) return { text: `No actual field changes were specified for ${client.name}.`, patch: null };
     return {
       text: `Prepared for ${client.name}: ${changes.join(', ')}. Not applied yet — needs the DE's confirmation.`,
@@ -13864,6 +13874,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   }
   .ct-form-grid input:focus, .ct-form-grid select:focus, .ct-form-grid textarea:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
   .ct-form-grid textarea { resize: vertical; min-height: 60px; }
+  .ct-form-grid textarea[readonly] { background: var(--ct-closed-soft, #f1efe7); color: var(--ct-ink-soft); cursor: default; }
   .ct-form-grid-sub { margin-top: 10px; }
 
   .ct-form-section {
@@ -13982,7 +13993,10 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   .ct-profile-row:last-child { border-bottom: none; }
   .ct-profile-row a { color: var(--sage-darker); font-weight: 700; text-decoration: none; }
   .ct-profile-row a:hover { text-decoration: underline; }
-  .ct-profile-notes { font-size: 13.5px; line-height: 1.65; color: var(--dark); white-space: pre-wrap; margin: 0; }
+  .ct-notes-log { display: flex; flex-direction: column; gap: 10px; }
+  .ct-note-entry { padding: 8px 0 8px 12px; border-left: 2px solid var(--ct-line); font-size: 13.5px; line-height: 1.55; color: var(--dark); }
+  .ct-note-date { display: block; font-size: 11px; font-weight: 700; color: var(--gold-text); margin-bottom: 2px; }
+  .ct-note-text { white-space: pre-wrap; }
   .ct-profile-cta { margin-top: 8px; }
   .ct-tmt-sync { font-size: 11px; font-weight: 700; margin-left: 6px; }
   .ct-tmt-sync.ok { color: var(--sage-darker); }
@@ -14217,8 +14231,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
 
     <div class="ct-form-grid ct-form-notes-wrap">
       <div class="ct-field-full">
-        <label for="ct-f-notes">Notes</label>
-        <textarea id="ct-f-notes" placeholder="Anything else worth remembering..."></textarea>
+        <label for="ct-f-newnote">Add a note for this call</label>
+        <textarea id="ct-f-newnote" placeholder="What came up today..."></textarea>
+      </div>
+      <div class="ct-field-full" id="ct-f-notes-history-wrap" hidden>
+        <label for="ct-f-notes">Previous notes (read-only — new notes are added above, never overwritten)</label>
+        <textarea id="ct-f-notes" readonly></textarea>
       </div>
     </div>
     <div id="ct-form-actions">
@@ -14349,6 +14367,22 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     return rowsHtml ? `<div class="ct-profile-section"><h4>${ctEscapeHtml(title)}</h4>${rowsHtml}</div>` : '';
   }
 
+  // notes is one string with newest entry first (see ctHandleSave/
+  // ctTimestampedNote) — split back into individual dated lines here so
+  // the profile view reads as a call log, not one run-together paragraph.
+  // A line with no recognizable "[date] " prefix (any note saved before
+  // this feature existed) still renders fine, just without a date chip.
+  function ctRenderNotesLog(notes) {
+    if (!notes) return '';
+    const lines = notes.split('\n').filter(l => l.trim());
+    const entries = lines.map(line => {
+      const m = line.match(/^\[([^\]]+)\]\s?(.*)$/);
+      if (m) return `<div class="ct-note-entry"><span class="ct-note-date">${ctEscapeHtml(m[1])}</span><span class="ct-note-text">${ctEscapeHtml(m[2])}</span></div>`;
+      return `<div class="ct-note-entry"><span class="ct-note-text">${ctEscapeHtml(line)}</span></div>`;
+    }).join('');
+    return `<div class="ct-profile-section"><h4>Call notes</h4><div class="ct-notes-log">${entries}</div></div>`;
+  }
+
   function ctLoadData() {
     try {
       const raw = localStorage.getItem(CT_STORAGE_KEY);
@@ -14464,7 +14498,14 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     document.getElementById('ct-f-email').value = client ? (client.email || '') : '';
     document.getElementById('ct-f-last').value = client ? (client.lastContact || '') : '';
     document.getElementById('ct-f-next').value = client ? (client.nextFollowUp || '') : '';
+    // Notes are an append-only call log now, not a single field that gets
+    // overwritten — see ctHandleSave()'s comment for why. The "new note"
+    // box always starts empty (it represents only what's new THIS time);
+    // past entries show read-only below it, and only appear at all when
+    // there's actually history to show.
+    document.getElementById('ct-f-newnote').value = '';
     document.getElementById('ct-f-notes').value = client ? (client.notes || '') : '';
+    document.getElementById('ct-f-notes-history-wrap').hidden = !(client && client.notes);
     // Client-intake fields — same "questions I ask new clients" script
     // the DE actually uses, ported in verbatim rather than reworded.
     document.getElementById('ct-f-travelerages').value = client ? (client.travelerAges || '') : '';
@@ -14547,12 +14588,46 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     ctEditingId = null;
   }
 
+  // "[Sep 1, 2026 · 3:45 PM] " prefix for a new call-log entry. Kept as a
+  // plain string prefix rather than a structured field so every existing
+  // consumer of client.notes (search, the Outlook deep-link body, the
+  // propose_todo_update AI tool) keeps reading it exactly as before —
+  // only __ctGetTodoSummary's own copy trims to the latest line (see
+  // ctLatestNoteLine below), since a compact to-do glance is the one
+  // place the full accumulated history would just be noise.
+  function ctTimestampedNote(text) {
+    const stamp = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return `[${stamp}] ${text}`;
+  }
+
+  // Notes are newest-entry-first (see ctTimestampedNote/ctHandleSave), so
+  // the first non-empty line is the most recent call's note — the only
+  // one worth surfacing in a compact summary like the to-do list.
+  function ctLatestNoteLine(notes) {
+    if (!notes) return '';
+    return notes.split('\n').find(l => l.trim()) || '';
+  }
+
   function ctHandleSave() {
     const name = document.getElementById('ct-f-name').value.trim();
     if (!name) {
       document.getElementById('ct-err-name').style.display = 'block';
       return;
     }
+    // Notes are append-only now — every call adds a new dated line rather
+    // than overwriting whatever was typed on the last call (the original
+    // bug this was built to fix: a second call's notes silently replaced
+    // the first call's, with no way to see what was said before). The
+    // "new note" box is the only thing actually typed into on this save;
+    // it gets stamped with the date/time and stacked on top of whatever
+    // history already existed for this client (read fresh from ctClients,
+    // not from the read-only textarea, so this can't drift out of sync
+    // with it).
+    const newNote = document.getElementById('ct-f-newnote').value.trim();
+    const existingNotes = ctEditingId ? ((ctClients.find(c => c.id === ctEditingId) || {}).notes || '') : '';
+    const notes = newNote
+      ? (ctTimestampedNote(newNote) + (existingNotes ? '\n' + existingNotes : ''))
+      : existingNotes;
     const data = {
       name,
       status: document.getElementById('ct-f-status').value,
@@ -14565,7 +14640,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       email: document.getElementById('ct-f-email').value.trim(),
       lastContact: document.getElementById('ct-f-last').value,
       nextFollowUp: document.getElementById('ct-f-next').value,
-      notes: document.getElementById('ct-f-notes').value.trim(),
+      notes,
       travelerAges: document.getElementById('ct-f-travelerages').value.trim(),
       travelDates: document.getElementById('ct-f-traveldates').value.trim(),
       flexibleDates: document.getElementById('ct-f-flexibledates').value,
@@ -14815,7 +14890,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       ${ctSection('Transfers', transferRows)}
       ${ctSection('Restaurants', restaurantRows)}
       ${ctSection('Other', otherRows)}
-      ${c.notes ? `<div class="ct-profile-section"><h4>Notes</h4><p class="ct-profile-notes">${ctEscapeHtml(c.notes)}</p></div>` : ''}
+      ${ctRenderNotesLog(c.notes)}
       ${showOutlookBtn ? `<div class="ct-profile-cta"><button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button></div>` : ''}
     `;
 
@@ -15003,6 +15078,38 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   document.getElementById('ct-call-btn').addEventListener('click', ctOpenQualifyingCall);
   document.getElementById('ct-cancel-btn').addEventListener('click', ctCloseForm);
   document.getElementById('ct-save-btn').addEventListener('click', ctHandleSave);
+
+  // Enter-to-advance (Aug 2026) — reaching for the mouse between every
+  // field is the last thing you want mid-call. Pressing Enter in a
+  // single-line field moves to the next visible/enabled one instead of
+  // doing nothing (there's no real <form> here, so Enter had no default
+  // behavior at all before this). Deliberately does NOT hijack Enter
+  // inside a textarea (that has to stay a literal newline) or a readonly
+  // field (the notes history box). Skips anything inside a still-
+  // collapsed <details> section automatically, since a hidden field's
+  // offsetParent is null — so in the normal Add/Edit form Enter walks
+  // through the visible top-level fields and stops at the one open
+  // section, while in Qualifying Call mode (everything force-open) it
+  // walks the entire form. Reaching the last field and hitting Enter
+  // moves focus to Save rather than doing nothing, so the whole form can
+  // be filled and submitted without ever touching the mouse.
+  function ctFormFocusables() {
+    return Array.from(document.querySelectorAll(
+      '#ct-form-panel input:not([readonly]):not([type="checkbox"]), #ct-form-panel select, #ct-form-panel textarea:not([readonly])'
+    )).filter(el => el.offsetParent !== null);
+  }
+  document.getElementById('ct-form-panel').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const el = e.target;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') return;
+    if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT') return;
+    e.preventDefault();
+    const focusables = ctFormFocusables();
+    const idx = focusables.indexOf(el);
+    if (idx === -1) return;
+    const next = focusables[idx + 1];
+    if (next) next.focus(); else document.getElementById('ct-save-btn').focus();
+  });
   document.getElementById('ct-search').addEventListener('input', ctRender);
   document.getElementById('ct-status-filter').addEventListener('change', ctRender);
   document.querySelectorAll('.ct-tab').forEach(tab => {
@@ -15066,7 +15173,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     const fmt = list => list.map(c => ({
       id: c.id, name: c.name, status: c.status, leadTemp: c.leadTemp || '',
       destination: c.destination || '', nextFollowUp: c.nextFollowUp || '',
-      lastContact: c.lastContact || '', notes: c.notes || ''
+      lastContact: c.lastContact || '', notes: ctLatestNoteLine(c.notes)
     }));
     return { overdue: fmt(groups.overdue), dueThisWeek: fmt(groups.soon), upcoming: fmt(groups.later), noDate: fmt(groups.noDate) };
   };

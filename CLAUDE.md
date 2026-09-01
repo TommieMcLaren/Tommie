@@ -1202,6 +1202,89 @@ Client Tracker record rather than a disconnected scratch pad.
   much, both are scoped entirely under `.ct-call-mode` in the CSS and
   easy to tune independently of the normal Add/Edit form.
 
+## Append-only call log + Enter-to-advance in the Client Tracker form (Aug 2026, unverified live)
+
+Two follow-ups to the Qualifying Call feature above, picked as the next
+things worth tightening for "a clean, well-oiled document": Notes was a
+single field every call silently overwrote, and moving between fields
+mid-call needed the mouse since there's no real `<form>` element here for
+Enter to do anything with by default.
+
+- **Notes are now append-only and dated, without becoming a new schema
+  field.** The Add/Edit form's old single "Notes" textarea is now two
+  things: `#ct-f-newnote` ("Add a note for this call," always empty when
+  the form opens, whether adding or editing) and a read-only
+  `#ct-f-notes` showing accumulated history (hidden entirely when there
+  isn't any yet). `ctHandleSave()` only ever reads the new-note box; if
+  it has text, `ctTimestampedNote()` stamps it (`[Sep 1, 2026 · 3:45 PM]
+  ...`) and stacks it on top of whatever notes already existed for that
+  client (read fresh from `ctClients` via `ctEditingId`, not from the
+  read-only textarea, so the two can't drift). **Deliberately kept
+  `client.notes` as a single string** rather than introducing a
+  structured array field — the alternative would have meant updating
+  every existing consumer (search's substring filter, the Outlook
+  deep-link event body, `propose_todo_update`'s own note-adding, and
+  `__ctGetTodoSummary`) to a new shape; a plain dated-line-prefix keeps
+  all of those working exactly as they did, since they still just see one
+  string. `propose_todo_update`'s `noteToAdd` handling got the same
+  date-stamped, newest-first treatment (previously it appended un-dated
+  text to the *end* of `notes` — now it matches the manual path exactly:
+  a small, deliberate duplication of the one-line stamp format across the
+  two scripts rather than a cross-IIFE export for something this trivial,
+  same call this file already makes elsewhere).
+- **The profile view now renders notes as an actual log**, not one
+  run-together paragraph — `ctRenderNotesLog()` splits on `\n` and shows
+  each dated line as its own entry (a left border + a small gold date
+  chip), falling back to a plain line for any note saved before this
+  feature existed (no `[date]` prefix to parse). Replaced the old
+  `.ct-profile-notes` single-paragraph CSS, now dead, with
+  `.ct-notes-log`/`.ct-note-entry`/`.ct-note-date`/`.ct-note-text`.
+- **`__ctGetTodoSummary()` (the `get_todo_list` tool's data source) now
+  sends only the latest note line**, via a new `ctLatestNoteLine()`
+  helper, instead of the full accumulated history — a compact "what's on
+  my plate" to-do glance is the one place showing the whole call log
+  back to the model would just be noise; the full history is still one
+  tap away in the Client Tracker's own profile view. Nothing else that
+  reads `client.notes` directly (search, the Outlook deep-link body) was
+  touched — they're supposed to see the full string.
+- **Enter-to-advance**: a single `keydown` listener on `#ct-form-panel`
+  moves focus to the next visible field when Enter is pressed in a
+  single-line input/select — there was no `<form>` element for Enter to
+  do anything with before this, so it was previously just a dead key
+  mid-call. Explicitly does not hijack Enter inside a `<textarea>` (has
+  to stay a literal newline, matters most for the new "add a note" box)
+  or a `readonly` field. `ctFormFocusables()` filters to
+  `el.offsetParent !== null`, which — for free, since it's how the
+  browser already treats content inside a closed `<details>` — means
+  Enter only walks the fields actually visible: just the top-level fields
+  plus whichever one section starts open in a normal Add/Edit, or the
+  entire form end-to-end in Qualifying Call mode (see above), where every
+  section is force-open. Reaching the last field moves focus to the Save
+  button instead of doing nothing, so the whole form is fillable and
+  submittable without the mouse.
+- Logic-tested in Node: the timestamp-and-prepend behavior across two
+  simulated calls (each note lands newest-first, dated, previous entries
+  untouched); `ctLatestNoteLine()` against the resulting log (correctly
+  returns only the most recent entry) and against an old undated note
+  (returns the whole string unchanged); an XSS probe
+  (`<script>alert(1)</script>` inside a note) through the full
+  timestamp-and-render path (came back fully escaped, no raw tag in the
+  output); an empty new-note save correctly leaves existing history
+  untouched; and the Enter-to-advance index-walk logic in isolation
+  (advances to the next field, reaching the last one targets Save, and a
+  field that isn't in the focusable list — e.g. a readonly or hidden one
+  — correctly no-ops rather than throwing). All 15 `<script>` blocks
+  still pass syntax parsing; div-tag balance incremented by exactly 4
+  (the new history-textarea wrapper plus the notes-log renderer's own
+  template markup), from 1,611/1,611 to 1,615/1,615.
+- **Unverified live**: whether the date-stamp format reads naturally at a
+  glance, whether Enter-to-advance's field order actually matches how the
+  DE tabs through a real call (top-level fields first, then each intake
+  section in order — not reordered specifically for call flow), and
+  whether disabling a section's click-to-collapse in Qualifying Call mode
+  combines well with Enter-to-advance walking through all of them, are
+  all "try it on the next few calls" questions, not checkable from here.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
