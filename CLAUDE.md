@@ -865,6 +865,104 @@ what anyone called cluttered.
   front of a client: ask about the to-do list, ask it to draft an email,
   propose and confirm an update, and try both typed and voice input.
 
+## Three live bugs from the rebuilt Trip Assistant, fixed (Aug 2026, unverified live)
+
+All three surfaced from the DE actually using the just-rebuilt "always
+conversational" Trip Assistant (see previous section) — real feedback, not
+speculative hardening.
+
+- **Raw markdown dumped straight into the chat bubble, and read aloud
+  character-for-character.** Confirmed via a screenshot of a
+  `get_todo_list` answer showing literal `###`, `**bold**`, `-` bullets,
+  `⚠️` emoji, and `---` in the bubble, plus "she reads every line of text
+  including the emojis." Root cause: `splitSummary()` only ever shortened a
+  reply when the model appended an explicit `SUMMARY:` line (see
+  `TA_SUMMARY_NOTE`), and the model judged this particular answer "not
+  long" — each individual line was short, even though the overall
+  structure (headers, a numbered list, nested bullets) very much needed
+  condensing. No `SUMMARY:` line meant `fullText === summaryText`, so the
+  raw markdown landed straight in the escaped bubble (never routed through
+  `renderMarkdownLite()`, which only runs inside the "View full details"
+  pop-out) and was passed as-is to `speakText()`, which only strips
+  `[*_#>`]` — not emoji, not `-`, not `---`.
+  **Fix**: a new deterministic backstop, `looksLikeStructuredMarkdown(text)`
+  (2+ lines matching a heading/bullet/numbered/table/rule pattern), checked
+  in `splitSummary()` whenever the model didn't provide a `SUMMARY:` line.
+  When it fires, the reply's own leading non-structural sentence becomes the
+  summary (falling back to a generic "tap to view the details" line if there
+  isn't one) — same "always show a short line first" contract as an explicit
+  `SUMMARY:`, just derived locally instead of trusting the model to remember
+  every time. Because `convoListenOnce`'s voice path already speaks
+  `result.text` (the `summaryText` `convoRespond()` returns, not the full
+  text), this fixes the read-aloud half for free — no separate speech-layer
+  change needed. Logic-tested in Node against the actual screenshot text
+  (correctly falls back to the generic line, since that dump had no leading
+  sentence), a variant with a leading sentence (correctly extracts it), a
+  short unstructured reply (unaffected), an explicit `SUMMARY:` tag (still
+  takes priority), and an error string (passthrough unchanged).
+- **Mic permission prompt reappearing on every listen cycle, even mid-
+  conversation.** Root cause: `convoListenOnce()` built a brand new
+  `SpeechRecognition()` instance on every call, and the conversation loop
+  calls it repeatedly (after every reply, after every retry) — so this was
+  a fresh recognition session, and fresh mic acquisition, every few
+  seconds. **Fix**: `getConvoRec()` now creates the `SpeechRecognition`
+  instance once (event handlers wired once) and caches it in `convoRec`;
+  `convoListenOnce()` just calls `.start()` on the same cached instance for
+  the rest of the page's lifetime. **Two things worth checking live if
+  prompts still reappear after this**: (1) if Chrome's prompt ever offers
+  a persistent "Allow" vs. a one-time "Allow this time" choice, the
+  persistent option should be picked; (2) this file's mic-permission
+  persistence is already known to be weaker on `file://` origins than on a
+  real `https://` origin (see "Still open" below and HANDOFF.md) — serving
+  it via a local HTTP server (`python3 -m http.server`, then open
+  `http://localhost:8000/...`) instead of double-clicking the file directly
+  would very likely resolve this more permanently, since Chrome has a real
+  origin to remember the grant against. Not done here since it's a hosting
+  change, not a code change — worth doing as a follow-up if the code fix
+  alone isn't enough.
+- **"Easier navigator... rather than having to scroll the entire chat."**
+  Surfaced via a screenshot plus "What could you do to upgrade" — the chat
+  bubble list had no way back to the latest message besides manual
+  scrolling, and every new bot reply/typing-indicator update force-scrolled
+  the DE to the bottom even if they'd scrolled up to reread something. A
+  literal top/bottom nav bar isn't the right shape for a chat (it's not a
+  document with sections), so this is the standard chat-app pattern
+  instead: **smart conditional auto-scroll + a floating "↓ New messages"
+  pill**. New `#ta-msgs-wrap` (`position: relative`) now wraps `#ta-msgs`
+  so the pill (`#ta-jump-latest`) can float, absolutely positioned, over
+  the scrollable message list without being wiped by `restoreState()`'s
+  `msgsEl.innerHTML = ''` on reload. `scrollMsgsToBottom(force)` replaces
+  every unconditional `msgsEl.scrollTop = msgsEl.scrollHeight`: force-
+  scrolls only when the DE was already within 60px of the bottom (or
+  `force` is explicitly true), otherwise leaves their scroll position alone
+  and reveals the pill instead. `addMsg()` always force-scrolls for the
+  DE's own just-sent message (they were just at the input box, at the
+  bottom, by definition) but only conditionally for a bot/sys message;
+  `showTyping()`/`updateTypingText()` (the streaming-answer path) are
+  always conditional, so a long itinerary streaming in doesn't repeatedly
+  yank a DE back down mid-read. A `scroll` listener on `#ta-msgs` keeps the
+  pill in sync with manual scrolling too, not just new messages; clicking
+  it scrolls to bottom and hides itself. Deliberately did NOT add a
+  symmetric "jump to top" button — chats grow downward, jump-to-latest is
+  what matters, and the whole prior redesign of this panel was explicitly
+  about decluttering it. `restoreState()`'s own scroll-to-bottom (on
+  initial page load) is left as an unconditional force-scroll — landing at
+  the bottom on open is the expected behavior there, not something to
+  second-guess against a scroll position that doesn't exist yet.
+- All three fixes verified via `node --check`-equivalent syntax parsing of
+  all 15 `<script>` blocks (all pass) and a full div-tag balance recount
+  (1,662 opens / 1,662 closes). **Unverified live, same caveat as
+  everything else in this file**: the jump-pill's actual appearance/
+  positioning over the message list, whether the mic-permission fix
+  actually stops the repeat prompts in a real browser, and whether the
+  markdown/speech fix reads naturally on a variety of real model replies
+  (not just the one screenshot text) — none of this has been seen outside
+  this environment. Test all three live before trusting them in front of a
+  client: trigger a to-do-list answer and check both the bubble and the
+  spoken reply, run a full voice conversation with several back-and-forth
+  turns and watch whether the permission prompt reappears, and scroll up
+  mid-conversation to confirm the "↓ New messages" pill appears and works.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

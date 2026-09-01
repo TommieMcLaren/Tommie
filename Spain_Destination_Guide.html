@@ -11473,7 +11473,17 @@ ${resultsBody}
     text-decoration: underline; text-underline-offset: 2px; flex-shrink: 0;
   }
 
+  #ta-msgs-wrap { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
   #ta-msgs { flex: 1; overflow-y: auto; padding: 14px 14px 6px; }
+  #ta-jump-latest {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 20px;
+    padding: 7px 16px; font-size: 12px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22); display: none; align-items: center; gap: 6px;
+    z-index: 5; font-family: 'Lato', sans-serif;
+  }
+  #ta-jump-latest.shown { display: inline-flex; }
+  #ta-jump-latest:hover { background: var(--sage-darker); }
   .ta-msg { margin-bottom: 16px; font-size: 16px; line-height: 1.65; white-space: pre-wrap; animation: ta-rise .18s ease; }
   @keyframes ta-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   .ta-msg.user { text-align: right; }
@@ -11614,8 +11624,11 @@ ${resultsBody}
     <button type="button" id="ta-voice-test">🔊 Preview voice</button>
     <p id="ta-convo-hint" style="margin-top:14px;">Live AI, talks back — billed to your own Anthropic API key</p>
   </div>
-  <div id="ta-msgs">
-    <div class="ta-msg bot"><span>Hi — just ask or say what you need: draft an email or text, pull up an itinerary, check what's on your to-do list, or ask anything in this guide. e.g. "what's on my plate today?" or "draft an outreach email for Sarah, she's going to Barcelona."</span></div>
+  <div id="ta-msgs-wrap">
+    <div id="ta-msgs">
+      <div class="ta-msg bot"><span>Hi — just ask or say what you need: draft an email or text, pull up an itinerary, check what's on your to-do list, or ask anything in this guide. e.g. "what's on my plate today?" or "draft an outreach email for Sarah, she's going to Barcelona."</span></div>
+    </div>
+    <button type="button" id="ta-jump-latest">↓ New messages</button>
   </div>
   <div id="ta-image-preview" hidden>
     <img id="ta-image-preview-thumb" alt="Attached image">
@@ -11637,6 +11650,7 @@ ${resultsBody}
   const panel = document.getElementById('ta-panel');
   const closeBtn = document.getElementById('ta-close');
   const msgsEl = document.getElementById('ta-msgs');
+  const jumpLatestBtn = document.getElementById('ta-jump-latest');
   const input = document.getElementById('ta-input');
   const sendBtn = document.getElementById('ta-send');
   const micBtn = document.getElementById('ta-mic');
@@ -12457,6 +12471,35 @@ Ground rules:
     return /new client|different client|start over|clear (this|the)? ?client|reset/.test(t);
   }
 
+  // Reported live (Aug 2026): asked for "an easier navigator bar rather than
+  // scrolling the entire chat." A conversation panel isn't a document with
+  // sections to jump between, so a real nav bar isn't the right shape here —
+  // what a chat actually needs is (1) not getting yanked back to the bottom
+  // while reading up through history, and (2) an easy way back down once you
+  // are scrolled up. scrollMsgsToBottom() replaces every unconditional
+  // `msgsEl.scrollTop = msgsEl.scrollHeight` with this: force-scroll only
+  // when the user was already within TA_NEAR_BOTTOM_PX of the bottom (i.e.
+  // they were following along live), otherwise leave their scroll position
+  // alone and reveal the #ta-jump-latest pill instead. The scroll listener
+  // below keeps that pill in sync with manual scrolling too, not just new
+  // messages.
+  const TA_NEAR_BOTTOM_PX = 60;
+  function isNearBottom() {
+    return msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < TA_NEAR_BOTTOM_PX;
+  }
+  function scrollMsgsToBottom(force) {
+    if (force || isNearBottom()) {
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      if (jumpLatestBtn) jumpLatestBtn.classList.remove('shown');
+    } else if (jumpLatestBtn) {
+      jumpLatestBtn.classList.add('shown');
+    }
+  }
+  if (jumpLatestBtn) {
+    msgsEl.addEventListener('scroll', () => { jumpLatestBtn.classList.toggle('shown', !isNearBottom()); });
+    jumpLatestBtn.addEventListener('click', () => { msgsEl.scrollTop = msgsEl.scrollHeight; jumpLatestBtn.classList.remove('shown'); });
+  }
+
   function addMsg(role, htmlOrText, isHtml) {
     const div = document.createElement('div');
     div.className = 'ta-msg ' + role;
@@ -12464,7 +12507,11 @@ Ground rules:
     if (isHtml) span.innerHTML = htmlOrText; else span.textContent = htmlOrText;
     div.appendChild(span);
     msgsEl.appendChild(div);
-    msgsEl.scrollTop = msgsEl.scrollHeight;
+    // The DE's own just-sent message always scrolls into view — they were
+    // just at the input box, right at the bottom, by definition. A bot/sys
+    // message arriving while they've scrolled up to read history should not
+    // yank them back down; scrollMsgsToBottom() shows the jump pill instead.
+    scrollMsgsToBottom(role === 'user');
     persistState();
     return div;
   }
@@ -12474,7 +12521,7 @@ Ground rules:
     div.className = 'ta-msg bot ta-typing-wrap';
     div.innerHTML = '<span class="ta-typing"><span></span><span></span><span></span></span><span class="ta-typing-status"></span>';
     msgsEl.appendChild(div);
-    msgsEl.scrollTop = msgsEl.scrollHeight;
+    scrollMsgsToBottom(false);
     return div;
   }
 
@@ -12499,7 +12546,7 @@ Ground rules:
       div.appendChild(liveEl);
     }
     liveEl.textContent = partialText;
-    msgsEl.scrollTop = msgsEl.scrollHeight;
+    scrollMsgsToBottom(false);
   }
 
   function escapeHtml(s) {
@@ -13883,11 +13930,36 @@ Tommie McLaren`
   // purpose. Falls back to the whole reply for both if the model didn't add
   // one (short replies, or it just didn't follow the format) — better to
   // show/speak the full thing than show nothing.
+  // Confirmed live (Aug 2026): a to-do-list answer came back as raw,
+  // un-rendered markdown sitting directly in the chat bubble — literal
+  // "###", "**", "-", "---" characters — and voice read every one of
+  // those characters aloud too, because the model judged the answer
+  // "not long" (each line was short) even though the overall structure
+  // very much needed condensing. Relying on the model to remember
+  // SUMMARY: isn't enough on its own — this is the deterministic
+  // backstop: when a reply is heavily structured (2+ heading/bullet/
+  // table/rule lines) but has no SUMMARY: line, its own leading sentence
+  // (if it has one) becomes the summary instead of dumping the raw
+  // markdown into the bubble/speech — same "always show a short line
+  // first" contract as an explicit SUMMARY:, just derived locally when
+  // the model didn't provide one.
+  function looksLikeStructuredMarkdown(text) {
+    const structuralLineRe = /^#{1,3}\s|^[-*]\s|^\d+\.\s|^\|.*\|$|^-{3,}$/;
+    const structural = (text || '').split('\n').filter(l => structuralLineRe.test(l.trim())).length;
+    return structural >= 2;
+  }
+
   function splitSummary(text, isError) {
     if (isError || !text) return { fullText: text, summaryText: text };
     const m = text.match(/\n+SUMMARY:\s*([^\n]+)\s*$/i);
-    if (!m) return { fullText: text, summaryText: text };
-    return { fullText: text.slice(0, m.index).trim() || text, summaryText: m[1].trim() };
+    if (m) return { fullText: text.slice(0, m.index).trim() || text, summaryText: m[1].trim() };
+    if (!looksLikeStructuredMarkdown(text)) return { fullText: text, summaryText: text };
+    const structuralLineRe = /^#{1,3}\s|^[-*]\s|^\d+\.\s|^\|.*\|$|^-{3,}$/;
+    const leadLine = text.split('\n').map(l => l.trim()).find(l => l && !structuralLineRe.test(l));
+    const summaryText = (leadLine && leadLine.length <= 200)
+      ? leadLine.replace(/[*_#>`]/g, '').trim()
+      : "Here's the full answer — tap to view the details.";
+    return { fullText: text, summaryText };
   }
 
   // Renders the same inline route map the scenario builder uses, but for
@@ -14080,8 +14152,23 @@ Tommie McLaren`
     return { text: summaryText, full: fullText, cities: result.cities || [], error: !!result.error, pendingAction: result.pendingAction || null };
   }
 
-  function convoListenOnce() {
-    if (!convoActive) return;
+  // Reported live (Aug 2026): the mic permission prompt reappeared on every
+  // single listen cycle, even mid-conversation. Root cause: convoListenOnce
+  // used to build a brand new SpeechRecognition() on every call — the
+  // conversation loop calls this repeatedly (after each reply, after each
+  // retry), so that was a fresh recognition session, and fresh mic
+  // acquisition, every few seconds. Chrome's mic-permission persistence is
+  // already known to be weaker on file:// origins than on real https:// ones
+  // (see CLAUDE.md); repeatedly tearing down and recreating the recognition
+  // object was making that worse. One instance, created once and reused for
+  // the rest of the page's lifetime, means only one real "acquire the mic"
+  // handshake instead of one per listen cycle. If prompts still reappear
+  // after this, it's the file:// origin itself — serving this file from a
+  // local HTTP server (e.g. `python3 -m http.server`) instead of opening it
+  // directly gives Chrome a real origin to remember the grant against.
+  let convoRec = null;
+  function getConvoRec() {
+    if (convoRec) return convoRec;
     const rec = new SpeechRec();
     rec.continuous = false;
     rec.interimResults = false;
@@ -14146,6 +14233,12 @@ Tommie McLaren`
       if (convoActive) setTimeout(convoListenOnce, 700);
     };
     rec.onend = () => { /* next listen is chained from onresult/speakText, or the retry logic above */ };
+    convoRec = rec;
+    return rec;
+  }
+  function convoListenOnce() {
+    if (!convoActive) return;
+    const rec = getConvoRec();
     try { micBtn.classList.add('listening'); rec.start(); }
     catch (e) {
       addMsg('sys', "🎙️ Couldn't start the microphone (" + (e && e.message ? e.message : 'unknown error') + "). Voice is off for now — just type below and I'll still answer (without speaking back).", false);
