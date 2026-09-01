@@ -766,6 +766,12 @@
   #ta-itinerary-modal { background: #fffdf9; border-radius: 16px; max-width: 720px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 34px 34px 26px; box-shadow: 0 12px 50px rgba(0,0,0,0.4); border-top: 6px solid var(--gold); position: relative; font-family: 'Lato', sans-serif; }
   #ta-itinerary-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
   #ta-itinerary-close:hover { color: var(--sage-darker); }
+  #ta-itinerary-download {
+    position: absolute; top: 20px; right: 56px; background: var(--gold); color: #fff; border: none;
+    border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+    font-family: 'Lato', sans-serif; white-space: nowrap;
+  }
+  #ta-itinerary-download:hover { background: var(--gold-text); }
   #ta-itinerary-modal-body h2 { font-family: 'Playfair Display', serif; color: var(--sage-darker); font-size: 24px; margin: 0 0 12px; }
   #ta-itinerary-modal-body h3 { font-family: 'Playfair Display', serif; color: var(--sage-darker); font-size: 19px; margin: 22px 0 8px; }
   #ta-itinerary-modal-body h4 { color: var(--sage-dark); font-size: 15.5px; margin: 16px 0 6px; }
@@ -12477,7 +12483,10 @@ Ground rules:
     persistState();
   }
 
-  contextResetBtn.addEventListener('click', () => {
+  // Pulled out of the reset button's own handler so the Client Tracker's
+  // "Draft outreach" handoff (see window.__taEnsureClientContext below)
+  // can trigger the exact same reset instead of a second copy of it.
+  function resetClientContext() {
     archiveCurrentSession();
     taState.clientName = null; taState.destination = null; taState.tier = null;
     taState.itinerary = null; taState.occasion = null; taState.lastVibes = null;
@@ -12485,6 +12494,9 @@ Ground rules:
     lastDraftContext = null;
     convoHistory = []; // real topic change — this is the one action that should actually clear conversation context
     updateContextBar();
+  }
+  contextResetBtn.addEventListener('click', () => {
+    resetClientContext();
     addMsg('sys', 'Started fresh — ready for a new client.', false);
   });
 
@@ -13243,16 +13255,73 @@ Tommie McLaren`
   // (including markup below this script tag) has long since loaded.
   function getItineraryOverlay() { return document.getElementById('ta-itinerary-overlay'); }
   function getItineraryModalBody() { return document.getElementById('ta-itinerary-modal-body'); }
+  // Kept alongside the rendered HTML so "📄 Download as document" (see
+  // taDownloadItineraryDoc below) has the original markdown to rebuild a
+  // standalone file from — the modal body only ever holds the rendered
+  // HTML, not something worth re-parsing back into a document.
+  let lastItineraryModalText = null;
   function openItineraryModal(fullText) {
     const overlay = getItineraryOverlay();
     const body = getItineraryModalBody();
     if (!overlay || !body) return;
+    lastItineraryModalText = fullText;
     body.innerHTML = renderMarkdownLite(fullText);
     overlay.classList.add('open');
   }
   function closeItineraryModal() {
     const overlay = getItineraryOverlay();
     if (overlay) overlay.classList.remove('open');
+  }
+
+  // "📄 Download as document" (Aug 2026, unverified live) — direct
+  // response to "the biggest change would be turning an AI answer into a
+  // real client-ready document." A full structured-data export (like the
+  // Quote Builder's own qbBuildDocumentHtml/qbDownloadDoc, reusing its
+  // hotel/day/tour objects) would need the model's free-text answer
+  // parsed back into that same shape — a bigger, riskier build. This is
+  // the smaller version instead: the exact markdown already shown in the
+  // "View full details" pop-out, re-rendered into the same branded,
+  // printable document shell the Quote Builder already uses (Georgia
+  // serif, sage/gold accents), downloaded as a .doc file the same way
+  // qbDownloadDoc() does (a Blob typed application/msword — Word opens
+  // well-formed HTML saved with a .doc extension directly, no real
+  // document-format conversion needed).
+  function taBuildItineraryDocHtml(fullText) {
+    const clientName = taState.clientName || 'Prospective Client';
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${escapeHtml(clientName)} — Spain Itinerary</title>
+<style>
+  body { font-family: Georgia, 'Playfair Display', serif; color: #2a2a22; max-width: 720px; margin: 40px auto; line-height: 1.5; padding: 0 20px; }
+  h1 { font-size: 26px; color: #4a5f4a; border-bottom: 3px solid #c8a552; padding-bottom: 10px; }
+  h2 { font-size: 20px; color: #4a5f4a; margin-top: 26px; border-left: 4px solid #c8a552; padding-left: 10px; }
+  h3 { font-size: 16.5px; color: #4a5f4a; margin-top: 20px; }
+  p, li { font-size: 14.5px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #ccc; }
+  th { background: #faf6ee; }
+  .md-note { background: #f3ead9; border-left: 4px solid #c8a552; padding: 8px 12px; margin: 12px 0; }
+  .doc-footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #ccc; font-size: 11.5px; color: #8a8776; font-style: italic; }
+</style>
+</head><body>
+<h1>Spain — Itinerary for ${escapeHtml(clientName)}</h1>
+${renderMarkdownLite(fullText)}
+<div class="doc-footer">Prepared by your Kensington Tours Destination Expert — a draft starting point only. Confirm real-time hotel/rate availability in TMT/KHP before quoting the client. Your journey, expertly curated.</div>
+</body></html>`;
+  }
+  function taDownloadItineraryDoc() {
+    if (!lastItineraryModalText) return;
+    const html = taBuildItineraryDocHtml(lastItineraryModalText);
+    const clientName = taState.clientName || 'Draft';
+    const filename = clientName.replace(/[^a-z0-9]+/gi, '_') + '_Spain_Itinerary.doc';
+    const blob = new Blob(['﻿', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
   // The close button and backdrop-click listeners can't be looked up
   // fresh the same way (there's nothing to attach an event listener TO
@@ -13265,6 +13334,8 @@ Tommie McLaren`
     const closeBtn = document.getElementById('ta-itinerary-close');
     if (closeBtn) closeBtn.addEventListener('click', closeItineraryModal);
     if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) closeItineraryModal(); });
+    const downloadBtn = document.getElementById('ta-itinerary-download');
+    if (downloadBtn) downloadBtn.addEventListener('click', taDownloadItineraryDoc);
   });
 
   // Shared by every live-AI display site (Conversation Mode, the "Actually
@@ -13772,6 +13843,18 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
       official: scoreItinerariesByCities(KT_LIVE_ITINERARIES, reqCities, days),
       personal: typeof PERSONAL_ITINERARIES !== 'undefined' ? scoreItinerariesByCities(PERSONAL_ITINERARIES, reqCities, days) : []
     };
+  };
+  // Exposed for the Client Tracker's "Draft outreach" button (Aug 2026).
+  // Confirmed live risk: clicking that button mid-conversation about a
+  // different client would land the new request in the SAME convoHistory
+  // — the model would see an unrelated earlier client's details right
+  // next to this new request and could blend the two. A no-op when the
+  // conversation is already about this same client (or about nobody yet)
+  // — resetting there would only lose real context for no reason; only
+  // fires the exact same reset the "Start new client" button uses when
+  // the name genuinely differs.
+  window.__taEnsureClientContext = (name) => {
+    if (taState.clientName && name && taState.clientName !== name) resetClientContext();
   };
 })();
 </script>
@@ -14990,6 +15073,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     // if this stayed open, so close it first, same as any other handoff
     // out of this panel.
     ctCloseOverlay();
+    // Confirmed live risk: without this, drafting for a different client
+    // mid-conversation would land the request in the same convoHistory as
+    // whoever Trip Assistant was already discussing — the model could
+    // blend two different clients' details in one thread. No-ops when
+    // the conversation is already about this same client or nobody yet.
+    if (window.__taEnsureClientContext) window.__taEnsureClientContext(client.name);
     taBtn.click();
     taInput.value = bits.join(' ');
     taSendBtn.click();
@@ -15457,6 +15546,7 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
 <div id="ta-itinerary-overlay">
   <div id="ta-itinerary-modal">
     <button id="ta-itinerary-close" type="button" aria-label="Close">✕</button>
+    <button id="ta-itinerary-download" type="button">📄 Download as document</button>
     <div id="ta-itinerary-modal-body"></div>
   </div>
 </div>

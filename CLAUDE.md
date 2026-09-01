@@ -1412,6 +1412,61 @@ contain a recognized Spain city name.
   mis-fires on a real model response shaped slightly differently than
   expected — none of this has been tried in a real browser.
 
+## Itinerary document export + Draft-outreach context-bleed fix (Aug 2026, unverified live)
+
+Two follow-ups from "what's the biggest Trip Assistant improvement":
+turning an AI itinerary answer into an actual client-ready document, and
+fixing a real correctness risk flagged in the same conversation —
+"Draft outreach" (see the section above) could land a new client's
+request in the middle of an unrelated client's conversation history.
+
+- **"📄 Download as document"** on the "View full details" pop-out
+  (`taDownloadItineraryDoc()`) re-renders the same markdown already shown
+  there through `taBuildItineraryDocHtml()` — a standalone, branded HTML
+  document (Georgia serif, sage/gold accents) matching the Quote
+  Builder's own `qbBuildDocumentHtml()` styling — and downloads it via
+  the exact same trick `qbDownloadDoc()` already uses: a `Blob` typed
+  `application/msword` with a `.doc` extension, which Word opens directly
+  since it's well-formed HTML, no real format conversion needed.
+  **Deliberately the smaller of two possible builds** — the bigger
+  version would parse the AI's free-text answer back into the Quote
+  Builder's own structured data (hotels/days/tours objects) to reuse its
+  exporter outright; that means teaching this file to reverse-engineer
+  structure out of prose reliably, a real project on its own. This
+  version just re-skins already-rendered markdown, so it ships today with
+  much less risk, at the cost of not being able to do anything
+  structure-aware (city-by-city breakdowns, editable line items) a real
+  Quote Builder document can. `openItineraryModal()` now also stashes the
+  raw markdown in `lastItineraryModalText`, since the modal body only
+  ever held the rendered HTML before — nothing to rebuild a document from.
+- **Draft-outreach context bleed, fixed.** Flagged as a real risk in the
+  conversation that led to building "Draft outreach" in the first place:
+  clicking it while Trip Assistant already had an unrelated client's
+  conversation open would send the new request into that same
+  `convoHistory` — the model could blend two different clients' details
+  in one thread. `contextResetBtn`'s inline reset logic was pulled out
+  into `resetClientContext()` (used by both the button and the new path,
+  instead of two copies of the same six lines), and a new
+  `window.__taEnsureClientContext(name)` export runs it automatically
+  whenever `ctDraftOutreach()` is about to send a request for a client
+  whose name doesn't match whichever client Trip Assistant's `taState`
+  currently has active. **Deliberately a no-op when the conversation is
+  already about the same client, or about nobody yet** — resetting there
+  would just lose real context (something the DE said earlier in the same
+  call, for instance) for no reason.
+- Logic-tested in Node: the document builder against a normal client
+  name, a not-yet-set client name (falls back to "Prospective Client"),
+  and an XSS probe in the client name (escaped, no raw tag in the
+  output); the context-reset decision against all four cases (different
+  client → reset, same client → no reset, no active client yet → no
+  reset, no name given → no reset). All 15 `<script>` blocks parse;
+  div-tag balance incremented by exactly one (the new download button).
+- **Unverified live**: whether a `.doc`-extension HTML file actually
+  opens cleanly in whatever version of Word the DE has, and whether the
+  reset genuinely feels invisible when switching between clients versus
+  jarring — both need a real browser/Word combination to check, not
+  something this environment can confirm.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
