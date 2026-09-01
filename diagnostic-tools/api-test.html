@@ -19,7 +19,7 @@
   <div id="result">(not tested yet)</div>
 
   <h2 style="margin-top:32px;">Custom Tool-Calling Test</h2>
-  <p>Test 2 checks the thing Test 1 can't: does this environment's bridge actually relay a CUSTOM client-defined tool (the kind Spain_Destination_Guide.html uses for search_guide/get_city_data/find_matching_itinerary), or does it silently drop it while the model still narrates fake tool-call text? Added Aug 2026 after live testing showed the main file's tools appearing to work (the model discusses them by name) while producing no real tool_use block — two different invented notations (&lt;function_calls&gt;&lt;invoke&gt; once, &lt;tool_call&gt;{"tool":...} another time) under two different models, which pointed at the bridge, not the model. This isolates exactly that question.</p>
+  <p>Test 2 checks the thing Test 1 can't: does this environment's bridge actually relay a CUSTOM client-defined tool (the kind Tommie_Tours.html uses for search_guide/get_city_data/find_matching_itinerary), or does it silently drop it while the model still narrates fake tool-call text? Added Aug 2026 after live testing showed the main file's tools appearing to work (the model discusses them by name) while producing no real tool_use block — two different invented notations (&lt;function_calls&gt;&lt;invoke&gt; once, &lt;tool_call&gt;{"tool":...} another time) under two different models, which pointed at the bridge, not the model. This isolates exactly that question.</p>
   <button id="btn2">Test Custom Tool-Calling</button>
   <div id="result2">(not tested yet)</div>
 
@@ -85,7 +85,7 @@
         result2.textContent = 'SUCCESS — a real tool_use block came back for get_test_value. Custom tools DO work through this bridge.\n\n' + JSON.stringify(data.content, null, 2);
       } else if (fakeToolCallText) {
         result2.className = 'fail';
-        result2.textContent = 'CONFIRMED BUG — no real tool_use block, but the model wrote out fake tool-call-looking text instead. This matches what Spain_Destination_Guide.html hit live: the bridge is not relaying this custom tool through to the model as callable.\n\n' + JSON.stringify(data.content, null, 2);
+        result2.textContent = 'CONFIRMED BUG — no real tool_use block, but the model wrote out fake tool-call-looking text instead. This matches what Tommie_Tours.html hit live: the bridge is not relaying this custom tool through to the model as callable.\n\n' + JSON.stringify(data.content, null, 2);
       } else {
         result2.className = 'fail';
         result2.textContent = 'NO tool_use block, and no fake tool-call text either — some other failure. Raw response below.\n\n' + JSON.stringify(data, null, 2);

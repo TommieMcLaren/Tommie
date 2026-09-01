@@ -1,6 +1,6 @@
 // Kensington Tours Spain Guide — Client Tracker reminder service worker
 // (Aug 2026, unverified live). MUST be hosted at a real https:// (or
-// http://localhost) origin alongside Spain_Destination_Guide.html, in the
+// http://localhost) origin alongside Tommie_Tours.html, in the
 // same directory — service workers cannot be registered from file:// at
 // all (a hard browser restriction, not a bug here) and cannot be inlined
 // via a Blob/data: URL (also blocked by browsers), which is why this is a

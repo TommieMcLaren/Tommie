@@ -7,7 +7,7 @@ everything that thread-based development discovered the hard way, so it doesn't 
 re-discovered by trial and error.
 
 ## What's in this folder
-- `Spain_Destination_Guide.html` — the real file. Everything else is scaffolding.
+- `Tommie_Tours.html` — the real file. Everything else is scaffolding.
 - `diagnostic-tools/api-test.html` — minimal one-button test: does this environment's
   fetch-to-Claude bridge work at all? No guide, no dependencies.
 - `diagnostic-tools/mic-test.html` — minimal test: does microphone access work in this

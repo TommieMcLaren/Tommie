@@ -9,7 +9,7 @@ relearn this the hard way" list still applies verbatim.
 
 ## Files
 
-- `Spain_Destination_Guide.html` — the app. ~14,000 lines, single file, no
+- `Tommie_Tours.html` — the app. ~14,000 lines, single file, no
   build step. Everything else is scaffolding around it.
 - `HANDOFF.md` — history of hard-won fixes and design decisions from the
   chat-based development phase. Verified current against the file as of the
@@ -20,7 +20,7 @@ relearn this the hard way" list still applies verbatim.
   speech recognition work in this environment?
 - `sw.js` — Client Tracker's companion service worker (see "Installable app
   + best-effort background reminders" below). Must be hosted in the same
-  directory as `Spain_Destination_Guide.html` for its registration to
+  directory as `Tommie_Tours.html` for its registration to
   succeed; has zero effect if missing, and nothing else in this project
   depends on it being present.
 
@@ -1088,7 +1088,7 @@ hot-lead-nudge section above) — this is the other, no-admin-rights-needed
 way to close part of that gap, though it's a narrower fix than Outlook
 would be.
 
-- **New file: `sw.js`**, hosted alongside `Spain_Destination_Guide.html`.
+- **New file: `sw.js`**, hosted alongside `Tommie_Tours.html`.
   This is the one piece of this project that couldn't be inlined into the
   single HTML file no matter what — browsers refuse to register a service
   worker from a `data:`/`blob:` URL, only a real same-origin `.js` file
