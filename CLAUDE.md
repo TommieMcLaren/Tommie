@@ -24,6 +24,11 @@ relearn this the hard way" list still applies verbatim.
   succeed; has zero effect if missing, and nothing else in this project
   depends on it being present.
 
+GitHub Pages is enabled on this repo (Settings → Pages, deploying from this
+branch), specifically so `sw.js` has a real https:// origin to register
+from — see the hosted URL note in HANDOFF.md/CLAUDE.md's Pages section
+once the first deploy completes.
+
 Use the diagnostic tools FIRST whenever something in the live-AI or voice
 layer breaks, before touching the 14k-line main file.
 
