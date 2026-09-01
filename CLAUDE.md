@@ -1768,6 +1768,38 @@ blind, and fixed one real bug found along the way:
   client..." message next time this is tested — that's the fastest path
   to the real root cause if the problem persists after this fix.
 
+## Clickable client names extended to every chat reply (Aug 2026, unverified live)
+
+Follow-up to the previous entry, and turned out to be the real fix for
+what looked like a regression: reported live that a client name
+mentioned in a normal conversational reply ("what does my day look
+like?") showed as plain text with no way to act on it. This wasn't a
+regression from the double-wrap fix above — `wireClientProfileLinks()`
+had only ever been wired into two specific places (the Daily Brief, the
+itinerary "View full details" pop-out), never into `addAiAnswerMsg()`,
+the shared bubble every OTHER live-AI reply funnels through (Conversation
+Mode, the "Actually think this through" escalation, typed chat, the
+image-question path). The DE reasonably expected the same behavior
+everywhere Jarvis mentions a client, not just in the two spots it
+happened to be built first.
+
+- **One line added**: `wireClientProfileLinks(div)` inside
+  `addAiAnswerMsg()`, right after the bubble is created. Because this
+  function is the single shared rendering path for every non-draft
+  live-AI reply, this one change makes client names clickable
+  everywhere consistently, not just in the Daily Brief and the pop-out.
+- **Deliberately not wired into drafted emails/texts**
+  (`renderAndTrackDrafts`) — that content is meant to be copy-pasted or
+  sent as-is to the client; embedding an interactive "jump to profile"
+  button inside what's supposed to read as plain email text would be
+  visually wrong there, unlike a DE-facing chat bubble.
+- Logic-tested in Node: `addAiAnswerMsg()` still runs end-to-end without
+  throwing against a mocked `__ctListClients`/DOM (including
+  `NodeFilter.SHOW_TEXT`, needed since this exercises the real
+  `wireClientProfileLinks()` TreeWalker path this time, not just a
+  build-only check). All 15 `<script>` blocks parse; div-tag balance
+  unchanged (one function call added, no new markup).
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

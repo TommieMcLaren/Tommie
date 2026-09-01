@@ -13417,6 +13417,14 @@ ${renderMarkdownLite(fullText)}
       const btn = div.querySelector('[data-action="view-full"]');
       if (btn) btn.addEventListener('click', () => openItineraryModal(fullText));
     }
+    // Reported live (Aug 2026): a client mentioned in a normal chat reply
+    // (not the Daily Brief, not the itinerary pop-out) read as plain text
+    // with no way to act on it — this is the shared bubble every live-AI
+    // reply funnels through (Conversation Mode, the escalation button,
+    // typed chat, the image-question path), so wiring it here once makes
+    // every one of those consistent with the two places this already
+    // worked, instead of the feature only existing in two specific spots.
+    wireClientProfileLinks(div);
     return div;
   }
 
