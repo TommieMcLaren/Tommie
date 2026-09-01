@@ -1857,6 +1857,127 @@ client without opening the full form.
   accidentally opening underneath it — none of this has been tried in a
   real browser from this environment.
 
+## Profile sidebar: sticky positioning, an always-visible Notes section, and a real draft system (Sep 2026, unverified live)
+
+Two follow-ups from the sidebar shipped above, reported together from one
+screenshot: a large blank area below the task callout/action buttons as
+the page scrolled, and "I do not see the note section either" — a client
+with no notes yet had no Notes section at all.
+
+- **Sticky sidebar.** `.ct-detail-sidebar` was `display:flex` with no
+  positioning — CSS Grid's `align-items:start` on the parent
+  `.ct-detail-columns` stops the sidebar from being stretched to the
+  taller left column's height, but it doesn't stop the *row* itself from
+  being that tall, so a short sidebar just sat at the top with visual
+  blank space below it as the page scrolled. Now `position: sticky; top:
+  0; max-height: calc(100vh - 220px); overflow-y: auto;` — it stays in
+  view (and scrolls internally if it's ever taller than the viewport)
+  instead of being stranded.
+- **Notes section is now always visible.** `ctRenderNotesLog(notes)` used
+  to return a whole wrapped `<div class="ct-profile-section"><h4>Call
+  notes</h4>...</div>` or `''` when there were no notes — the entire
+  section vanished for any client without existing notes. Refactored to
+  return just the `.ct-note-entry` rows (confirmed via grep to have
+  exactly one caller), with `ctRenderDetail()` now building its own
+  always-present header (`+ Add` toggle button) and an explicit "No notes
+  yet." empty state around it. A new `ctDetailNoteOpen` flag (same
+  state-driven-redraw pattern as `ctQuickNoteOpenId` on the cards) gates
+  an inline quick-note form — reuses the card quick-note's own
+  `.ct-card-quicknote` textarea/button styling via a second
+  `.ct-sidebar-quicknote` class that only overrides the margin/border, so
+  this isn't a second visual language for the same action. Saving goes
+  through the same `ctTimestampedNote()` append-newest-first mechanism
+  every other note-entry point in this file already uses. Reset on both
+  `ctOpenDetail()`/`ctCloseDetail()` so the form never carries over onto
+  a different client or a re-open of the same one.
+- **`renderDrafts()`/`wireDraftButtons()` were completely undefined —
+  a real, confirmed live bug, not the UX complaint it first looked like.**
+  While building the above, `renderAndTrackDrafts()` (the Trip
+  Assistant's only draft-rendering path — called by `renderAiReply()`
+  whenever a live-AI reply is shaped like `Subject: ...\n\n<body>`) turned
+  out to call two functions, `renderDrafts()` and `wireDraftButtons()`,
+  that don't exist anywhere in this file (confirmed by grepping the whole
+  file for their definitions — zero matches). This is the same failure
+  pattern as the `ITIN_STOPWORDS` regression earlier this session: an
+  earlier dead-code cleanup pass deleted the old small-bubble draft
+  renderer without noticing this still-live caller. Any AI-drafted email
+  would have thrown inside `renderAiReply()`'s `.then()` — caught by that
+  call site's `.catch()` backstop as a generic "something unexpected
+  broke" error, not the small-bubble rendering the user's own bug report
+  described. (The report — "the draft outreach... too small in the
+  assistant bubble" — most likely reflects a reply that didn't match the
+  `Subject: ...` regex and fell through to the normal condensed
+  `addAiAnswerMsg()` bubble instead, which is a real, separate gap: that
+  path has no drafting-specific affordances at all, just the generic
+  "View full details" pop-out.)
+- **Rebuilt rather than restored**, since the old behavior was also the
+  complaint. `renderAndTrackDrafts()` now:
+  1. Builds a compact confirmation bubble (subject line + an "📋 Open
+     draft" button) instead of dumping the full email inline.
+  2. Immediately opens a new pop-out modal (`#ta-draft-overlay`/
+     `#ta-draft-modal`, `openDraftModal()`/`closeDraftModal()`) — same
+     overlay/backdrop-click/DOMContentLoaded-deferred-close-wiring
+     pattern as the existing itinerary pop-out (`openItineraryModal`),
+     including the same "look up the element fresh on every call, never
+     cache the DOM node at parse time" discipline that fixed that
+     feature's own real live bug earlier this session. Two actions live
+     in the modal: **📋 Copy** (subject + body to the clipboard) and
+     **📧 Open in Outlook** (a `outlook.office.com/mail/deeplink/compose`
+     deep link in a new tab, prefilled — same pattern already used
+     elsewhere in this file for the calendar-compose deep link, and
+     explained to the DE if `window.open` comes back `null` from a popup
+     blocker). Text-message condensing was deliberately **not** rebuilt
+     here — it wasn't part of either request, and re-adding it would have
+     meant guessing back a live-AI round-trip whose original
+     implementation is equally gone; flagged below as a possible follow-up
+     if the DE actually wants it back.
+  3. **Saves the draft onto the actual client record** — direct answer to
+     "make it so the drafts save in the client card. Like a profile
+     environment." A new `window.__ctSaveDraft(name, {subject, body})`
+     export (Client Tracker side, same fuzzy exact-then-substring name
+     match `__ctFindClientByName` already uses) appends a `{id, subject,
+     body, createdAt}` entry to that client's new `drafts` array (newest
+     first, capped at 20) and re-renders both the card list and an open
+     profile if that client's the one currently showing. Fires whenever
+     `taState.clientName` is already set — which it reliably is by this
+     point, since `send()` runs `extractClientName()` on every typed
+     message before the reply is rendered, and `ctDraftOutreach()` (the
+     card's own "✉️ Draft outreach" button) explicitly calls
+     `window.__taEnsureClientContext(client.name)` before sending. No
+     client name known yet → skips silently, same "best-effort, never
+     block on it" spirit as `maybeSurfaceClientHistory`. The profile
+     sidebar gets a new "Drafts" section (above Notes) listing up to 5,
+     newest first, each row reopening the same pop-out via a new
+     `window.__taOpenDraftModal` export rather than re-implementing the
+     modal a second time in the Client Tracker script.
+  4. A true new **browser tab/window** was considered and deliberately
+     not used — it risks a popup blocker eating it silently and it can't
+     carry this panel's own state, where an in-page modal is guaranteed
+     to open and matches how every other "show this bigger" moment in
+     this file already works (the itinerary pop-out, the Client
+     Tracker's own overlay+modal panels).
+- Verified two ways: real Node execution-harness tests against the
+  actual extracted `ctRenderDetail()`/`renderAndTrackDrafts()` source
+  (not paraphrased copies) — sticky-sidebar markup, the Notes
+  section's four states (empty, form-open, populated, XSS-probed
+  subject/notes all inert), a real draft row's click wiring firing
+  `window.__taOpenDraftModal` with the right subject, the save/no-save/
+  save-throws branches of `renderAndTrackDrafts()`, the Copy button's
+  clipboard text, and the Outlook deep link's encoded subject — all as
+  designed. All 16 `<script>` blocks still parse; div-tag balance held
+  (1,652/1,652).
+- **Unverified live, same caveat as everything else in this session**:
+  the sticky sidebar's actual scroll feel, whether `calc(100vh - 220px)`
+  is a reasonable cap on a real laptop-sized window, the inline add-note
+  form's focus/stopPropagation behavior in the sidebar (same mechanism as
+  the card version, not yet re-verified in this new location), and the
+  draft modal/Outlook-deep-link/clipboard-copy path end to end — none of
+  this has been exercised in a real browser from this environment. Test
+  next: draft an outreach email from a client's card, confirm the modal
+  opens with the full text readable, confirm it shows up under that
+  client's Drafts in their profile afterward, and try Copy and Open in
+  Outlook from the modal.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
