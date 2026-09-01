@@ -11900,7 +11900,12 @@ ${resultsBody}
     elevenLabsStatusEl.textContent = 'Loading voices…';
     fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } })
       .then(resp => {
-        if (!resp.ok) throw new Error(`ElevenLabs returned ${resp.status}`);
+        // Confirmed live (Sep 2026): the status code alone wasn't enough to
+        // debug a real failure (401 turned out to actually be a 400 once
+        // re-tested) — capturing ElevenLabs' own error body, same as
+        // speakTextElevenLabsAudio already does, so the real reason shows
+        // up here instead of needing a trip to diagnostic-tools/api-test.html.
+        if (!resp.ok) return resp.text().then(t => { throw new Error(`ElevenLabs returned ${resp.status}${t ? ' — ' + t.slice(0, 300) : ''}`); });
         return resp.json();
       })
       .then(data => {
