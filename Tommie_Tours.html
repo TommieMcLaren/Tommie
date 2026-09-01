@@ -13306,7 +13306,18 @@ Tommie McLaren`
     container.querySelectorAll('.ta-client-link').forEach(btn => {
       btn.addEventListener('click', () => {
         closeItineraryModal();
-        if (window.__ctOpenClientProfile) window.__ctOpenClientProfile(btn.dataset.clientId);
+        // Confirmed live (Aug 2026): a click on one of these silently did
+        // nothing, no error visible anywhere — made this impossible to
+        // diagnose from a bug report alone. Now any failure (the Client
+        // Tracker script not loaded yet, or a real error inside
+        // __ctOpenClientProfile) shows up as a real chat message instead
+        // of vanishing.
+        try {
+          if (window.__ctOpenClientProfile) window.__ctOpenClientProfile(btn.dataset.clientId);
+          else addMsg('sys', "Couldn't open that client — the Client Tracker panel hasn't loaded yet. Try again in a moment.", false);
+        } catch (e) {
+          addMsg('sys', "Couldn't open that client: " + (e && e.message ? e.message : String(e)), false);
+        }
       });
     });
   }
@@ -13694,13 +13705,25 @@ ${renderMarkdownLite(fullText)}
     // so every name mentioned in the summary lines is also clickable —
     // and the Draft buttons below let the brief itself be acted on
     // directly (window.__ctDraftOutreachById, Client Tracker's export),
-    // not just read.
-    const html = `<b>Hello — here's your day at a glance:</b><br>${lines.map(l => escapeHtml(l)).join('<br>')}${actionsHtml}<br>Just ask, and I can draft outreach or pull up anyone's details.`;
+    // not just read. Summary lines are wrapped in their own span so
+    // wireClientProfileLinks() (which walks every text node in whatever
+    // container it's given) is scoped away from the action rows below —
+    // otherwise it would ALSO wrap each action row's own name span into a
+    // second, nested "jump to profile" button sitting right next to the
+    // Draft button, which is redundant at best and fragile DOM nesting
+    // (a <button> inside a <span> right beside another button) at worst.
+    const html = `<b>Hello — here's your day at a glance:</b><br><span class="ta-brief-lines">${lines.map(l => escapeHtml(l)).join('<br>')}</span>${actionsHtml}<br>Just ask, and I can draft outreach or pull up anyone's details.`;
     const div = addMsg('bot', html, true);
-    wireClientProfileLinks(div);
+    const linesEl = div.querySelector('.ta-brief-lines');
+    if (linesEl) wireClientProfileLinks(linesEl);
     div.querySelectorAll('.ta-brief-draft-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (window.__ctDraftOutreachById) window.__ctDraftOutreachById(btn.dataset.clientId);
+        try {
+          if (window.__ctDraftOutreachById) window.__ctDraftOutreachById(btn.dataset.clientId);
+          else addMsg('sys', "Couldn't start that draft — the Client Tracker panel hasn't loaded yet. Try again in a moment.", false);
+        } catch (e) {
+          addMsg('sys', "Couldn't start that draft: " + (e && e.message ? e.message : String(e)), false);
+        }
       });
     });
   }

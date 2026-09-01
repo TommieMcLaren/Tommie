@@ -1724,6 +1724,50 @@ didn't check every *constant* a kept function depended on.
   syntax parsing; div-tag balance unchanged (both fixes were pure logic,
   no markup touched).
 
+## Daily Brief client-link click reported broken live — defensive fix + a real double-wrap bug (Aug 2026, unverified live)
+
+Reported live: a client-name pill in the brief's "hot lead" line
+(styled correctly, `.ta-client-link`'s hover look) did nothing on click.
+Static review of `wireClientProfileLinks()`/`__ctOpenClientProfile()`
+didn't turn up a conclusive reason two structurally-identical pills in
+the same message would behave differently — genuinely can't rule out a
+timing/state issue that only shows up live, not from reading the code —
+so this pass made the failure mode itself visible instead of guessing
+blind, and fixed one real bug found along the way:
+
+- **Every `.ta-client-link` click is now wrapped in try/catch with a
+  real chat message on failure** — "Couldn't open that client: ..." (or
+  a "hasn't loaded yet" message if `window.__ctOpenClientProfile` isn't
+  even defined) instead of silently doing nothing. Same treatment for
+  the Daily Brief's "✉️ Draft" buttons. This doesn't identify the root
+  cause on its own, but it turns "nothing happens" into an actual error
+  message the DE can report back — the single biggest blocker to
+  debugging this further from an environment with no browser access.
+- **A real, confirmed double-wrap bug found while investigating,
+  independent of whatever the original report turns out to be**:
+  `wireClientProfileLinks(div)` was called on the ENTIRE brief message,
+  including the `.ta-brief-actions` block — meaning each action row's own
+  `<span>${name}</span>` also got its text node replaced with a *second*,
+  nested `<button class="ta-client-link">` sitting right next to that
+  row's "✉️ Draft" button. Redundant at best (two ways to reach the same
+  profile inches apart) and fragile DOM nesting at worst (a button
+  effectively doubled up beside another button). Fixed by wrapping just
+  the summary lines in their own `<span class="ta-brief-lines">` and
+  scoping `wireClientProfileLinks()` to that span only — the action rows'
+  names stay plain text now, which is correct since they already have
+  their own dedicated action (Draft) right there.
+- Logic-tested: `maybeSurfaceDailyBrief()` still runs end-to-end without
+  throwing against a mocked `__ctGetTodoSummary`/`__ctListClients`, even
+  with `__ctOpenClientProfile` deliberately mocked to throw (confirming
+  the build path is unaffected — the try/catch only matters at actual
+  click time, which a DOM-stubbed Node harness can't fully exercise).
+  All 15 `<script>` blocks parse; div-tag balance held.
+- **Still genuinely unverified**: whether the double-wrap fix was the
+  actual cause of the reported click failure, or a real-but-separate bug
+  from it. Ask for the exact wording of any new "Couldn't open that
+  client..." message next time this is tested — that's the fastest path
+  to the real root cause if the problem persists after this fix.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
