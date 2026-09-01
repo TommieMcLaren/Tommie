@@ -1675,6 +1675,55 @@ from the Daily Brief work above.
   the new welcome message is now too long — all worth a first look before
   trusting them in front of a client.
 
+## Two real live bugs caught and fixed (Aug 2026) — first genuine regression this session
+
+Surfaced by an actual live test (a real client-detail message that
+triggered the `search_guide`/`find_matching_itinerary` tools): a hard
+error, `ITIN_STOPWORDS is not defined`, shown in the chat with a Try
+Again button. Both bugs traced back to the same root cause: the earlier
+dead-code cleanup pass verified every function's *callers* carefully but
+didn't check every *constant* a kept function depended on.
+
+- **`ITIN_STOPWORDS` was deleted along with genuinely dead code sitting
+  right next to it**, but `scoreSearchEntry()` — part of the live
+  `search_guide` tool path — also depended on it. The dead-code sweep
+  checked function names exhaustively but missed this one shared
+  constant. Restored `const ITIN_STOPWORDS = new Set([...])` right next
+  to its one remaining real caller, with a comment explaining exactly
+  why it disappeared and came back.
+- **A second, independent bug found while verifying the fix, not by
+  guessing**: `runSearchGuideTool()` (the actual `search_guide` tool
+  handler) read `r.title`/`r.text` off `searchGuideKnowledge()`'s
+  results, but that function returns `{entry, score}` pairs — `r.entry
+  .title`/`r.entry.text` is correct, `r.title`/`r.text` is `undefined`.
+  Every real `search_guide` tool call would have hit this immediately
+  after the `ITIN_STOPWORDS` crash was fixed, handing the model a wall of
+  "### undefined\nundefined" instead of actual guide content. This
+  predates this session's changes — not something introduced by the
+  cleanup, just never caught because `search_guide` apparently hadn't
+  actually been exercised live before this test.
+- **How this was actually caught**: not static review — a Node test
+  harness that evaluates the real Trip Assistant `<script>` block with
+  stubbed browser globals (`document`, `localStorage`, `window`, mock
+  `SEARCH_INDEX`/`KT_LIVE_ITINERARIES`/etc.) and genuinely *calls*
+  `runSearchGuideTool`, `runGetTodoListTool`, `runProposeTodoUpdateTool`,
+  `runFindMatchingItineraryTool`, `runGetCityDataTool`, and a dozen other
+  live functions end-to-end, not just `node --check`-style syntax
+  parsing. This is a stronger verification method than anything used
+  earlier this session for pure-logic testing — worth reusing before any
+  future cleanup pass that touches shared constants, since exactly this
+  kind of shape/reference mismatch is invisible to `node --check` and
+  easy to miss in a manual reference-count sweep.
+- Confirmed via that same harness, post-fix: `runSearchGuideTool` now
+  returns real guide content; `scoreSearchEntry`/`searchGuideKnowledge`
+  no longer throw; `runGetTodoListTool`/`runProposeTodoUpdateTool`/
+  `runFindMatchingItineraryTool`/`runGetCityDataTool`/`extractClientName`/
+  `extractDestination`/`extractTier`/`extractOccasion`/`extractVibes`/
+  `splitSummary`/`renderMarkdownLite`/`isNewClientSignal` all execute
+  cleanly against realistic inputs. All 15 `<script>` blocks still pass
+  syntax parsing; div-tag balance unchanged (both fixes were pure logic,
+  no markup touched).
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
@@ -1696,8 +1745,13 @@ from the Daily Brief work above.
 - Voice input (listening) is confirmed blocked in the in-app preview iframe
   (mic permission denied at the hosting-frame level). Untested: whether a
   "pop out to full tab" view gets normal top-level mic permissions.
-- `TA_DRIVE_MCP` (Google Drive MCP) is wired and now structurally correct
-  (see "Live-AI upgrade" below) but still never successfully test-called live.
+- `TA_DRIVE_MCP` (Google Drive MCP) — removed (Aug 2026, see "Daily Brief"
+  above) once it was confirmed to have zero remaining callers: the
+  "Polish an itinerary → email" chip it belonged to was already retired
+  in the conversational redesign, and nothing else in the file ever used
+  it. If Drive access is wanted again later, it needs to be rebuilt from
+  scratch (the MCP connector pairing pattern is still documented above,
+  just not the constant itself anymore).
 - The round-cap-to-7 fix and personal-recommendations layer are logic-tested
   but not yet observed end-to-end in a live model response in the actual app.
 - **Root cause of the Outlook MCP failures confirmed (Aug 2026)**: the
@@ -1717,14 +1771,17 @@ from the Daily Brief work above.
   instead of silently doing nothing. Logic-tested in Node: the schedule
   button's date math (day offset, month-boundary crossing, "0 days" =
   today not tomorrow) and both deep-link URLs' encoding — all correct.
-  **Still broken, and can't be fixed with this same trick**: the
-  "📅 Check follow-ups due" chip's `runFollowUpCheck()` also calls
-  `TA_CALENDAR_MCP` (to *read* the calendar via `outlook_calendar_search`,
-  not create anything) and hits the identical auth error — but a deep
-  link can only open a compose screen, it can't read data back out of
-  Outlook, so this one has no equivalent workaround. Fixing it for real
-  needs the actual OAuth infrastructure (Azure AD app + hosted redirect
-  endpoint) described above.
+  **Reading the calendar has no equivalent workaround, and is no longer
+  attempted at all.** A deep link can only open a compose screen — it
+  can't read data back out of Outlook, unlike the *write* actions above.
+  The "📅 Check follow-ups due" chip that used to attempt this was
+  already retired in the conversational redesign; its ambient
+  once-a-day equivalent (`runFollowUpCheck()`/`TA_CALENDAR_MCP`) was
+  removed for real in the Daily Brief consolidation (Aug 2026, see
+  above) once it was confirmed to be a guaranteed-to-fail live API call
+  every single day for zero benefit. Fixing calendar *read* access for
+  real still needs the actual OAuth infrastructure (Azure AD app +
+  hosted redirect endpoint) described above — nothing shortcuts that.
 
 ## Working in this file
 

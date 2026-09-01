@@ -12018,7 +12018,15 @@ Ground rules:
   function runSearchGuideTool(query) {
     const results = (typeof searchGuideKnowledge === 'function') ? searchGuideKnowledge(query || '').slice(0, 4) : [];
     if (!results.length) return 'No matching sections found in this guide for "' + query + '".';
-    return results.map(r => `### ${r.title}\n${cleanSearchText(r.text).slice(0, 600)}`).join('\n\n---\n\n');
+    // Confirmed broken live (Aug 2026): searchGuideKnowledge() returns
+    // {entry, score} pairs (see its own definition below), not entries
+    // directly — this was reading r.title/r.text instead of
+    // r.entry.title/r.entry.text, so every real search_guide tool call
+    // would have handed the model a wall of "### undefined\nundefined"
+    // instead of actual guide content. Caught by actually calling this
+    // function in a Node test harness rather than static review, which
+    // is exactly the kind of shape mismatch static analysis misses.
+    return results.map(r => `### ${r.entry.title}\n${cleanSearchText(r.entry.text).slice(0, 600)}`).join('\n\n---\n\n');
   }
 
   // Reads the real Client Tracker (a separate panel/script — see the
@@ -13696,6 +13704,15 @@ ${renderMarkdownLite(fullText)}
       });
     });
   }
+
+  // Confirmed broken live (Aug 2026): this was originally defined right
+  // next to the offline itinerary-matching code removed in the big
+  // dead-code cleanup earlier this session — correctly identified as
+  // dead itself, but scoreSearchEntry() below (part of the live
+  // search_guide tool path) also depended on it, and that cross-
+  // reference got missed when checking what was safe to delete. Restored
+  // here, right beside its one remaining real caller.
+  const ITIN_STOPWORDS = new Set(['the','a','an','of','and','to','in','on','for','with','from','is','are','trip','tour','itinerary','itineraries','client','clients','name','pull','find','suggest','suggested','recommend','recommended','send','sample']);
 
   // ---------- Knowledge Q&A — answers general guide questions (hotels,
   // restaurants, DMC tariffs, exam traps, visa rules, etc.) conversationally
