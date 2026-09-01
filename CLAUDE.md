@@ -2008,6 +2008,28 @@ with no notes yet had no Notes section at all.
   DE's actual reply took some other shape this fix doesn't cover — ask
   for the literal bubble text next time if this doesn't resolve it, since
   that's the fastest way to see the real shape without guessing blind.
+- **It wasn't enough — confirmed by the actual bubble text this time,
+  not another guess.** The DE's screenshot showed the real reply: a
+  multi-paragraph note about a data caveat ("One important note before
+  the email lands: **Zerta in Barcelona is the only kosher-certified
+  restaurant**... Here's the full draft:"), then a `---` separator, THEN
+  the `Subject:` line — all despite the system prompt's explicit "no
+  preamble" instruction. The model apparently felt it owed the DE a
+  heads-up about a flagged data gap (a genuinely reasonable instinct)
+  and said so before the draft, which put `Subject:` on line 5+, past
+  the 3-line cap the previous fix imposed. The takeaway: a model won't
+  reliably follow a "no preamble" instruction under all conditions, so
+  detection has to tolerate deviation rather than assume it away. Fixed
+  by removing the line cap entirely — `renderAiReply()` now scans the
+  WHOLE reply for a `Subject:` line (still optionally bolded, still
+  anchored to the start of a line) and discards everything before it,
+  whatever it contains, as a lead-in. Verified against the DE's exact
+  reported text (copied verbatim into the test) plus the same XSS/decoy/
+  whitespace cases as before, run as a real Node execution-harness test
+  against the actual extracted `renderAiReply()` source — the real-world
+  case now correctly extracts the true subject and a body starting at
+  "Hi Amanda," with neither the caveat paragraph nor the `---` separator
+  leaking into it. All 16 script blocks parse; div-tag balance unchanged.
 
 ## Design decisions to preserve, not "helpfully" change
 

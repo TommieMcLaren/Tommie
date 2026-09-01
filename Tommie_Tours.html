@@ -13483,22 +13483,27 @@ ${renderMarkdownLite(fullText)}
   // so it's split out here rather than left in d.body to avoid doubling
   // it). Anything else is just the normal condensed bubble.
   //
-  // Confirmed broken live (Sep 2026): "Draft outreach" kept landing in
-  // the normal chat bubble instead of the draft pop-out. The old regex
-  // was anchored to the literal first character of the reply with zero
-  // tolerance for anything else — but models routinely markdown-bold the
-  // label ("**Subject:**") or add a one-line lead-in ("Here's a draft:")
-  // even when told not to, and either one alone was enough to miss the
-  // match entirely. Now scans the first 3 lines for a Subject: line
-  // (optionally bolded) instead of demanding it be the very first
-  // character, and treats anything before it as a discardable lead-in —
-  // still anchored to the START of a line, not "subject" appearing
-  // anywhere mid-sentence, so a normal answer that merely mentions the
-  // word (e.g. "the subject of budget flexibility") still doesn't misfire.
+  // Confirmed broken live (Sep 2026), twice: "Draft outreach" kept
+  // landing in the normal chat bubble instead of the draft pop-out. The
+  // first fix (scan the first 3 lines instead of demanding the literal
+  // first character) still wasn't enough — the actual reply, seen live,
+  // opened with a multi-paragraph note about a data caveat ("One
+  // important note before the email lands: ... Here's the full draft:"),
+  // then a "---" separator, THEN the Subject: line — all despite the
+  // system prompt's explicit "no preamble" instruction. Models don't
+  // reliably follow that instruction under all conditions (here, feeling
+  // it owed the DE a heads-up about a flagged data gap), so detection
+  // needs to tolerate it rather than assume it away. Now scans the WHOLE
+  // reply for a Subject: line (optionally bolded) instead of capping how
+  // far in it can appear, and discards everything before it — whatever
+  // that preamble contains — as a lead-in. Still anchored to the START
+  // of a line, not "subject" appearing anywhere mid-sentence, so a normal
+  // answer that merely mentions the word (e.g. "the subject of budget
+  // flexibility") still doesn't misfire.
   function renderAiReply(summaryText, fullText) {
     const lines = (fullText || '').trim().split('\n');
     let subjectLineIdx = -1;
-    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+    for (let i = 0; i < lines.length; i++) {
       if (/^(?:\*\*)?Subject:(?:\*\*)?\s*\S/i.test(lines[i].trim())) { subjectLineIdx = i; break; }
     }
     if (subjectLineIdx > -1) {
