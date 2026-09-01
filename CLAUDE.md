@@ -2181,6 +2181,120 @@ draft-renderer rebuild earlier this session).
   back, then draft a message and tap "Text version" to see what the
   model actually produces.
 
+## ElevenLabs text-to-speech, a second voice provider (Sep 2026, unverified live)
+
+Direct follow-up to "is there a way to enhance the assistant's voice? More
+human like" — browser `speechSynthesis` (the only option until now) is
+free but robotic; this adds a real second provider, ElevenLabs, wired
+behind the exact same `speakText(text, onDone)` interface every call site
+already used, so Conversation Mode and every "🔊 Read aloud" button needed
+zero changes.
+
+- **New BYOK key, same discipline as the Anthropic one.** A second
+  password-type input in ⚙️ Settings (`ta-elevenlabs-key-input`), stored
+  under its own `kt-trip-assistant:elevenlabs-key:v1` localStorage key —
+  deliberately separate from the Anthropic key's storage key, and from
+  `TA_VOICE_STORAGE_KEY` (the voice *preferences* blob), so clearing one
+  key can never accidentally touch the other. Billed to the DE's own
+  ElevenLabs account, entirely independent of Anthropic usage.
+- **Voice provider is a real toggle, not an either/or rebuild.**
+  `TA_VOICE_STORAGE_KEY`'s stored shape gained two fields —
+  `provider: 'browser' | 'elevenlabs'` and `elevenLabsVoiceId` — with
+  `getStoredVoicePrefs()` defaulting both when absent, so a prefs blob
+  saved before this feature existed still loads cleanly as `'browser'`
+  with no voice id (verified in the Node harness against exactly that
+  old-shape case). Picking "ElevenLabs" in the new `#ta-voice-provider`
+  select swaps which settings block is visible
+  (`#ta-elevenlabs-settings` vs. the renamed `#ta-voice-browser-settings`
+  wrapping the existing browser voice/rate/pitch controls) — the rate/
+  pitch sliders are deliberately kept browser-only for this first pass;
+  ElevenLabs's own pacing controls (stability/similarity/speed) are a
+  different knob set and adding a second slider language for them was
+  judged not worth the complexity until this is confirmed working at all.
+- **Voice list is fetched from the DE's real account, not hardcoded.**
+  A "🔄 Load voices" button calls `GET /v1/voices` with the saved key and
+  populates `#ta-elevenlabs-voice-select` from the response — keeps this
+  in sync with whatever voices the account actually has (including any
+  separately licensed) without this file needing to know voice ids in
+  advance. On demand only (button tap), not fetched automatically on
+  every Settings open, since it's a real network call this file has no
+  reason to make until asked. A previously-saved voice id is preserved as
+  the selection if the freshly-loaded list still contains it; otherwise
+  the first voice in the list becomes the default.
+- **`speakText()` now routes by provider, `stopSpeaking()` generalizes
+  cancellation.** The function kept its exact original signature
+  (`speakText(text, onDone)`) — internally it now checks
+  `getStoredVoicePrefs().provider`, and only takes the ElevenLabs path
+  when a key AND a chosen voice id are both actually present; otherwise
+  (or on any ElevenLabs failure) it falls through to the original browser
+  `speechSynthesis` code, now split out as `speakTextBrowserAudio()`. A
+  new `stopSpeaking()` replaces the two places that used to call
+  `window.speechSynthesis.cancel()` directly (the top of `speakText()`
+  itself, and `resetConvoUI()`'s Conversation-Mode-ending cleanup) —
+  it now also aborts an in-flight ElevenLabs fetch via `AbortController`
+  and pauses/resets any currently-playing ElevenLabs `Audio` element, so
+  switching providers mid-session or ending Conversation Mode can't leave
+  the old provider still talking in the background. Deliberately left
+  the guide's own separate pronunciation "Listen" buttons (Spanish word
+  audio, an unrelated `speechSynthesis` usage elsewhere in the file)
+  untouched — same call CLAUDE.md already made when the voice picker was
+  first built.
+- **Failure is visible, not silently degraded — but only once per
+  session.** If the ElevenLabs call fails (bad key, quota, network,
+  CORS), `speakText()` falls back to the browser voice automatically
+  (so Conversation Mode never just goes silent) and posts one `sys` chat
+  message naming the failure and pointing at ⚙️ Settings — gated by a
+  new `elevenLabsFallbackWarned` flag so a bad key doesn't post the same
+  warning on every single conversational turn, only the first one that
+  session. This matches this file's standing rule (the hallucinated-
+  tool-call safety net, the retry-button audit) that a real failure
+  degrading a client-facing feature should never happen invisibly.
+- **New isolated test, matching this project's own established
+  methodology** ("For anything touching the fetch() to
+  api.anthropic.com, prototype the change in a copy of
+  diagnostic-tools/api-test.html before editing the main file" — same
+  discipline applied here to a brand-new external API this file has
+  never called before). `diagnostic-tools/api-test.html` gained a third
+  test: paste an ElevenLabs key, and it calls `GET /v1/voices` then
+  `POST /v1/text-to-speech/{voice_id}` in sequence, playing the result
+  through a real `<audio>` element — isolates key validity, CORS support,
+  and the exact request/response shape from the rest of the 14,000-line
+  file. Run this FIRST if the voice picker's "Load voices" or spoken
+  replies ever look broken.
+- Verified with real Node execution-harness tests against the actual
+  extracted source for all four pieces: `speakText`/`stopSpeaking`/
+  `speakTextBrowserAudio`/`speakTextElevenLabsAudio` (browser-provider
+  happy path, ElevenLabs happy path, ElevenLabs failure → fallback + a
+  single warning message + a second failure NOT re-warning,
+  empty-text no-op, `stopSpeaking()` aborting an in-flight fetch and
+  cancelling `speechSynthesis`, markdown-character stripping, and
+  ElevenLabs working even when `speechSynthesis` is entirely
+  unsupported); `getStoredVoicePrefs`/`setStoredVoicePrefs`/
+  `getStoredElevenLabsKey`/`setStoredElevenLabsKey` (defaults, round-
+  tripping, the old-shape-blob backward-compatibility case, key trim/
+  clear, corrupted JSON); and the "🔄 Load voices" button's handler (no-
+  key guard, the happy path with prior-selection preservation, a 401,
+  a network rejection, a zero-voices account, and an XSS probe in a
+  voice name from the API response) — all as designed. All 16 script
+  blocks in the main file parse, `diagnostic-tools/api-test.html`'s
+  script block parses standalone, and div-tag balance held (1,655/1,655
+  → 1,658/1,658, matching the new static markup added).
+- **Unverified live, and unusually so — genuinely couldn't check the
+  exact ElevenLabs API shape against live docs from this environment**:
+  the endpoint paths (`/v1/voices`, `/v1/text-to-speech/{voice_id}`), the
+  header name (`xi-api-key`), the request body shape (`text`/`model_id`),
+  and — the biggest unknown — **whether ElevenLabs's API even allows a
+  direct browser fetch at all (CORS)**, the way `api.anthropic.com` does
+  with its `anthropic-dangerous-direct-browser-access` header. If CORS
+  is blocked, this whole feature can't work as built from a static
+  file with no backend, full stop — no code fix would help, it would
+  need a proxy this project deliberately doesn't have. This is exactly
+  why the new diagnostic-tools test exists and should be run FIRST, with
+  a real key, before trusting anything about this feature in front of a
+  client. The model id `eleven_turbo_v2_5` (chosen for lower latency in
+  a live conversational assistant) is also an unverified guess at a
+  currently-valid model name.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

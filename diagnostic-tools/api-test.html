@@ -23,6 +23,13 @@
   <button id="btn2">Test Custom Tool-Calling</button>
   <div id="result2">(not tested yet)</div>
 
+  <h2 style="margin-top:32px;">ElevenLabs Voice Test</h2>
+  <p>Test 3 isolates the new ElevenLabs text-to-speech integration (Sep 2026) added to the Trip Assistant's voice picker — does a direct browser fetch to api.elevenlabs.io actually work (key valid, CORS allowed, response shape as expected), separate from the 14,000-line main file. Paste an ElevenLabs API key (get one at <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a>) and run this FIRST if the voice picker's "Load voices" or "Text version"/spoken replies ever look broken — faster to debug here than in the full app.</p>
+  <input type="password" id="elKey" placeholder="ElevenLabs API key" autocomplete="off" spellcheck="false" style="width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid #ccc; font-size:14px; margin-bottom:10px;">
+  <button id="btn3">Test ElevenLabs Voice</button>
+  <div id="result3">(not tested yet)</div>
+  <audio id="elAudio" controls style="display:none; margin-top:12px; width:100%;"></audio>
+
 <script>
   document.getElementById('btn').addEventListener('click', async () => {
     const btn = document.getElementById('btn');
@@ -95,6 +102,65 @@
       result2.textContent = 'FETCH THREW AN ERROR (never reached Anthropic)\n\n' + e.name + ': ' + e.message;
     }
     btn2.disabled = false;
+  });
+
+  document.getElementById('btn3').addEventListener('click', async () => {
+    const btn3 = document.getElementById('btn3');
+    const result3 = document.getElementById('result3');
+    const audioEl = document.getElementById('elAudio');
+    const key = document.getElementById('elKey').value.trim();
+    audioEl.style.display = 'none';
+    if (!key) {
+      result3.className = 'fail';
+      result3.textContent = 'Paste an ElevenLabs API key above first.';
+      return;
+    }
+    btn3.disabled = true;
+    result3.className = '';
+    result3.textContent = 'Step 1/2: fetching your voice list...';
+    try {
+      const voicesResp = await fetch('https://api.elevenlabs.io/v1/voices', {
+        headers: { 'xi-api-key': key }
+      });
+      if (!voicesResp.ok) {
+        const bodyText = await voicesResp.text();
+        result3.className = 'fail';
+        result3.textContent = `VOICE LIST FAILED — HTTP ${voicesResp.status}\n\nEither the key is wrong, or this environment's CORS policy is blocking a direct browser call to api.elevenlabs.io (in which case the main file's ElevenLabs feature can't work as built and would need a proxy).\n\n${bodyText.slice(0, 500)}`;
+        btn3.disabled = false;
+        return;
+      }
+      const voicesData = await voicesResp.json();
+      const voices = (voicesData && voicesData.voices) || [];
+      if (!voices.length) {
+        result3.className = 'fail';
+        result3.textContent = 'Reached ElevenLabs and the key is valid, but this account has zero voices — nothing to synthesize with.';
+        btn3.disabled = false;
+        return;
+      }
+      result3.textContent = `Step 1/2 OK — found ${voices.length} voice(s), using "${voices[0].name}".\nStep 2/2: synthesizing a test phrase...`;
+      const speechResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voices[0].voice_id)}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+        body: JSON.stringify({ text: 'This is a test of the Kensington Tours voice assistant.', model_id: 'eleven_turbo_v2_5' })
+      });
+      if (!speechResp.ok) {
+        const bodyText = await speechResp.text();
+        result3.className = 'fail';
+        result3.textContent = `Voice list worked, but SPEECH SYNTHESIS FAILED — HTTP ${speechResp.status}\n\n${bodyText.slice(0, 500)}`;
+        btn3.disabled = false;
+        return;
+      }
+      const blob = await speechResp.blob();
+      audioEl.src = URL.createObjectURL(blob);
+      audioEl.style.display = 'block';
+      audioEl.play();
+      result3.className = 'ok';
+      result3.textContent = `SUCCESS — both the voice list and speech synthesis worked. Voice used: "${voices[0].name}" (${voices[0].voice_id}). Playing audio now; use the player above to replay it.`;
+    } catch (e) {
+      result3.className = 'fail';
+      result3.textContent = 'FETCH THREW AN ERROR (never reached ElevenLabs — likely a CORS block or network issue)\n\n' + e.name + ': ' + e.message;
+    }
+    btn3.disabled = false;
   });
 </script>
 </body>
