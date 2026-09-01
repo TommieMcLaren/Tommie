@@ -2295,6 +2295,72 @@ zero changes.
   a live conversational assistant) is also an unverified guess at a
   currently-valid model name.
 
+## ElevenLabs: confirmed live end-to-end, two real bugs found along the way (Sep 2026)
+
+The DE actually walked "Load voices" through a real failure to success —
+genuine signal, not speculation. Two real bugs found and fixed:
+
+- **The biggest unverified question from above is now answered: CORS is
+  NOT a problem.** A direct browser fetch to `api.elevenlabs.io` works —
+  confirmed by the DE getting real HTTP 401 and 400 responses back (not
+  a generic "Failed to fetch"/CORS-shaped error), and finally a clean
+  `✓ Loaded 23 voices.` once the key was right. The endpoint paths,
+  `xi-api-key` header, and `GET /v1/voices` response shape are all now
+  confirmed correct against a live account.
+- **Bug 1 (real, fixed): the "Load voices" error handler only showed a
+  bare HTTP status code, not ElevenLabs' own explanation.** The DE's
+  first error (401) turned out to actually be masking a more specific
+  400 with a real `detail.message` once actually surfaced — the status
+  code alone was not enough to diagnose it, and `speakTextElevenLabsAudio`
+  already captured the response body on failure while this handler
+  didn't. Fixed by adding the same `resp.text()` capture here (see the
+  code comment right at the fix) — this is what actually let the DE see
+  ElevenLabs' real message (`"API key ID used as API key - only valid
+  for..."`) instead of a bare, undiagnosable "400."
+- **Root cause of the DE's actual failure, once visible: not a code bug
+  at all.** ElevenLabs' key-management UI only ever lets you copy a
+  key's **ID** from the list view after creation (confirmed via the
+  DE's own screenshot of the "..." menu — Edit / Copy Key ID / Delete,
+  no way to get the real secret back) — the actual secret value is only
+  shown once, at creation time. The DE had copied the ID, not the
+  secret, which is what `invalid_api_key` / "API key ID used as API
+  key" meant. Separately, ElevenLabs' newer **restricted/scoped API
+  keys** default every endpoint to "No Access" — the DE's fresh key
+  needed **Text to Speech: Access** and **Voices: Read** explicitly
+  turned on (everything else correctly left at "No Access," matching
+  least-privilege practice) before it worked. Both of these are
+  ElevenLabs account/dashboard facts, not something fixable in this
+  file — worth knowing before troubleshooting a future ElevenLabs key
+  issue as if it were a code problem first.
+- **Bug 2 (real, fixed): `#ta-settings-panel` was silently clipped, not
+  scrollable.** Once past the key issue, the DE reported "I do not see
+  [Preview voice]" — the new ElevenLabs block (key input, status,
+  actions, voice select) made the settings panel taller than it used to
+  be, and `#ta-panel` is a fixed-height flex column with
+  `overflow: hidden` (see its own CSS comment). `#ta-settings-panel` had
+  no `flex-shrink: 0` or scroll of its own, so the flex container's
+  default `flex-shrink: 1` let it be squeezed shorter than its actual
+  content with no scrollbar — the same exact bug shape (and same fix
+  shape) as the Client Tracker's `#ct-form-panel` clipping bug fixed
+  earlier this session, recurring independently in a different panel.
+  Fixed by giving `#ta-settings-panel` its own `max-height: 46vh;
+  overflow-y: auto;` — bounded well under `#ta-panel`'s own height so
+  the message list and input row underneath stay usable while Settings
+  is open, rather than Settings eating the whole panel.
+- Both fixes verified: syntax-checked all 16 script blocks (the error-
+  body fix, already covered by a Node execution-harness test against
+  the real extracted handler source in the previous session entry) and
+  the CSS clipping fix (pure CSS, no script/div changes — div-tag
+  balance unaffected, 1,658/1,658).
+- **Still open, confirmed unverified**: whether 46vh is a good cap on a
+  real laptop-sized window (too short would just create a NEW, smaller
+  clipped/scrolled area rather than fixing the underlying issue; too
+  tall could crowd out the message list) — worth a look next time
+  Settings is open with the ElevenLabs block visible. The actual sound
+  of a chosen ElevenLabs voice via "🔊 Preview voice" and in a real
+  conversation is still the one thing genuinely unverified from this
+  environment — ask what it sounds like next.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

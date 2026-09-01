@@ -11497,6 +11497,20 @@ ${resultsBody}
 
   #ta-settings-panel {
     padding: 12px 14px; background: #eef4ea; border-bottom: 1px solid rgba(0,0,0,0.06); font-size: 12px; color: #3d5c3e;
+    /* Confirmed broken live (Sep 2026): #ta-panel is a fixed-height flex
+       column with overflow:hidden (see its own rule above), and this
+       panel has no flex-shrink:0/flex:1 of its own — the default
+       flex-shrink:1 let it be squeezed shorter than its actual content
+       once the ElevenLabs voice-provider block was added, with no
+       scrollbar, so "🔊 Preview voice" (the last element) was silently
+       clipped off invisibly rather than shown or scrollable. Same root
+       cause and same fix shape as the earlier Client Tracker form-panel
+       fix this session: give the panel its own bounded scroll region
+       instead of relying on the parent's overflow:hidden to somehow
+       show everything. Capped well under #ta-panel's own height so the
+       message list and input row below it stay visible/usable while
+       Settings is open. */
+    max-height: 46vh; overflow-y: auto;
   }
   #ta-settings-panel p { margin: 0 0 8px; line-height: 1.5; }
   #ta-settings-panel a { color: var(--sage-darker); font-weight: 700; }
