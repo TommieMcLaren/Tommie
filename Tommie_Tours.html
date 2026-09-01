@@ -11687,8 +11687,7 @@ ${resultsBody}
     panel.classList.add('open');
     requestAnimationFrame(() => panel.classList.add('shown'));
     input.focus();
-    maybeRunDailyFollowUpCheck();
-    maybeSurfaceHotLeadNudge();
+    maybeSurfaceDailyBrief();
   });
   closeBtn.addEventListener('click', () => {
     panel.classList.remove('shown');
@@ -11988,44 +11987,15 @@ Ground rules:
       return `### ${city}\nHotels:\n${hotels}\nRestaurants:\n${restaurants}\nTours:\n${tours}\nWeather: ${weather}`;
     }).join('\n\n');
   }
-  // The connected Outlook/Microsoft 365 calendar, passed as an MCP server so
-  // the model can call outlook_calendar_search / outlook_create_draft
-  // directly. The MCP connector requires TWO things together: this entry in
-  // mcp_servers, AND a matching {type:'mcp_toolset', mcp_server_name:'microsoft-365'}
-  // entry in `tools` (see buildTools() below), plus the mcp-client-2025-11-20
-  // beta header (see buildBetaHeader() below). Omitting the mcp_toolset entry
-  // is a hard validation error, not a silent no-op — that entry was missing
-  // until now, which is almost certainly why calendar/Drive never worked
-  // end-to-end (see HANDOFF.md). Only attached for calls that actually need
-  // it (see checkFollowUps below), not every message, to keep routine use cheap.
-  const TA_CALENDAR_MCP = { type: 'url', url: 'https://microsoft365.mcp.claude.com/mcp', name: 'microsoft-365' };
-  // Google Drive — wired the same way as calendar, and now structurally
-  // correct per the MCP connector's requirements above, but still
-  // unconfirmed live (no Drive tool available to test-call with directly).
-  const TA_DRIVE_MCP = { type: 'url', url: 'https://drivemcp.googleapis.com/mcp/v1', name: 'google-drive' };
-
-  // Pulls client names this DE has actually discussed, from the same
-  // archive "start new client" already writes to — so follow-up
-  // matching is grounded in real session history, not a guess.
-  function getKnownClientNames() {
-    try {
-      const raw = localStorage.getItem(TA_ARCHIVE_KEY);
-      const archive = raw ? JSON.parse(raw) : [];
-      const names = archive.map(a => a.clientName).filter(Boolean);
-      if (taState.clientName) names.push(taState.clientName);
-      // Client Tracker (separate panel/script, own storage key
-      // 'kt-client-tracker:v1' — kept as a literal here rather than a
-      // shared constant since the two panels are otherwise independent)
-      // folded in too, so the calendar follow-up check cross-references
-      // everyone actually being tracked, not just names from past chats.
-      try {
-        const trackerRaw = localStorage.getItem('kt-client-tracker:v1');
-        const trackerClients = trackerRaw ? JSON.parse(trackerRaw) : [];
-        trackerClients.forEach(c => { if (c && c.name) names.push(c.name); });
-      } catch (e) { /* tracker storage missing/corrupt — not fatal here */ }
-      return [...new Set(names)];
-    } catch (e) { return taState.clientName ? [taState.clientName] : []; }
-  }
+  // MCP calendar/Drive connectors (TA_CALENDAR_MCP/TA_DRIVE_MCP) and the
+  // ambient follow-up check that used them were removed here (Aug 2026)
+  // — see "Daily Brief" in CLAUDE.md for why. Short version: Outlook MCP
+  // is confirmed broken under BYOK (needs an Azure AD app registration
+  // this DE has no admin rights for), so that ambient check was a
+  // guaranteed-to-fail live API call, once a day, for zero benefit. The
+  // general MCP connector wiring below (buildTools/buildBetaHeader) is
+  // still correct and reusable — the two dead constants that used to
+  // feed it are what's gone, not the plumbing itself.
 
   // Runs the search_guide tool locally, reusing the exact same
   // knowledge base (SEARCH_INDEX) the offline Q&A path already uses —
@@ -12133,8 +12103,9 @@ Ground rules:
   //   of just handing back a refusal (see the stop_reason==='refusal' check
   //   below, which only fires if the fallback ALSO declined). Only sent when
   //   TA_MODEL_SUPPORTS_FALLBACKS — see the note above.
-  // - mcp-client-2025-11-20: required whenever mcp_servers is set (calendar/
-  //   Drive) — see the note above TA_CALENDAR_MCP for why this matters.
+  // - mcp-client-2025-11-20: required whenever mcp_servers is set for an
+  //   MCP connector (calendar/Drive, e.g.) — see CLAUDE.md's "Daily
+  //   Brief" section for why nothing currently passes one live.
   function buildBetaHeader(mcpServers) {
     const betas = [];
     if (TA_MODEL_SUPPORTS_FALLBACKS) betas.push('server-side-fallback-2026-07-01');
@@ -13594,84 +13565,64 @@ ${renderMarkdownLite(fullText)}
     if (convoHistory.length) addMsg('sys', 'Conversation ended.', false);
   }
 
-  // Used by the once-a-day ambient check below (the manual "Check
-  // follow-ups due" chip that used to also call this was removed along
-  // with the rest of the chip row — calendar MCP is confirmed broken
-  // under BYOK regardless, see CLAUDE.md, so nothing was lost live).
-  // Asks the model for an explicit FOLLOWUPS_FOUND/FOLLOWUPS_NONE token
-  // on its own first line so the ambient path can stay silent when
-  // there's nothing to report, instead of guessing from free text.
-  function runFollowUpCheck(progressDiv) {
-    const knownClients = getKnownClientNames();
-    const note = `Use outlook_calendar_search (search the signed-in user's Outlook calendar for the next 10 days) to check for anything that looks like a client follow-up or check-in.
-Known client names from this DE's recent sessions: ${knownClients.length ? knownClients.join(', ') : '(none tracked yet in this tool)'}.
-Cross-reference calendar event subjects/attendees against those names. Be honest: if nothing on the calendar matches a known client or looks client-related, that's a valid, common answer — most events here may be internal (training, huddles, team meetings).
-Start your reply with exactly one token alone on the first line — FOLLOWUPS_FOUND or FOLLOWUPS_NONE — then a blank line, then your answer.`;
-    return callClaudeAI([{ role: 'user', content: 'Check my calendar for client follow-ups due.' }], note, [TA_CALENDAR_MCP], progressDiv).then(result => {
-      if (result.error) return { found: false, error: result.error, text: '' };
-      const m = result.text.match(/^(FOLLOWUPS_FOUND|FOLLOWUPS_NONE)\s*\n+([\s\S]*)$/);
-      // If the model didn't follow the format, default to showing the raw
-      // answer rather than silently swallowing something that might matter.
-      return m ? { found: m[1] === 'FOLLOWUPS_FOUND', text: m[2].trim(), error: null } : { found: true, text: result.text, error: null };
-    });
-  }
-
-  // ---------- Ambient daily check — runs once per calendar day when the
-  // panel is opened, and only speaks up if it actually finds something.
-  // No noise on days with nothing to report, no repeat checks within the
-  // same day, no charge against usage beyond that one check.
-  const TA_FOLLOWUP_CHECK_KEY = 'kt-trip-assistant:last-followup-check';
-  function maybeRunDailyFollowUpCheck() {
-    let today;
-    try {
-      today = new Date().toISOString().slice(0, 10);
-      if (localStorage.getItem(TA_FOLLOWUP_CHECK_KEY) === today) return;
-      localStorage.setItem(TA_FOLLOWUP_CHECK_KEY, today);
-    } catch (e) { return; }
-    runFollowUpCheck().then(res => {
-      if (res.error || !res.found) return; // stay silent on errors or a clean calendar
-      addMsg('sys', '📅 Heads up — ' + res.text, false);
-    }).catch(() => { /* ambient check — fail silently, the manual chip is still there */ });
-  }
-
-  // ---------- Proactive hot-lead nudge (Aug 2026) — the calendar-based
-  // ambient check above needs Outlook MCP (broken under BYOK — see
-  // CLAUDE.md's "Still open"; a real fix needs an Azure AD app registration
-  // this DE doesn't have admin rights for). This is the no-dependency
-  // alternative: same once-a-day, stay-silent-on-a-clean-day pattern, but
-  // grounded entirely in Client Tracker data that's already local — no live
-  // AI round trip needed, just plain filtering, same "instant, free,
-  // offline" spirit as the rest of the rule-based engine. Flags a Hot Lead
-  // client only when there's an actual reason to: their follow-up is
-  // overdue or due this week, or they haven't been contacted in a while
-  // with nobody chasing it. Warm/Cold/Check Back Later leads are left
-  // alone on purpose — the whole point is calling out what's actually
-  // urgent, not repeating the full to-do list unprompted.
-  const TA_HOTLEAD_CHECK_KEY = 'kt-trip-assistant:last-hotlead-check';
+  // ---------- Daily Brief (Aug 2026) — replaces two separate ambient
+  // checks that used to fire independently: a calendar-based follow-up
+  // check (needed Outlook MCP, confirmed broken under BYOK — no OAuth
+  // path without an Azure AD app registration this DE has no admin
+  // rights for, so it was a guaranteed-to-fail live API call every day
+  // for zero benefit) and a hot-lead nudge that only ever fired if the
+  // Trip Assistant panel specifically was opened first that day, easy to
+  // miss on a day spent entirely in the Client Tracker. One consolidated
+  // brief, grounded entirely in local Client Tracker data (no live-AI
+  // round trip, no cost, no latency — same "instant, free, offline"
+  // spirit as the rest of the rule-based engine), triggered from
+  // whichever panel opens first (see the __taMaybeSurfaceDailyBrief
+  // export below, called from the Client Tracker's own open handler too)
+  // so it can't be missed just because of which button got tapped first.
+  // Same once-a-day, stay-silent-on-a-clean-day discipline as everything
+  // else ambient in this file.
+  const TA_DAILY_BRIEF_KEY = 'kt-trip-assistant:last-daily-brief';
   const TA_HOTLEAD_STALE_DAYS = 5;
-  function maybeSurfaceHotLeadNudge() {
+  function maybeSurfaceDailyBrief() {
     let today;
     try {
       today = new Date().toISOString().slice(0, 10);
-      if (localStorage.getItem(TA_HOTLEAD_CHECK_KEY) === today) return;
-      localStorage.setItem(TA_HOTLEAD_CHECK_KEY, today);
+      if (localStorage.getItem(TA_DAILY_BRIEF_KEY) === today) return;
+      localStorage.setItem(TA_DAILY_BRIEF_KEY, today);
     } catch (e) { return; }
     if (!window.__ctGetTodoSummary) return; // Client Tracker script hasn't loaded
     let summary;
     try { summary = window.__ctGetTodoSummary(); } catch (e) { return; }
-    const flagged = [];
-    (summary.overdue || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flagged.push(`${c.name} (follow-up overdue)`); });
-    (summary.dueThisWeek || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flagged.push(`${c.name} (follow-up due this week)`); });
-    const alreadyFlaggedNames = new Set(flagged.map(f => f.split(' (')[0]));
+    const overdueNames = (summary.overdue || []).map(c => c.name);
+    const dueSoonNames = (summary.dueThisWeek || []).map(c => c.name);
+    // Same Hot Lead rule as before: overdue, due this week, or gone
+    // TA_HOTLEAD_STALE_DAYS with no logged contact and nothing scheduled
+    // to explain the silence. Deliberately can double-list a name already
+    // in the overdue/due-soon lines above — that's a different, more
+    // urgent fact worth restating (this one's not just late, it's hot),
+    // not a bug.
+    const flaggedHot = [];
+    (summary.overdue || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flaggedHot.push(`${c.name} (overdue)`); });
+    (summary.dueThisWeek || []).forEach(c => { if (c.leadTemp === 'Hot Lead') flaggedHot.push(`${c.name} (due this week)`); });
+    const alreadyFlaggedNames = new Set(flaggedHot.map(f => f.split(' (')[0]));
     [...(summary.upcoming || []), ...(summary.noDate || [])].forEach(c => {
       if (c.leadTemp !== 'Hot Lead' || !c.lastContact || alreadyFlaggedNames.has(c.name)) return;
       const daysSince = Math.floor((new Date(today) - new Date(c.lastContact)) / 86400000);
-      if (daysSince >= TA_HOTLEAD_STALE_DAYS) flagged.push(`${c.name} (no contact in ${daysSince} days)`);
+      if (daysSince >= TA_HOTLEAD_STALE_DAYS) flaggedHot.push(`${c.name} (no contact in ${daysSince} days)`);
     });
-    if (!flagged.length) return;
-    const shown = flagged.slice(0, 5).join(', ');
-    const more = flagged.length > 5 ? `, +${flagged.length - 5} more` : '';
-    addMsg('sys', `🔥 ${flagged.length} hot lead${flagged.length > 1 ? 's' : ''} could use attention: ${shown}${more}. Just ask and I can draft outreach or pull up their details.`, false);
+    const listLine = (label, names) => {
+      if (!names.length) return null;
+      const shown = names.slice(0, 5).join(', ');
+      const more = names.length > 5 ? `, +${names.length - 5} more` : '';
+      return `${label}: ${shown}${more}`;
+    };
+    const lines = [
+      listLine(`⚑ ${overdueNames.length} overdue follow-up${overdueNames.length === 1 ? '' : 's'}`, overdueNames),
+      listLine(`📅 ${dueSoonNames.length} due this week`, dueSoonNames),
+      listLine(`🔥 ${flaggedHot.length} hot lead${flaggedHot.length === 1 ? '' : 's'} worth a look`, flaggedHot)
+    ].filter(Boolean);
+    if (!lines.length) return; // clean day — stay silent, same as every ambient check in this file
+    addMsg('sys', `☀️ Here's what's worth knowing today:\n${lines.join('\n')}\n\nJust ask and I can draft outreach or pull up anyone's details.`, false);
   }
 
   // ---------- Knowledge Q&A — answers general guide questions (hotels,
@@ -13882,8 +13833,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
   // logic — that's a lot of security- and correctness-sensitive plumbing
   // to keep in sync across two copies for what's a single shared concern.
   window.__taCallClaudeAI = callClaudeAI;
-  window.__taCalendarMcp = TA_CALENDAR_MCP;
   window.__taHasApiKey = () => !!getStoredApiKey();
+  // Exposed so the Client Tracker's own panel-open handler can trigger the
+  // same Daily Brief (see maybeSurfaceDailyBrief above) — it's grounded in
+  // Client Tracker data either way, so it shouldn't matter which panel the
+  // DE happens to open first each day.
+  window.__taMaybeSurfaceDailyBrief = () => { try { maybeSurfaceDailyBrief(); } catch (e) { /* ambient — fail silently */ } };
   // Exposed for the Client Tracker's "Match Itinerary" feature (see
   // ctRunItineraryMatch in that script block) — wraps the exact same
   // scoreItinerariesByCities() the live find_matching_itinerary tool uses,
@@ -15469,6 +15424,12 @@ Start your reply with exactly one token alone on the first line — FOLLOWUPS_FO
     ctOverlay.classList.add('open');
     requestAnimationFrame(() => ctOverlay.classList.add('shown'));
     ctCheckDueReminders();
+    // Same once-a-day Daily Brief the Trip Assistant's own open button
+    // triggers (see __taMaybeSurfaceDailyBrief/maybeSurfaceDailyBrief) —
+    // fired from here too so it isn't missed on a day spent entirely in
+    // the Client Tracker. Whichever panel opens first "wins" the once-a-
+    // day check; the message itself always lands in Trip Assistant's chat.
+    if (window.__taMaybeSurfaceDailyBrief) window.__taMaybeSurfaceDailyBrief();
   });
   document.getElementById('ct-close').addEventListener('click', ctCloseOverlay);
   ctOverlay.addEventListener('click', e => { if (e.target === ctOverlay) ctCloseOverlay(); });

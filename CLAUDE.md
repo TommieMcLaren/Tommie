@@ -1537,6 +1537,63 @@ something."
   Save feels like a natural continuation of the call or an unexpected
   jump — worth noticing on the next few Qualifying Calls.
 
+## Daily Brief — consolidating two ambient checks into one (Aug 2026, unverified live)
+
+Direct response to "what's the biggest upgrade to really make this a
+right hand," followed immediately by "I just want Jarvis to be a master
+at what it already does vs doing too much" — which reshaped the answer
+from a new capability into a consolidation: two existing ambient checks
+were overlapping and one of them was silently wasting a live API call
+every day for a feature that can't work yet. No new UI was added here on
+purpose, in line with that steer.
+
+- **Removed the calendar-based ambient check entirely** —
+  `runFollowUpCheck()`, `maybeRunDailyFollowUpCheck()`,
+  `TA_FOLLOWUP_CHECK_KEY`, `getKnownClientNames()`, and the
+  `TA_CALENDAR_MCP`/`TA_DRIVE_MCP` constants that fed them. This wasn't
+  ever going to succeed: Outlook MCP is confirmed broken under BYOK (no
+  OAuth path without an Azure AD app registration this DE has no admin
+  rights for — see "Still open"), so every single day, opening the Trip
+  Assistant panel was firing one real, guaranteed-to-fail live API call
+  for zero benefit — pure cost and latency with no upside until that's
+  fixed for real. The general MCP connector plumbing
+  (`buildTools()`/`buildBetaHeader()`) is untouched and still correct —
+  only the two dead constants that used to feed it, and the one feature
+  that called them, are gone.
+- **`maybeSurfaceHotLeadNudge()` folded into a new
+  `maybeSurfaceDailyBrief()`**, which now also covers overdue and
+  due-this-week follow-ups (previously only ever mentioned obliquely, via
+  the broken calendar check) — one consolidated "☀️ Here's what's worth
+  knowing today" message instead of what used to be up to two separate
+  ones. Same rules as before for what counts as a Hot Lead worth flagging
+  (overdue, due this week, or `TA_HOTLEAD_STALE_DAYS` days with no
+  contact and nothing scheduled) — a name can legitimately appear in both
+  the overdue line and the hot-lead line, since "this is late" and "this
+  is also hot" are two different facts worth stating, not a duplicate.
+- **Fires from whichever panel opens first, not just Trip Assistant.**
+  This was a real, if quiet, gap in what already existed: the old
+  hot-lead nudge only ever fired if the DE happened to open the Trip
+  Assistant panel that day — a day spent entirely in the Client Tracker
+  meant it silently never ran. `window.__taMaybeSurfaceDailyBrief()` is a
+  new minimal export the Client Tracker's own panel-open handler now
+  calls too, sharing the exact same once-a-day dedup key
+  (`TA_DAILY_BRIEF_KEY`) so it only ever actually posts once regardless
+  of which button gets tapped first — the message itself always lands in
+  Trip Assistant's chat log either way, ready to read whenever that panel
+  is actually opened.
+- Logic-tested the consolidated line-building in Node against four cases:
+  a mix of overdue/due-soon/stale-hot-lead all present at once (including
+  the deliberate double-listing of one name), a fully clean day
+  (correctly produces zero lines), a hot-lead-only day with nothing
+  overdue or due soon, and a list past 5 names truncating to "+N more."
+  All 15 `<script>` blocks parse; div-tag balance unchanged (pure
+  function/wiring changes, no new markup).
+- **Unverified live**: whether the consolidated message reads better than
+  the two separate ones did, and whether firing from the Client Tracker's
+  open button feels natural or surprising the first time it happens
+  there instead of in Trip Assistant — worth noticing over the next few
+  days of actual use.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
