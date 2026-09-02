@@ -11835,16 +11835,22 @@ ${resultsBody}
 
   const KT_ITIN_SNAPSHOT_DATE = 'Aug 29, 2026';
 
-  btn.addEventListener('click', () => {
+  function openTripAssistant() {
     panel.classList.add('open');
     requestAnimationFrame(() => panel.classList.add('shown'));
     input.focus();
     maybeSurfaceDailyBrief();
-  });
-  closeBtn.addEventListener('click', () => {
+  }
+  function closeTripAssistant() {
     panel.classList.remove('shown');
     setTimeout(() => panel.classList.remove('open'), 180);
-  });
+  }
+  function toggleTripAssistant() {
+    if (panel.classList.contains('open')) closeTripAssistant();
+    else openTripAssistant();
+  }
+  btn.addEventListener('click', toggleTripAssistant);
+  closeBtn.addEventListener('click', closeTripAssistant);
 
   // ---------- BYOK settings panel ----------
   const settingsBtn = document.getElementById('ta-settings');
@@ -14646,6 +14652,14 @@ ${renderMarkdownLite(fullText)}
   window.__taEnsureClientContext = (name) => {
     if (taState.clientName && name && taState.clientName !== name) resetClientContext();
   };
+  // Exposed now that #ta-btn's own click handler is a toggle (open/close on
+  // repeat clicks — see toggleTripAssistant above). The other places in this
+  // file that used to just call taBtn.click() to open the panel (Draft
+  // outreach, the quick-access ✨ shortcut, the dashboard's "Resume in Trip
+  // Assistant" button) need a way to reliably OPEN it regardless of current
+  // state — a raw .click() would now close it instead, if it happened to
+  // already be open.
+  window.__taOpenPanel = openTripAssistant;
 })();
 </script>
 
@@ -16040,7 +16054,7 @@ ${renderMarkdownLite(fullText)}
     // blend two different clients' details in one thread. No-ops when
     // the conversation is already about this same client or nobody yet.
     if (window.__taEnsureClientContext) window.__taEnsureClientContext(client.name);
-    taBtn.click();
+    if (window.__taOpenPanel) window.__taOpenPanel(); else taBtn.click();
     taInput.value = bits.join(' ');
     taSendBtn.click();
   }
@@ -16759,8 +16773,8 @@ ${renderMarkdownLite(fullText)}
   const searchBtn = document.getElementById('quickAccessSearchBtn');
   const staleBtn = document.getElementById('quickAccessStaleBtn');
   if (assistantBtn) assistantBtn.addEventListener('click', () => {
-    const taBtn = document.getElementById('ta-btn');
-    if (taBtn) taBtn.click();
+    if (window.__taOpenPanel) window.__taOpenPanel();
+    else { const taBtn = document.getElementById('ta-btn'); if (taBtn) taBtn.click(); }
   });
   if (searchBtn) searchBtn.addEventListener('click', () => {
     const qsBtn = document.getElementById('quickSearchBtn');
@@ -16944,8 +16958,8 @@ ${renderMarkdownLite(fullText)}
     if (openBtn) openBtn.addEventListener('click', () => {
       const dashClose = document.getElementById('dashboard-close');
       if (dashClose) dashClose.click();
-      const taBtn = document.getElementById('ta-btn');
-      if (taBtn) taBtn.click();
+      if (window.__taOpenPanel) window.__taOpenPanel();
+      else { const taBtn = document.getElementById('ta-btn'); if (taBtn) taBtn.click(); }
     });
   }
 

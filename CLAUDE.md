@@ -2802,6 +2802,55 @@ close buttons).
   the Client Tracker panel narrow and confirm the toolbar wraps
   cleanly rather than overlapping or clipping.
 
+## Trip Assistant button now toggles open/closed (Sep 2026, unverified live)
+
+Direct request: "Can you make it open and close the bubble as a
+function" — the ✨ `#ta-btn` launcher used to only ever open the panel;
+closing required a separate tap on the ✕ `#ta-close` button or a
+backdrop click. Wanted the launcher itself to act as a toggle, the way
+a typical chat-bubble launcher does (tap to open, tap again to close).
+
+- **`openTripAssistant()`/`closeTripAssistant()`** — the two existing
+  inline click-handler bodies were pulled out into named functions
+  (no behavior change on their own), and a new `toggleTripAssistant()`
+  checks `panel.classList.contains('open')` to decide which one to
+  call. `#ta-btn`'s own click listener is now `toggleTripAssistant`;
+  `#ta-close` still calls `closeTripAssistant` directly (unchanged
+  behavior — the ✕ button should always close, never toggle).
+- **A real correctness risk this needed to account for**: three other
+  places in this file open the Trip Assistant programmatically by
+  calling `document.getElementById('ta-btn').click()` — Client
+  Tracker's "✉️ Draft outreach" (`ctDraftOutreach`), the quick-access
+  ✨ shortcut, and the Working Dashboard's "Resume in Trip Assistant"
+  button. Under the old always-open handler, a stray `.click()` while
+  the panel happened to already be open was harmless (`classList.add`
+  on an already-present class is a no-op). Under the new toggle
+  handler, that same `.click()` would have silently CLOSED the panel
+  those three features are trying to open. Fixed by exporting
+  `window.__taOpenPanel = openTripAssistant` (same cross-IIFE export
+  pattern as `__taCallClaudeAI`/`__taMatchItinerary`/etc. right above
+  it) and switching all three call sites to call that directly
+  (falling back to the old `.click()` only if the export isn't present
+  yet, matching this file's existing defensive-export-check style).
+- Verified with a real Node execution-harness test simulating the
+  actual classList/timer sequence: click 1 opens (open+shown both
+  true, Daily Brief fires); click 2 starts closing (shown removed
+  immediately, open removed only after the 180ms close timer, matching
+  the existing fade-out timing from the modal-transition work);
+  click 3 reopens correctly; Daily Brief fires exactly on the two opens
+  and not on the close. All 16 script blocks still parse; div-tag
+  balance unaffected (pure JS logic change, no new markup) — held at
+  1,660/1,660, and the pre-existing 775/774 span imbalance (documented
+  in the toolbar-facelift entry above, confirmed unrelated to any of
+  today's changes) is unchanged.
+- **Unverified live**: whether tapping ✨ to close feels natural next
+  to the ✕ button still being there too (both now do the same thing
+  when the panel's open — not a conflict, just two ways to close it),
+  and whether the toggle ever gets triggered unexpectedly by a rapid
+  double-tap mid-animation (the logic is idempotent and re-tested for
+  that case in the harness above, but hasn't been tried against a real
+  double-tap in a real browser).
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
