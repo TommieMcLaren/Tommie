@@ -3687,6 +3687,124 @@ have complete access to this."
   then ask Jarvis (typed or voice) "what's left on my daily list today"
   and "check off checking emails" and confirm both work end-to-end.
 
+## Client Tracker: multiple follow-ups per client, and a clickable follow-up notification (Sep 2026, unverified live)
+
+Direct request, from the screenshot of a client's profile sidebar
+showing the "📅 Follow-up due in 2 days" callout: "Can you make it so I
+can add additional follow ups, and click on the exsisting follow up
+notification to edit or see the information. Please make sure this
+works with the task list and updates in the appropriate places."
+
+- **The real gap**: a client had exactly one scheduled follow-up —
+  `client.nextFollowUp`, a single date string — with no way to have a
+  second one on the books (e.g. "call Tuesday, then check in again in
+  three weeks") and no way to act on the sidebar's own callout beyond
+  reopening the whole Edit form to change that one date.
+- **`client.followUps`** — a new array of `{id, date, note}` entries is
+  the new source of truth for scheduling. `client.nextFollowUp` is
+  deliberately KEPT, not replaced, as a DERIVED "soonest upcoming date"
+  field — `ctSyncNextFollowUp()` is the only thing that writes it now,
+  called after every add/edit/delete. This was the one design choice
+  that made the whole feature low-risk: every existing consumer of
+  `nextFollowUp` (`ctGroupClients`'s urgency buckets, `ctCardHTML`'s card
+  text, the Daily Brief, `__ctGetTodoSummary` → Daily Tasks' due-today
+  pull, the Outlook deep link, the `propose_todo_update` AI tool) reads
+  that one field and needed ZERO changes to keep working correctly —
+  satisfying "make sure this works with the task list and updates in the
+  appropriate places" essentially for free, by construction, rather than
+  by touching Daily Tasks/Daily Brief/the card code directly.
+- **Backward compatible with every client saved before this feature
+  existed.** `ctFollowUpsFor(client)` synthesizes a single legacy entry
+  from `nextFollowUp` on the fly for DISPLAY when `followUps` doesn't
+  exist yet — no migration write happens until the DE actually adds,
+  edits, or deletes a follow-up through the new UI, at which point
+  `ctMaterializeFollowUps()` creates the real array (folding the legacy
+  date in as its first entry so it isn't lost).
+- **New "Follow-ups" section in the profile sidebar** (`ctRenderFollowUps
+  Section`, next to Notes/Drafts, same "+ Add" toggle + inline editor
+  pattern the Notes section already established). Every entry shows its
+  date (formatted the same "in N days"/"N days ago" way the card already
+  does), an optional note, and its own ✏️ button; the soonest entry gets
+  a gold "Next" badge since that's the one every other part of this file
+  actually keys off.
+- **The task callout itself is now a real `<button>`, per the explicit
+  "click on the exsisting follow up notification to edit" ask** — CSS
+  reset to still read as the same soft colored banner, just clickable,
+  plus a small "Tap to edit"/"Tap to schedule a follow-up" hint line.
+  `data-followup-open` names WHICH entry it's about: the soonest one
+  when the callout is showing an overdue/due-within-7-days state (since
+  that's the actual entry driving the banner), or the literal `'new'`
+  when it isn't (the hot-lead-staleness and "nothing urgent" states
+  aren't about any particular scheduled date — clicking those opens the
+  add form instead). Deliberately wired through the exact same
+  `[data-followup-open]` click handler the Follow-ups section's own ✏️
+  buttons use — one code path for both, not two.
+- **`__ctApplyPatch` (the `propose_todo_update` AI tool's write path)
+  updated to stay consistent with the new list.** Without this, an
+  AI-driven `nextFollowUp` change would set the top-level field directly
+  while leaving `followUps` untouched — then the next manual add/edit/
+  delete in the sidebar would call `ctSyncNextFollowUp()` and silently
+  overwrite the AI's change back to whatever the list's own soonest date
+  was. Now folds the patched date into the list as its soonest entry (or
+  drops the soonest entry if the AI cleared it) and re-syncs
+  `nextFollowUp` from the result — so clearing the soonest follow-up
+  correctly bumps a later-scheduled one up instead of leaving the field
+  stuck empty.
+- Verified with a real Node execution-harness test against the actual
+  extracted Client Tracker source (not a paraphrase) — including finding
+  and fixing a gap in this session's own test-harness fidelity along the
+  way: the harness's `document.getElementById` had always been a flat
+  id→element cache (fine for this file's static, pre-existing form
+  inputs, which earlier tests exclusively exercised) but wrong for these
+  new date/note inputs, which are rendered fresh into innerHTML on every
+  re-render the way a real browser's DOM actually works — replaced with
+  a real tree search so the harness matches actual `getElementById`
+  semantics. With that fixed, 20 checks all passed: a legacy client with
+  only `nextFollowUp` opens correctly synthesized as one entry; adding a
+  follow-up materializes the array and syncs `nextFollowUp`; adding a
+  SECOND one keeps `nextFollowUp` on the truly soonest date (not the
+  latest-added) and badges it "Next"; clicking the task callout opens
+  that exact entry's inline editor; editing an entry's date/note
+  persists and re-syncs; deleting the soonest entry correctly bumps the
+  next one up; deleting the last one clears `nextFollowUp` entirely and
+  the callout falls back to "nothing urgent" rather than a stale banner;
+  a >7-day-out remaining follow-up correctly does NOT drive the callout
+  (confirming that's by design, not a gap found mid-test); Cancel/empty-
+  date submissions are safe no-ops; the `__ctApplyPatch` AI-patch sync
+  (set, clear-with-a-later-entry-surviving) behaves as designed; an XSS
+  probe in a follow-up's note comes back fully escaped; and
+  `__ctGetTodoSummary()` (Daily Tasks/Daily Brief's actual data source)
+  still correctly surfaces a due-today follow-up added through the new
+  UI — the concrete proof that "works with the task list" holds. Also
+  re-ran both of this session's pre-existing Client Tracker Node
+  harness tests (the "All Clients" view, and the stuck-in-the-form fix)
+  against the updated source with zero regressions. All 17 `<script>`
+  blocks parse; div-tag balance held (1680/1680) — two new comments
+  written for this feature briefly introduced literal `<button>`/`<div>`
+  substrings into their own prose, which would have shown up as false
+  "unclosed tag" noise in this file's own grep-based balance check the
+  next time someone runs it; reworded them before committing so that
+  check stays clean.
+- **Deliberately not built**: a "done"/completed flag per follow-up
+  entry (deleting one is how a follow-up gets removed once it's been
+  actioned — matches the pre-existing model, which never had a
+  completion flag on the single `nextFollowUp` field either) and letting
+  the card itself (not just the profile) show more than one upcoming
+  date — the compact card's one-line "Follow-up in N days" already
+  correctly reflects the soonest scheduled date via `nextFollowUp`,
+  and a card-level multi-date display wasn't part of what was asked.
+- **Unverified live**: the inline editor's actual click/type/save feel
+  in a real browser, whether the "Next" badge and the callout's new
+  "Tap to edit" hint read clearly at a glance, and whether the
+  `__ctApplyPatch` AI-sync behavior (letting the list's own soonest date
+  win over a stale AI-set one) ever produces a confusing moment in
+  practice — none of this has been seen outside this environment. Test
+  next: open a client with an existing follow-up, add a second one for
+  a different date, click the sidebar's follow-up notification to
+  confirm it opens the right entry, edit and delete a follow-up, and
+  confirm the client's card/urgency grouping and the Daily Tasks panel
+  all reflect whichever follow-up is now soonest.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

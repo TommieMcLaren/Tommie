@@ -15223,11 +15223,60 @@ ${bodyHtml}
   .ct-draft-row:hover { border-color: var(--gold); background: var(--ct-gold-soft); }
   .ct-draft-row-subject { font-size: 12.5px; font-weight: 600; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ct-draft-row-date { font-size: 10.5px; color: var(--ct-ink-soft); flex-shrink: 0; }
-  .ct-task-callout { padding: 11px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+  /* Now a real button element (Sep 2026, "click the follow-up
+     notification to edit it") rather than a plain div — reset the
+     button defaults (border/font/width/alignment) so it still reads as
+     the same soft colored banner it always was, just clickable. */
+  .ct-task-callout {
+    display: block; width: 100%; box-sizing: border-box; padding: 11px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 700; font-family: 'Lato', sans-serif; text-align: left;
+    border: none; cursor: pointer; transition: filter .12s ease;
+  }
+  .ct-task-callout:hover { filter: brightness(0.96); }
   .ct-task-callout.overdue { background: var(--ct-overdue-soft); color: var(--ct-overdue); }
   .ct-task-callout.soon { background: var(--ct-gold-soft); color: var(--gold-text); }
   .ct-task-callout.hot { background: #F7DFD3; color: #B4502A; }
   .ct-task-callout.clean { background: var(--ct-closed-soft); color: var(--ct-ink-soft); font-weight: 600; }
+  .ct-task-callout-hint { display: block; font-size: 10.5px; font-weight: 600; opacity: 0.75; margin-top: 2px; }
+  /* Follow-ups list (Sep 2026) — same visual language as the Notes log
+     (.ct-note-entry's left-border row) and the Notes/Drafts quick-add
+     forms (.ct-card-quicknote's textarea+actions), just with a date input
+     added since a follow-up is a date+optional note, not free text. */
+  .ct-followup-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    padding: 8px 0 8px 12px; border-left: 2px solid var(--ct-line); font-size: 13.5px; color: var(--dark);
+  }
+  .ct-followup-row.next { border-left-color: var(--gold); }
+  .ct-followup-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .ct-followup-next-badge {
+    align-self: flex-start; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--gold-text); background: var(--ct-gold-soft); border-radius: 10px; padding: 1px 7px; margin-bottom: 2px;
+  }
+  .ct-followup-date { font-weight: 700; }
+  .ct-followup-note { font-size: 12.5px; color: var(--ct-ink-soft); white-space: pre-wrap; }
+  .ct-followup-edit-btn {
+    flex-shrink: 0; background: none; border: none; font-size: 13px; cursor: pointer; padding: 2px 4px;
+    border-radius: 5px; line-height: 1; opacity: 0.55; transition: opacity .12s ease, background .12s ease;
+  }
+  .ct-followup-edit-btn:hover { opacity: 1; background: var(--ct-gold-soft); }
+  .ct-followup-row.editing { flex-direction: column; align-items: stretch; border-left-color: var(--gold); }
+  .ct-followup-edit-date, .ct-followup-edit-note {
+    width: 100%; box-sizing: border-box; padding: 7px 9px; margin-bottom: 6px;
+    border: 1px solid var(--ct-line); border-radius: 6px; font-family: 'Lato', sans-serif; font-size: 12.5px;
+    color: var(--dark); background: #fffdf9;
+  }
+  .ct-followup-edit-date:focus, .ct-followup-edit-note:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
+  .ct-followup-edit-actions { display: flex; justify-content: flex-end; gap: 6px; }
+  .ct-followup-edit-actions button {
+    font-size: 11.5px; font-weight: 700; padding: 4px 11px; border-radius: 6px; cursor: pointer;
+    font-family: 'Lato', sans-serif; border: 1px solid var(--ct-line); background: #fff; color: var(--ct-ink-soft);
+  }
+  .ct-followup-edit-actions button[data-followup-save], .ct-followup-edit-actions #ct-followup-add-save {
+    background: var(--sage-dark); color: #fff; border-color: var(--sage-dark);
+  }
+  .ct-followup-edit-actions button[data-followup-save]:hover, .ct-followup-edit-actions #ct-followup-add-save:hover { background: var(--sage-darker); }
+  .ct-followup-edit-actions button[data-followup-delete] { color: var(--ct-overdue); border-color: #E3B8A9; }
+  .ct-followup-edit-actions button[data-followup-delete]:hover { background: var(--ct-overdue-soft); }
   .ct-outlook-btn {
     background: #eef4ea; border: 1px solid var(--sage-dark); color: var(--sage-darker);
     font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 20px; cursor: pointer;
@@ -15579,6 +15628,11 @@ ${bodyHtml}
   // reset whenever the profile is opened/closed so it never carries over
   // to a different client.
   let ctDetailNoteOpen = false;
+  // Which follow-up entry (by id, or the literal 'new' for the add form)
+  // currently has its inline editor open in the profile sidebar's
+  // Follow-ups section — same state-driven-redraw pattern as
+  // ctDetailNoteOpen, and reset alongside it in ctOpenDetail/ctCloseDetail.
+  let ctDetailFollowUpOpen = null;
   // Tracks whether the form currently open is a fresh Qualifying Call —
   // used only to decide where to land the DE after Save (see
   // ctHandleSave below); has no effect on what actually gets saved.
@@ -16417,6 +16471,138 @@ ${bodyHtml}
       </div>`;
   }
 
+  // Follow-ups (Sep 2026) — direct request: "make it so I can add
+  // additional follow ups, and click on the exsisting follow up
+  // notification to edit or see the information." Until now a client had
+  // exactly one scheduled follow-up (client.nextFollowUp, a single date
+  // string) — no way to have more than one on the books at a time, and no
+  // way to act on the date shown in the sidebar callout beyond re-opening
+  // the whole Edit form. `client.followUps` is the new source of truth: an
+  // array of `{id, date, note}` entries. `client.nextFollowUp` is KEPT,
+  // deliberately, as the derived "soonest" date — every existing consumer
+  // (ctGroupClients' urgency buckets, ctCardHTML, the Daily Brief,
+  // __ctGetTodoSummary → Daily Tasks' due-today pull, the Outlook deep
+  // link, the propose_todo_update AI tool) reads that one field and needed
+  // zero changes to keep working; ctSyncNextFollowUp() is the only thing
+  // that writes it now, called after every add/edit/delete below.
+  //
+  // Backward compatibility for every client saved before this feature
+  // existed (which has nextFollowUp but no followUps array yet):
+  // ctFollowUpsFor() synthesizes a single-entry list from the legacy field
+  // on the fly for DISPLAY, with no write — the array is only actually
+  // created (via ctMaterializeFollowUps) the first time the DE adds,
+  // edits, or deletes a follow-up through the new UI.
+  function ctFollowUpsFor(client) {
+    if (Array.isArray(client.followUps) && client.followUps.length) {
+      return client.followUps.slice().sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+    }
+    return client.nextFollowUp ? [{ id: 'legacy', date: client.nextFollowUp, note: '' }] : [];
+  }
+  function ctMaterializeFollowUps(client) {
+    if (!Array.isArray(client.followUps)) {
+      client.followUps = client.nextFollowUp ? [{ id: 'legacy', date: client.nextFollowUp, note: '' }] : [];
+    }
+    return client.followUps;
+  }
+  function ctSyncNextFollowUp(client) {
+    const dates = (client.followUps || []).map(f => f.date).filter(Boolean).sort();
+    client.nextFollowUp = dates.length ? dates[0] : '';
+  }
+  function ctAddFollowUp(clientId, date, note) {
+    if (!date) return;
+    const idx = ctClients.findIndex(c => c.id === clientId);
+    if (idx === -1) return;
+    const client = { ...ctClients[idx] };
+    const list = ctMaterializeFollowUps(client).slice();
+    list.push({ id: ctUid(), date, note: (note || '').trim() });
+    client.followUps = list;
+    ctSyncNextFollowUp(client);
+    ctClients[idx] = client;
+    ctSaveData();
+    ctRender();
+    if (ctDetailId === clientId) ctRenderDetail();
+  }
+  function ctUpdateFollowUp(clientId, followUpId, date, note) {
+    if (!date) return;
+    const idx = ctClients.findIndex(c => c.id === clientId);
+    if (idx === -1) return;
+    const client = { ...ctClients[idx] };
+    client.followUps = ctMaterializeFollowUps(client).map(f =>
+      f.id === followUpId ? { ...f, date, note: (note || '').trim() } : f
+    );
+    ctSyncNextFollowUp(client);
+    ctClients[idx] = client;
+    ctSaveData();
+    ctRender();
+    if (ctDetailId === clientId) ctRenderDetail();
+  }
+  function ctDeleteFollowUp(clientId, followUpId) {
+    const idx = ctClients.findIndex(c => c.id === clientId);
+    if (idx === -1) return;
+    const client = { ...ctClients[idx] };
+    client.followUps = ctMaterializeFollowUps(client).filter(f => f.id !== followUpId);
+    ctSyncNextFollowUp(client);
+    ctClients[idx] = client;
+    ctSaveData();
+    ctRender();
+    if (ctDetailId === clientId) ctRenderDetail();
+  }
+
+  // The sidebar's Follow-ups section: the full list (soonest first, the
+  // soonest badged "Next" since that's the one the card/urgency-grouping/
+  // Daily Tasks actually key off), each row's own ✏️ opening an inline
+  // editor in place, plus the same "+ Add" toggle pattern the Notes
+  // section already established (ctDetailFollowUpOpen mirrors
+  // ctDetailNoteOpen). Also the render target for a click on the task
+  // callout above it — see ctBuildTaskCallout's data-followup-open, wired
+  // through the same [data-followup-open] handler in ctRenderDetail.
+  function ctRenderFollowUpsSection(c) {
+    const list = ctFollowUpsFor(c);
+    const addOpen = ctDetailFollowUpOpen === 'new';
+    const rows = list.map((f, i) => {
+      if (ctDetailFollowUpOpen === f.id) {
+        return `
+        <div class="ct-followup-row editing" data-followup-row="${ctEscapeHtml(f.id)}">
+          <input type="date" class="ct-followup-edit-date" id="ct-followup-edit-date-${ctEscapeHtml(f.id)}" value="${ctEscapeHtml(f.date)}">
+          <input type="text" class="ct-followup-edit-note" id="ct-followup-edit-note-${ctEscapeHtml(f.id)}" placeholder="Note (optional)" value="${ctEscapeHtml(f.note || '')}">
+          <div class="ct-followup-edit-actions">
+            <button type="button" data-followup-delete="${ctEscapeHtml(f.id)}">Delete</button>
+            <button type="button" data-followup-cancel="${ctEscapeHtml(f.id)}">Cancel</button>
+            <button type="button" data-followup-save="${ctEscapeHtml(f.id)}">Save</button>
+          </div>
+        </div>`;
+      }
+      const d = ctDaysBetween(f.date);
+      const label = d < 0 ? `${ctFormatDate(f.date)} — ${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'} overdue`
+        : d === 0 ? `${ctFormatDate(f.date)} — due today`
+        : `${ctFormatDate(f.date)} — in ${d} day${d === 1 ? '' : 's'}`;
+      return `
+        <div class="ct-followup-row${i === 0 ? ' next' : ''}" data-followup-row="${ctEscapeHtml(f.id)}">
+          <div class="ct-followup-row-main">
+            ${i === 0 ? '<span class="ct-followup-next-badge">Next</span>' : ''}
+            <span class="ct-followup-date">${ctEscapeHtml(label)}</span>
+            ${f.note ? `<span class="ct-followup-note">${ctEscapeHtml(f.note)}</span>` : ''}
+          </div>
+          <button type="button" class="ct-followup-edit-btn" data-followup-open="${ctEscapeHtml(f.id)}" title="Edit this follow-up">✏️</button>
+        </div>`;
+    }).join('');
+    const addForm = addOpen ? `
+      <div class="ct-followup-row editing" data-followup-row="new">
+        <input type="date" class="ct-followup-edit-date" id="ct-followup-new-date" value="${ctEscapeHtml(ctTodayISO())}">
+        <input type="text" class="ct-followup-edit-note" id="ct-followup-new-note" placeholder="Note (optional)">
+        <div class="ct-followup-edit-actions">
+          <button type="button" id="ct-followup-add-cancel">Cancel</button>
+          <button type="button" id="ct-followup-add-save">Save</button>
+        </div>
+      </div>` : '';
+    return `
+      <div class="ct-sidebar-notes-head"><h4>Follow-ups</h4><button type="button" class="ct-sidebar-addnote-btn" id="ct-followup-add-toggle">${addOpen ? 'Cancel' : '+ Add'}</button></div>
+      ${rows}
+      ${!rows && !addOpen ? '<p class="ct-sidebar-notes-empty">No follow-ups scheduled.</p>' : ''}
+      ${addForm}
+    `;
+  }
+
   // Direct response to feedback that the wide profile modal left half its
   // width blank: this fills that space with the answer to "why does this
   // client need me right now," instead of just showing what's already on
@@ -16427,19 +16613,31 @@ ${bodyHtml}
   // rather than nothing at all — this is a static profile view someone
   // opened on purpose, not a repeating ambient nudge, so reassurance reads
   // better here than silence.
+  //
+  // Sep 2026: now a clickable button rather than static text — direct
+  // request to be able to "click on the exsisting follow up notification
+  // to edit or see the information." data-followup-open names WHICH
+  // follow-up entry this callout is actually about — the soonest one
+  // (list[0], since ctFollowUpsFor always returns soonest-first) when
+  // there's an overdue/due-soon date driving the banner, or the literal
+  // 'new' when there isn't (the hot-lead-staleness and clean states aren't
+  // about any particular scheduled date) — read by the same
+  // [data-followup-open] handler ctRenderFollowUpsSection's own ✏️ buttons
+  // use, one wiring path for both.
   function ctBuildTaskCallout(c, diff, isOverdue) {
     if (c.status === 'Closed') return '';
+    const nextId = ctFollowUpsFor(c)[0]?.id || 'new';
     if (isOverdue) {
-      return `<div class="ct-task-callout overdue">⚑ Follow-up overdue — was due ${ctEscapeHtml(ctFormatDate(c.nextFollowUp))}</div>`;
+      return `<button type="button" class="ct-task-callout overdue" data-followup-open="${ctEscapeHtml(nextId)}">⚑ Follow-up overdue — was due ${ctEscapeHtml(ctFormatDate(c.nextFollowUp))}<span class="ct-task-callout-hint">Tap to edit</span></button>`;
     }
     if (diff !== null && diff <= 7) {
-      return `<div class="ct-task-callout soon">📅 Follow-up due ${diff === 0 ? 'today' : `in ${diff} day${diff === 1 ? '' : 's'}`}</div>`;
+      return `<button type="button" class="ct-task-callout soon" data-followup-open="${ctEscapeHtml(nextId)}">📅 Follow-up due ${diff === 0 ? 'today' : `in ${diff} day${diff === 1 ? '' : 's'}`}<span class="ct-task-callout-hint">Tap to edit</span></button>`;
     }
     if (c.leadTemp === 'Hot Lead' && c.lastContact) {
       const daysSince = Math.floor((new Date(ctTodayISO()) - new Date(c.lastContact)) / 86400000);
-      if (daysSince >= 5) return `<div class="ct-task-callout hot">🔥 Hot Lead — no contact in ${daysSince} days</div>`;
+      if (daysSince >= 5) return `<button type="button" class="ct-task-callout hot" data-followup-open="new">🔥 Hot Lead — no contact in ${daysSince} days<span class="ct-task-callout-hint">Tap to schedule a follow-up</span></button>`;
     }
-    return `<div class="ct-task-callout clean">✓ Nothing urgent right now</div>`;
+    return `<button type="button" class="ct-task-callout clean" data-followup-open="new">✓ Nothing urgent right now<span class="ct-task-callout-hint">Tap to schedule a follow-up</span></button>`;
   }
 
   // Profile view: everything the compact card doesn't show, plus every
@@ -16451,14 +16649,11 @@ ${bodyHtml}
   function ctRenderDetail() {
     const c = ctClients.find(x => x.id === ctDetailId);
     if (!c) { ctCloseDetail(); return; }
+    // The old single "Next follow-up: X" line lived here — replaced by
+    // the Follow-ups section in the sidebar below, which now shows every
+    // scheduled follow-up (not just one), see ctRenderFollowUpsSection.
     const diff = c.nextFollowUp ? ctDaysBetween(c.nextFollowUp) : null;
     const isOverdue = diff !== null && diff < 0 && c.status !== 'Closed';
-    let followText = 'No follow-up date set';
-    if (c.nextFollowUp) {
-      if (diff < 0) followText = `Was due ${ctFormatDate(c.nextFollowUp)}, ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'} ago`;
-      else if (diff === 0) followText = 'Due today';
-      else followText = `${ctFormatDate(c.nextFollowUp)}, in ${diff} day${diff === 1 ? '' : 's'}`;
-    }
     const lastText = c.lastContact ? ctFormatDate(c.lastContact) : 'Not logged';
 
     const tripRows = [];
@@ -16576,7 +16771,6 @@ ${bodyHtml}
           <div class="ct-profile-section">
             <h4>Follow-up</h4>
             <div class="ct-profile-row">Last contact: ${lastText}</div>
-            <div class="ct-profile-row">Next follow-up: ${followText}</div>
           </div>
           ${ctSection('Client Details', clientDetailsRows)}
           ${ctSection('Trip Vision', visionRows)}
@@ -16591,6 +16785,7 @@ ${bodyHtml}
             <button type="button" class="ct-draft-btn" id="ct-detail-draft-btn">✉️ Draft Message</button>
             ${showOutlookBtn ? `<button type="button" class="ct-outlook-btn" id="ct-detail-outlook-btn">📅 Add to Outlook</button>` : ''}
           </div>
+          <div class="ct-profile-section">${ctRenderFollowUpsSection(c)}</div>
           <div class="ct-profile-section">${draftsHtml}</div>
           <div class="ct-profile-section">${notesHtml}</div>
         </div>
@@ -16635,6 +16830,57 @@ ${bodyHtml}
       }
       ctRenderDetail();
     });
+
+    // Follow-ups wiring. [data-followup-open] covers BOTH the task
+    // callout's own click (see ctBuildTaskCallout) and every row's ✏️
+    // button in the list below it — one handler for both, since they're
+    // the same action (open that entry's inline editor) just reached two
+    // different ways.
+    document.querySelectorAll('[data-followup-open]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        ctDetailFollowUpOpen = btn.dataset.followupOpen;
+        ctRenderDetail();
+      });
+    });
+    const followupAddToggle = document.getElementById('ct-followup-add-toggle');
+    if (followupAddToggle) followupAddToggle.addEventListener('click', () => {
+      ctDetailFollowUpOpen = ctDetailFollowUpOpen === 'new' ? null : 'new';
+      ctRenderDetail();
+      if (ctDetailFollowUpOpen === 'new') {
+        const input = document.getElementById('ct-followup-new-date');
+        if (input) input.focus();
+      }
+    });
+    const followupAddCancel = document.getElementById('ct-followup-add-cancel');
+    if (followupAddCancel) followupAddCancel.addEventListener('click', () => { ctDetailFollowUpOpen = null; ctRenderDetail(); });
+    const followupAddSave = document.getElementById('ct-followup-add-save');
+    if (followupAddSave) followupAddSave.addEventListener('click', () => {
+      const date = document.getElementById('ct-followup-new-date').value;
+      const note = document.getElementById('ct-followup-new-note').value;
+      ctDetailFollowUpOpen = null;
+      if (date) ctAddFollowUp(c.id, date, note);
+      else ctRenderDetail();
+    });
+    document.querySelectorAll('[data-followup-save]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.followupSave;
+        const date = document.getElementById(`ct-followup-edit-date-${id}`).value;
+        const note = document.getElementById(`ct-followup-edit-note-${id}`).value;
+        ctDetailFollowUpOpen = null;
+        if (date) ctUpdateFollowUp(c.id, id, date, note);
+        else ctRenderDetail();
+      });
+    });
+    document.querySelectorAll('[data-followup-delete]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.followupDelete;
+        ctDetailFollowUpOpen = null;
+        ctDeleteFollowUp(c.id, id);
+      });
+    });
+    document.querySelectorAll('[data-followup-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => { ctDetailFollowUpOpen = null; ctRenderDetail(); });
+    });
   }
 
   let ctDetailId = null;
@@ -16642,6 +16888,7 @@ ${bodyHtml}
   function ctOpenDetail(id) {
     ctDetailId = id;
     ctDetailNoteOpen = false;
+    ctDetailFollowUpOpen = null;
     document.getElementById('ct-toolbar').hidden = true;
     document.getElementById('ct-view-toggle').hidden = true;
     document.getElementById('ct-tabs').hidden = true;
@@ -16653,6 +16900,7 @@ ${bodyHtml}
   function ctCloseDetail() {
     ctDetailId = null;
     ctDetailNoteOpen = false;
+    ctDetailFollowUpOpen = null;
     document.getElementById('ct-detail').hidden = true;
     document.getElementById('ct-toolbar').hidden = false;
     document.getElementById('ct-view-toggle').hidden = false;
@@ -17072,6 +17320,30 @@ ${bodyHtml}
     const idx = ctClients.findIndex(c => c.id === id);
     if (idx === -1) return false;
     ctClients[idx] = { ...ctClients[idx], ...fields };
+    // A patch that changes nextFollowUp is the AI's own tool acting on
+    // the SAME field the manual Follow-ups list (see ctAddFollowUp et al.
+    // above) keeps synced from its own array — without this, the next
+    // manual add/edit/delete there would recompute nextFollowUp from
+    // whatever's in followUps and silently undo the AI's change. Folds
+    // the new date into the list as its soonest entry (or drops the
+    // soonest entry if the AI cleared it), then re-syncs nextFollowUp
+    // from the resulting list — so if a LATER follow-up was already
+    // scheduled, clearing the soonest one correctly bumps that one up
+    // instead of leaving nextFollowUp stuck empty.
+    if (fields.nextFollowUp !== undefined) {
+      const client = { ...ctClients[idx] };
+      const list = ctMaterializeFollowUps(client).slice().sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+      if (!fields.nextFollowUp) {
+        if (list.length) list.shift();
+      } else if (list.length) {
+        list[0] = { ...list[0], date: fields.nextFollowUp };
+      } else {
+        list.push({ id: ctUid(), date: fields.nextFollowUp, note: '' });
+      }
+      client.followUps = list;
+      ctSyncNextFollowUp(client);
+      ctClients[idx] = client;
+    }
     ctSaveData();
     ctRender();
     if (ctDetailId === id) ctRenderDetail();
