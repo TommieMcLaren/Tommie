@@ -784,22 +784,23 @@
      display:none (nothing to animate from) or safely display:none it
      before its own fade-out finishes playing. */
   #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
-  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay {
+  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay {
     opacity: 0; transition: opacity .18s ease;
   }
   #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
-  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown {
+  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown {
     opacity: 1;
   }
   #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
-  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal {
+  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal {
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
   #ta-itinerary-overlay.shown #ta-itinerary-modal, #ta-draft-overlay.shown #ta-draft-modal,
   #quote-builder-overlay.shown #quote-builder-modal, #dashboard-overlay.shown #dashboard-modal,
   #stale-overlay.shown #stale-modal, #tmm-overlay.shown #tmm-modal,
-  #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal, #dt-overlay.shown #dt-modal {
+  #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal, #dt-overlay.shown #dt-modal,
+  #ct-scan-overlay.shown #ct-scan-modal {
     transform: translateY(0) scale(1);
   }
 
@@ -1616,7 +1617,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -11737,6 +11738,15 @@ ${resultsBody}
   #ta-image-preview.shown { display: flex; }
   #ta-image-preview-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(0,0,0,0.1); }
   #ta-image-preview-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Import to Client Tracker (Sep 2026) — same blue accent as the Client
+     Tracker's own #ct-scan-btn, so this reads as "the same action,
+     triggered from here too" rather than a new, unrelated control. */
+  #ta-image-import-btn {
+    background: #E4E9F0; color: #3d5470; border: 1px solid #c3cee0; border-radius: 20px;
+    padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+    font-family: 'Lato', sans-serif; white-space: nowrap;
+  }
+  #ta-image-import-btn:hover { background: #d3dcec; }
   #ta-image-remove { background: none; border: none; color: #b5473f; cursor: pointer; font-size: 13px; flex-shrink: 0; }
   .ta-msg-image { max-width: 220px; border-radius: 10px; display: block; margin-top: 6px; }
 
@@ -11827,6 +11837,7 @@ ${resultsBody}
   <div id="ta-image-preview" hidden>
     <img id="ta-image-preview-thumb" alt="Attached image">
     <span id="ta-image-preview-name"></span>
+    <button type="button" id="ta-image-import-btn" title="Scan this as a TMT follow-up list into Client Tracker">📇 Import to Client Tracker</button>
     <button type="button" id="ta-image-remove" title="Remove image">✕</button>
   </div>
   <div id="ta-voice-caption" hidden></div>
@@ -13405,6 +13416,24 @@ Tommie McLaren`
 
   if (imageAttachBtn) imageAttachBtn.addEventListener('click', () => imageFileInput.click());
   if (imageRemoveBtn) imageRemoveBtn.addEventListener('click', () => { pendingImage = null; hideImagePreview(); });
+  // Reuses whatever image is already attached here — no second file
+  // picker — and hands it straight to Client Tracker's own scan/review
+  // pipeline (window.__ctImportFromImage) instead of asking a vision
+  // question about it. The image is "spent" once sent either way, so
+  // this clears pendingImage/hides the preview just like actually
+  // sending a caption would.
+  const imageImportBtn = document.getElementById('ta-image-import-btn');
+  if (imageImportBtn) imageImportBtn.addEventListener('click', () => {
+    if (!pendingImage) return;
+    const img = pendingImage;
+    pendingImage = null;
+    hideImagePreview();
+    if (window.__ctImportFromImage) {
+      window.__ctImportFromImage(img.base64, img.mediaType);
+    } else {
+      addMsg('sys', "Client Tracker hasn't loaded yet — try again in a moment.", false);
+    }
+  });
   if (imageFileInput) imageFileInput.addEventListener('change', () => {
     const file = imageFileInput.files && imageFileInput.files[0];
     if (!file) return;
@@ -14914,6 +14943,7 @@ ${bodyHtml}
     border-radius: 20px;
     box-shadow: 0 30px 80px rgba(10,20,12,0.35), 0 2px 8px rgba(10,20,12,0.1);
     display: flex; flex-direction: column; overflow: hidden;
+    position: relative; /* anchors #ct-dropzone-overlay (Sep 2026) */
     font-family: 'Lato', sans-serif; color: var(--dark);
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
@@ -14979,6 +15009,26 @@ ${bodyHtml}
     font-family: 'Lato', sans-serif; transition: background .12s ease, transform .12s ease;
   }
   #ct-call-btn:hover { background: var(--gold-text); transform: translateY(-1px); }
+  /* TMT screenshot import (Sep 2026) — a third "get a client/follow-up
+     into the tracker" action, deliberately its own color (the same blue
+     family as .ct-flag.temp.checkback) so it doesn't read as a variant of
+     Add/Qualifying-Call, which do something quite different (start one
+     blank client) from this (parse a photo into possibly many rows). */
+  #ct-scan-btn {
+    background: #E4E9F0; color: #3d5470; border: 1px solid #c3cee0; border-radius: 8px;
+    padding: 9px 16px; font-size: 13.5px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+    font-family: 'Lato', sans-serif; transition: background .12s ease, transform .12s ease;
+  }
+  #ct-scan-btn:hover { background: #d3dcec; transform: translateY(-1px); }
+  /* Full-panel highlight shown while dragging any file over the open
+     Client Tracker — a plain dashed-border overlay, not a real drop
+     target of its own; the actual 'drop' listener lives on #ct-panel. */
+  #ct-dropzone-overlay {
+    position: absolute; inset: 10px; z-index: 20; display: none; align-items: center; justify-content: center;
+    background: rgba(228, 233, 240, 0.94); border: 3px dashed #3d5470; border-radius: 14px;
+    font-size: 16px; font-weight: 700; color: #3d5470; text-align: center; padding: 20px; pointer-events: none;
+  }
+  #ct-panel.ct-dragover #ct-dropzone-overlay { display: flex; }
 
   /* "All Clients" view toggle (Sep 2026, restyled after live feedback —
      "clean this up... more fluid... organize a bit better"). Originally
@@ -15331,6 +15381,53 @@ ${bodyHtml}
 
   #ct-status-msg { font-size: 12px; color: var(--ct-ink-soft); text-align: center; padding: 8px 26px 14px; flex-shrink: 0; }
 
+  /* TMT screenshot import review (Sep 2026) — reuses the same
+     overlay/modal pop-out pattern as #ta-itinerary-overlay (opened from
+     within, sits on top of whatever's open, z-index above both #ta-panel
+     and #ct-overlay since it can be triggered from either one). Added to
+     the shared open/close fade-transition list above alongside the other
+     "opened from within" pop-outs. */
+  #ct-scan-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-scan-overlay.open { display: flex; }
+  #ct-scan-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 760px; width: 100%; max-height: 88vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid #3d5470; position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-scan-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-scan-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-scan-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-scan-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-scan-close:hover { color: var(--sage-darker); }
+  #ct-scan-body { padding: 4px 30px 18px; overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-scan-loading, .ct-scan-error { padding: 30px 0; text-align: center; font-size: 14px; color: var(--ct-ink-soft); }
+  .ct-scan-error { color: var(--ct-overdue); }
+  .ct-scan-summary { font-size: 12.5px; color: var(--ct-ink-soft); margin-bottom: 12px; }
+  .ct-scan-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ct-line);
+  }
+  .ct-scan-row:last-child { border-bottom: none; }
+  .ct-scan-row input[type="checkbox"] { margin-top: 4px; flex-shrink: 0; }
+  .ct-scan-row-main { flex: 1; min-width: 0; }
+  .ct-scan-row-task { font-size: 13.5px; color: var(--dark); }
+  .ct-scan-row-meta { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 2px; }
+  .ct-scan-row-select {
+    flex-shrink: 0; width: 210px; font: inherit; font-size: 12.5px; padding: 5px 8px;
+    border: 1px solid var(--ct-line); border-radius: 6px; background: #fff; color: var(--dark);
+  }
+  .ct-scan-row.matched .ct-scan-row-select { border-color: #3d5470; }
+  #ct-scan-actions { padding: 14px 30px 22px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--ct-line); }
+  #ct-scan-cancel {
+    font-size: 12.5px; font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    font-family: 'Lato', sans-serif; border: 1px solid var(--ct-line); background: #fff; color: var(--ct-ink-soft);
+  }
+  #ct-scan-apply {
+    font-size: 12.5px; font-weight: 700; padding: 8px 18px; border-radius: 8px; cursor: pointer;
+    font-family: 'Lato', sans-serif; border: none; background: #3d5470; color: #fff;
+  }
+  #ct-scan-apply:hover { background: #30435a; }
+  #ct-scan-apply:disabled { opacity: 0.6; cursor: default; }
+
   @media (max-width: 700px) {
     #ct-overlay { padding: 0; }
     #ct-panel { border-radius: 0; }
@@ -15373,8 +15470,11 @@ ${bodyHtml}
     <div id="ct-toolbar-actions">
       <button type="button" id="ct-add-btn">+ Add client</button>
       <button type="button" id="ct-call-btn">🎯 Qualifying Call</button>
+      <button type="button" id="ct-scan-btn" title="Drop or pick a TMT screenshot to import follow-ups">📷 Scan TMT</button>
+      <input type="file" id="ct-scan-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     </div>
   </div>
+  <div id="ct-dropzone-overlay">📷 Drop a TMT screenshot here to import follow-ups</div>
   <div id="ct-view-toggle">
     <button type="button" class="ct-view-tab active" data-view="urgency">📅 Follow-up</button>
     <button type="button" class="ct-view-tab" data-view="all">📇 All Clients</button>
@@ -15600,6 +15700,21 @@ ${bodyHtml}
   </div>
   <p id="ct-status-msg"></p>
 </div>
+</div>
+
+<div id="ct-scan-overlay">
+  <div id="ct-scan-modal">
+    <button type="button" id="ct-scan-close" aria-label="Close">✕</button>
+    <div id="ct-scan-head">
+      <h3>📷 Review TMT Import</h3>
+      <p>Nothing is added until you hit Apply — check each row before confirming.</p>
+    </div>
+    <div id="ct-scan-body"></div>
+    <div id="ct-scan-actions">
+      <button type="button" id="ct-scan-cancel">Cancel</button>
+      <button type="button" id="ct-scan-apply" disabled>Apply</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -15968,6 +16083,226 @@ ${bodyHtml}
     };
     reader.onerror = () => ctSetStatus('Could not read that file — nothing imported.');
     reader.readAsText(file);
+  }
+
+  // ---------- TMT screenshot import (Sep 2026, unverified live) ----------
+  // Direct request: drag/drop (or pick) a screenshot of TMT's own
+  // follow-up/to-do list and pull it into the tracker — matched to an
+  // existing client where one exists, offered as a new client where one
+  // doesn't. Reuses the Trip Assistant's already-working vision call
+  // (window.__taCallClaudeAI, same BYOK key, same call this file already
+  // makes for AI itinerary matching — see ctRunAiItineraryMatch above)
+  // rather than building a second image pipeline; this is the FIRST
+  // AI-driven CRM write that goes through a real multi-row review screen
+  // instead of ctOpenForm's own pre-fill — a batch of a dozen to-do rows
+  // has no single form to prefill, so this is the propose-then-confirm
+  // pattern's natural next shape: EVERY row gets its own explicit
+  // checkbox + client choice, nothing is written until Apply.
+  const CT_MAX_SCAN_IMAGE_BYTES = 5 * 1024 * 1024; // matches TA_MAX_IMAGE_BYTES
+
+  function ctReadImageFile(file) {
+    return new Promise((resolve, reject) => {
+      if (file.size > CT_MAX_SCAN_IMAGE_BYTES) { reject(new Error(`That image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB) — try one under 5MB.`)); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        const m = typeof dataUrl === 'string' && dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+        if (!m) { reject(new Error("Couldn't read that image — try a different file.")); return; }
+        resolve({ mediaType: m[1], base64: m[2] });
+      };
+      reader.onerror = () => reject(new Error("Couldn't read that image — try a different file."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // The model is instructed to answer with ONLY a JSON array — but models
+  // don't always resist wrapping it in a code fence or adding a stray
+  // sentence, so this tolerates both: strip a ```/```json fence if
+  // present, then fall back to pulling out the first [...] substring if a
+  // direct parse still fails, before giving up.
+  function ctParseScanJson(text) {
+    const stripped = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    try { const parsed = JSON.parse(stripped); return Array.isArray(parsed) ? parsed : null; } catch (e) { /* fall through */ }
+    const m = stripped.match(/\[[\s\S]*\]/);
+    if (m) { try { const parsed = JSON.parse(m[0]); return Array.isArray(parsed) ? parsed : null; } catch (e) { /* give up */ } }
+    return null;
+  }
+
+  function ctScanRowMeta(row) {
+    const bits = [];
+    bits.push(row.date ? ctFormatDate(row.date) : 'no date detected');
+    if (row.client) bits.push(`mentioned: ${row.client}`);
+    return bits.join(' · ');
+  }
+
+  function ctRenderScanRows(rows) {
+    if (!rows.length) return '<div class="ct-scan-error">Didn\'t find any follow-up rows in that image — try a clearer screenshot of the to-do list.</div>';
+    const matchedCount = rows.filter(r => r.matchedId).length;
+    const summary = `<div class="ct-scan-summary">${rows.length} row${rows.length === 1 ? '' : 's'} found — ${matchedCount} matched to an existing client. Review each one below, then Apply.</div>`;
+    const optionsFor = (row, defaultIsNew) => {
+      const opts = [`<option value="skip">— Skip —</option>`];
+      opts.push(`<option value="new"${defaultIsNew ? ' selected' : ''}>+ New client${row.client ? ': ' + ctEscapeHtml(row.client) : ''}</option>`);
+      ctClients.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+        opts.push(`<option value="existing:${ctEscapeHtml(c.id)}"${c.id === row.matchedId ? ' selected' : ''}>${ctEscapeHtml(c.name)}</option>`);
+      });
+      return opts.join('');
+    };
+    const rowsHtml = rows.map((row, i) => {
+      const defaultChecked = !!(row.matchedId || row.client);
+      const defaultIsNew = !row.matchedId && !!row.client;
+      return `
+      <div class="ct-scan-row${row.matchedId ? ' matched' : ''}" data-row="${i}">
+        <input type="checkbox" data-row-check="${i}"${defaultChecked ? ' checked' : ''}>
+        <div class="ct-scan-row-main">
+          <div class="ct-scan-row-task">${ctEscapeHtml(row.task || '(no task text)')}</div>
+          <div class="ct-scan-row-meta">${ctEscapeHtml(ctScanRowMeta(row))}</div>
+          <input type="text" class="ct-followup-edit-note ct-scan-row-newname" data-row-newname="${i}" placeholder="New client's name" value="${ctEscapeHtml(row.client || '')}" ${defaultIsNew ? '' : 'hidden'} style="margin-top:6px;">
+        </div>
+        <select class="ct-scan-row-select" data-row-select="${i}">${optionsFor(row, defaultIsNew)}</select>
+      </div>`;
+    }).join('');
+    return summary + rowsHtml;
+  }
+
+  function ctWireScanRows() {
+    document.querySelectorAll('.ct-scan-row-select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const i = sel.dataset.rowSelect;
+        const nameInput = document.querySelector(`[data-row-newname="${i}"]`);
+        if (!nameInput) return;
+        nameInput.hidden = sel.value !== 'new';
+        if (sel.value === 'new') nameInput.focus();
+      });
+    });
+  }
+
+  let ctScanCurrentRows = [];
+
+  function ctOpenScanOverlay() {
+    const overlay = document.getElementById('ct-scan-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseScanReview() {
+    const overlay = document.getElementById('ct-scan-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+    ctScanCurrentRows = [];
+    document.getElementById('ct-scan-apply').disabled = true;
+  }
+
+  // The one entry point both the Client Tracker's own "📷 Scan TMT"
+  // button/drop-zone AND the Trip Assistant's image-attach preview (see
+  // window.__ctImportFromImage below) call into — one shared pipeline
+  // regardless of which panel the image came from, per the "Client
+  // Tracker, Assistant, and Task list all need to work in unison" ask.
+  async function ctOpenScanReview(base64, mediaType) {
+    ctOpenScanOverlay();
+    const bodyEl = document.getElementById('ct-scan-body');
+    const applyBtn = document.getElementById('ct-scan-apply');
+    applyBtn.disabled = true;
+    bodyEl.innerHTML = '<div class="ct-scan-loading"><span class="ta-spinner"></span> Reading the image…</div>';
+    if (!window.__taCallClaudeAI || !window.__taHasApiKey || !window.__taHasApiKey()) {
+      bodyEl.innerHTML = '<div class="ct-scan-error">Add your Anthropic API key in Trip Assistant\'s ⚙️ Settings to use image import.</div>';
+      return;
+    }
+    const content = [
+      { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+      { type: 'text', text: 'Extract every follow-up/to-do row from this screenshot.' }
+    ];
+    const note = `This is a screenshot from Kensington Tours' internal system (TMT) showing a
+list of follow-up/to-do tasks, grouped under client-name headers (a blue link showing the
+client's name, sometimes with a small number badge). Extract EVERY task row into a JSON array.
+For each row output an object with exactly these keys:
+{"client": the name from the nearest client-name header above this row, or null if you genuinely
+can't tell which client it belongs to, "task": the row's own text exactly as written, "date": the
+row's own date converted to YYYY-MM-DD, or null if no date is shown}.
+IMPORTANT: this system's dates are formatted DD/MM/YY (day first, then month, then a 2-digit year
+meaning 20YY) — NOT American MM/DD/YY. So "22/08/26" means August 22, 2026, which you must output
+as "2026-08-22". Get this conversion right.
+Respond with ONLY the JSON array — no markdown code fence, no explanation, no leading or trailing
+text. If you can't find any rows at all, respond with exactly: []`;
+    let result;
+    try {
+      result = await window.__taCallClaudeAI([{ role: 'user', content }], note, null, null);
+    } catch (e) {
+      bodyEl.innerHTML = `<div class="ct-scan-error">Something went wrong reading that image — try again.</div>`;
+      return;
+    }
+    if (result.error) {
+      bodyEl.innerHTML = `<div class="ct-scan-error">${ctEscapeHtml(result.error)}</div>`;
+      return;
+    }
+    const parsed = ctParseScanJson(result.text);
+    if (!parsed) {
+      bodyEl.innerHTML = `<div class="ct-scan-error">Couldn't make sense of that image as a TMT follow-up list — try a clearer screenshot.</div>`;
+      return;
+    }
+    const rows = parsed
+      .filter(r => r && typeof r === 'object' && (r.task || r.client))
+      .map(r => {
+        const client = r.client && String(r.client).trim() ? String(r.client).trim() : null;
+        const date = r.date && /^\d{4}-\d{2}-\d{2}$/.test(String(r.date)) ? String(r.date) : null;
+        const matched = client ? window.__ctFindClientByName(client) : null;
+        return { client, task: r.task ? String(r.task).trim() : '', date, matchedId: matched ? matched.id : null };
+      });
+    ctScanCurrentRows = rows;
+    bodyEl.innerHTML = ctRenderScanRows(rows);
+    ctWireScanRows();
+    applyBtn.disabled = !rows.length;
+  }
+
+  function ctApplyScanReview() {
+    const newClientIds = new Map(); // lowercased extracted name -> freshly created client id, so 3 rows for the same not-yet-tracked name don't create 3 separate clients
+    let followUpsAdded = 0, clientsCreated = 0, skipped = 0;
+    document.querySelectorAll('.ct-scan-row').forEach(rowEl => {
+      const i = rowEl.dataset.row;
+      const checked = document.querySelector(`[data-row-check="${i}"]`).checked;
+      if (!checked) { skipped++; return; }
+      const select = document.querySelector(`[data-row-select="${i}"]`);
+      const value = select.value;
+      const row = ctScanCurrentRows[Number(i)];
+      if (!row || value === 'skip') { skipped++; return; }
+      let clientId = null;
+      if (value === 'new') {
+        const nameInput = document.querySelector(`[data-row-newname="${i}"]`);
+        const name = nameInput ? nameInput.value.trim() : '';
+        if (!name) { skipped++; return; }
+        const key = name.toLowerCase();
+        if (newClientIds.has(key)) {
+          clientId = newClientIds.get(key);
+        } else {
+          clientId = ctUid();
+          ctClients.push({ id: clientId, name, status: 'Inquiry', leadTemp: '', destination: '', nextFollowUp: '', lastContact: '', notes: '', followUps: [] });
+          newClientIds.set(key, clientId);
+          clientsCreated++;
+        }
+      } else if (value.startsWith('existing:')) {
+        clientId = value.slice('existing:'.length);
+      }
+      if (!clientId) { skipped++; return; }
+      if (row.date) {
+        ctAddFollowUp(clientId, row.date, row.task);
+        followUpsAdded++;
+      } else {
+        skipped++;
+      }
+    });
+    // A real bug caught by testing, not guessed at: ctAddFollowUp already
+    // saves+re-renders on its own, but a brand-new client created from a
+    // row with NO date (nothing to schedule yet, so ctAddFollowUp above
+    // is never reached for it) was pushed onto ctClients in memory and
+    // then silently never persisted or shown anywhere — this is the one
+    // remaining save path for that case. Harmless extra write on a batch
+    // that also added follow-ups (ctSaveData/ctRender are cheap and
+    // idempotent), and skipped entirely when nothing changed at all.
+    if (clientsCreated && !followUpsAdded) { ctSaveData(); ctRender(); }
+    ctCloseScanReview();
+    const parts = [];
+    if (followUpsAdded) parts.push(`Added ${followUpsAdded} follow-up${followUpsAdded === 1 ? '' : 's'}.`);
+    if (clientsCreated) parts.push(`Created ${clientsCreated} new client${clientsCreated === 1 ? '' : 's'}.`);
+    if (skipped) parts.push(`${skipped} row${skipped === 1 ? '' : 's'} skipped.`);
+    ctSetStatus(parts.length ? parts.join(' ') : 'Nothing applied.');
   }
 
   // ---------- Background reminders via a companion service worker
@@ -17184,6 +17519,45 @@ ${bodyHtml}
     ctImportBackup(file);
     ctImportFileInput.value = ''; // so re-selecting the same file still fires 'change'
   });
+
+  // TMT screenshot import — the toolbar button (pick a file) and dragging
+  // a file anywhere over the open panel both feed the same
+  // ctReadImageFile → ctOpenScanReview pipeline.
+  const ctScanFileInput = document.getElementById('ct-scan-file');
+  document.getElementById('ct-scan-btn').addEventListener('click', () => ctScanFileInput.click());
+  ctScanFileInput.addEventListener('change', () => {
+    const file = ctScanFileInput.files && ctScanFileInput.files[0];
+    ctScanFileInput.value = '';
+    if (!file) return;
+    ctReadImageFile(file).then(img => ctOpenScanReview(img.base64, img.mediaType)).catch(e => ctSetStatus(e.message));
+  });
+  let ctDragDepth = 0;
+  const ctPanelEl = document.getElementById('ct-panel');
+  ctPanelEl.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    ctDragDepth++;
+    ctPanelEl.classList.add('ct-dragover');
+  });
+  ctPanelEl.addEventListener('dragover', (e) => e.preventDefault());
+  ctPanelEl.addEventListener('dragleave', () => {
+    ctDragDepth = Math.max(0, ctDragDepth - 1);
+    if (ctDragDepth === 0) ctPanelEl.classList.remove('ct-dragover');
+  });
+  ctPanelEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    ctDragDepth = 0;
+    ctPanelEl.classList.remove('ct-dragover');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { ctSetStatus('That\'s not an image — drop a screenshot to import.'); return; }
+    ctReadImageFile(file).then(img => ctOpenScanReview(img.base64, img.mediaType)).catch(e2 => ctSetStatus(e2.message));
+  });
+  document.getElementById('ct-scan-close').addEventListener('click', ctCloseScanReview);
+  document.getElementById('ct-scan-cancel').addEventListener('click', ctCloseScanReview);
+  document.getElementById('ct-scan-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-scan-overlay') ctCloseScanReview();
+  });
+  document.getElementById('ct-scan-apply').addEventListener('click', ctApplyScanReview);
   document.getElementById('ct-cancel-btn').addEventListener('click', ctCloseForm);
   document.getElementById('ct-save-btn').addEventListener('click', ctHandleSave);
 
@@ -17394,6 +17768,14 @@ ${bodyHtml}
     ctRender();
     return { clientId: ctClients[foundIdx].id, clientName: ctClients[foundIdx].name };
   };
+  // Lets the Trip Assistant's image-attach preview trigger this same
+  // scan-and-review pipeline on whatever image the DE already attached
+  // there, instead of duplicating the extraction/matching/review logic a
+  // second time in that script — same "resolve internally, act, don't
+  // leak data across the boundary" shape as every other window.__ct*
+  // export, just reached from the opposite direction (Trip Assistant
+  // calling INTO Client Tracker rather than the other way around).
+  window.__ctImportFromImage = (base64, mediaType) => ctOpenScanReview(base64, mediaType);
 })();
 </script>
 

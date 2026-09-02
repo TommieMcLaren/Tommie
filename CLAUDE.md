@@ -3805,6 +3805,184 @@ works with the task list and updates in the appropriate places."
   confirm the client's card/urgency grouping and the Daily Tasks panel
   all reflect whichever follow-up is now soonest.
 
+## TMT screenshot import — drag/drop a follow-up list, review, apply (Sep 2026, unverified live)
+
+Started as a feasibility question — "is it possible to add a drag & drop
+feature where the client tracker and/or the assistant scans the photo
+and pulls the information from it... new client... into the new client
+fields" — then reshaped entirely by two real screenshots the DE sent of
+their own TMT (Kensington's internal system): NOT a single client detail
+card as first assumed, but TMT's own to-do/follow-up list, grouped by
+section (To Dos/Post Sale/Pre Sale) and then by client-name header (a
+blue link, sometimes with a small count badge), with plain task rows and
+`DD/MM/YY` dates nested under each. The DE also confirmed one of the
+header names in their screenshot ("Tommie McLaren") was their own test
+profile, not a grouping label — settling that the header rows really are
+client names, one section can contain the SAME client's name more than
+once (multiple bookings/threads), and most individual task rows (TMT's
+own cadence-step labels like "First Engagement Attempt") carry NO name
+of their own at all — only the group header does. Mid-build, the DE
+added: "The client tracker, assistant and Task list will all need to
+work in unison to talk to each other as well for this."
+
+- **Reuses the Trip Assistant's already-working vision call
+  (`window.__taCallClaudeAI`) rather than a second image pipeline** —
+  same BYOK key, same call this file already makes for AI itinerary
+  matching (`ctRunAiItineraryMatch`, built earlier this session). One
+  vision call per import, asking for a strict JSON array —
+  `{client, task, date}` per row — with an explicit instruction that TMT
+  dates are day-first (`22/08/26` → `2026-08-22`, not the American
+  reading) since getting that backwards would silently mis-schedule
+  every imported follow-up by weeks. `ctParseScanJson()` tolerates a
+  stray code fence or leading sentence around the JSON (models don't
+  always follow "respond with ONLY..." exactly, same lesson this file
+  already learned from the draft-detection regex earlier this session)
+  before giving up and showing an error.
+- **A real multi-row review screen, not ctOpenForm's single-client
+  prefill.** A batch of a dozen to-do rows has no one form to pre-fill —
+  this is the propose-then-confirm pattern's natural next shape: every
+  extracted row gets its own checkbox, a client-choice dropdown
+  (pre-selected to a matched existing client via the same fuzzy
+  `window.__ctFindClientByName` logic this file already uses elsewhere,
+  or to "+ New client: <name>" when the row's own name doesn't match
+  anyone tracked, or to "— Skip —" when no name was extracted at all),
+  and — only when "+ New client" is selected — an editable name field.
+  Nothing is written to `ctClients` until the DE hits Apply; Cancel (or
+  the ✕/backdrop) discards everything extracted.
+- **Multiple rows for the same not-yet-tracked name merge into ONE new
+  client, not one per row** — a `Map` keyed by the lowercased typed name,
+  built fresh per Apply call, so three cadence-step rows all under the
+  DE's own "Tommie McLaren" test-profile header (or any real client with
+  several open to-dos) land as three follow-ups on a single new client
+  record, matching how the DE actually thinks about "this is all the
+  same person."
+- **A row with a name but no visible date still creates the client, just
+  with no follow-up scheduled** — rather than being silently dropped.
+  TMT's own cadence-label rows sometimes have no date rendered in the
+  screenshot at all; losing the name entirely in that case would throw
+  away real information the DE could still use (a client worth adding
+  even before knowing when to follow up).
+- **Works in unison, per the explicit ask, largely by construction, not
+  new plumbing.** Because applied follow-ups go through the exact same
+  `ctAddFollowUp()` built earlier this session (which keeps
+  `nextFollowUp` synced as the derived soonest date), everything that
+  already reads that field — the card, urgency grouping, the Daily
+  Brief, and Daily Tasks' `dtGetDueFollowUps()` (via
+  `window.__ctGetTodoSummary()`) — picks up an imported follow-up with
+  zero additional wiring. The one genuinely NEW integration point: the
+  Trip Assistant's existing 📎 image-attach preview gained a second
+  button, "📇 Import to Client Tracker," next to the existing Remove —
+  reuses whatever image is already attached there (no second file
+  picker) and hands it straight to Client Tracker's own pipeline via a
+  new `window.__ctImportFromImage` export, the same "resolve internally,
+  act, don't leak data across the boundary" shape as every other
+  `window.__ct*`/`window.__ta*` export in this file, just reached from
+  the opposite direction. The image is "spent" either way (asking a
+  vision question about it, or importing it), so clicking either button
+  clears `pendingImage` and hides the preview the same way sending
+  a caption already did.
+- **Drag-and-drop is real, not just a picker button** — dragging any
+  file over the open Client Tracker panel (`#ct-panel`) shows a dashed-
+  border highlight (`#ct-dropzone-overlay`, tracked via a drag-depth
+  counter so a drag over a CHILD element inside the panel doesn't
+  flicker the overlay on/off — a real gotcha with nested `dragenter`/
+  `dragleave` events); dropping a non-image file shows a plain status
+  message instead of attempting extraction. The toolbar's own
+  "📷 Scan TMT" button (next to Add client/Qualifying Call, a distinct
+  blue accent so it doesn't read as a third variant of those two) opens
+  the same file picker + pipeline for anyone who'd rather click.
+- **A real review-modal pop-out** (`#ct-scan-overlay`/`#ct-scan-modal`),
+  added to the same shared open/close fade-transition CSS list every
+  other "opened from within" pop-out in this file already uses, with a
+  z-index (10500) above both `#ta-panel` (9999) and `#ct-overlay`
+  (10000) since it can be triggered from either one and needs to sit on
+  top regardless of which panel is actually open underneath.
+- **Two real bugs caught by testing, not guessed at, both fixed before
+  shipping.** (1) A new client created from a date-less row was pushed
+  onto `ctClients` in memory but never actually persisted or re-rendered
+  — `ctAddFollowUp()` is the only thing that calls `ctSaveData()`/
+  `ctRender()`, and it's never reached for a row with no date, so the
+  one remaining save path for "client created, nothing scheduled yet"
+  was simply missing. Fixed by calling `ctSaveData()`/`ctRender()` once
+  after the whole batch when at least one client was created but no
+  follow-up was ever added (a no-op, cheap check, on any batch that DID
+  add a follow-up, since `ctAddFollowUp` already covered that case).
+  (2) The "+ New client" `<option>` was never actually marked `selected`
+  even when it was meant to be the row's default choice — every row
+  with no existing-client match was silently defaulting to "— Skip —"
+  (the first option) instead of "+ New client" as designed, since
+  nothing else in that row's `<select>` ever carried the `selected`
+  attribute either. Fixed by threading the same `defaultIsNew` flag
+  already computed for the checkbox/name-input visibility into the
+  option-building function too.
+- **A real test-harness gap found and fixed along the way, not an app
+  bug**: this session's Node execution-harness (`dom_harness.js`) had
+  always given `<select>`/`<input>` elements a plain, construction-time
+  `value`/`checked`/`hidden`/`disabled` property — fine for this
+  project's earlier tests (which only ever read those AFTER setting them
+  directly via JS), but wrong here, where the review modal's rows are
+  rendered fresh via `innerHTML` with `selected`/`checked`/`hidden`
+  already baked into the markup string. `parseFragment()` calls
+  `makeElement(tag)` FIRST (empty attributes) and only calls
+  `setAttribute()` for each parsed attribute AFTERWARD — so a plain data
+  property read at construction time can never see what the markup
+  actually said. Replaced with live attrs-backed getter/setters for all
+  four properties (matching real DOM semantics much more closely) —
+  this is a general improvement to the shared test harness, not
+  something specific to this feature, and the existing All-Clients-view/
+  stuck-form/multi-follow-up Node harness tests were all re-run
+  afterward with zero regressions.
+- Verified with a real Node execution-harness test (23 checks) against
+  the actual extracted Client Tracker source, using a fresh in-process
+  session per scenario (also found and fixed a related harness-only
+  gotcha: reusing the SAME static button object across multiple
+  in-process IIFE reloads accumulates one click listener per reload,
+  since nothing in this harness models real page unmount — switched to
+  one clean session per scenario instead of chasing that down further,
+  since it's not how a real browser page load ever behaves): the
+  realistic multi-row TMT extraction end-to-end (matched/unmatched-with-
+  name/no-name rows all defaulting correctly); the "new" option
+  reveal-on-select wiring; Apply creating a follow-up on a matched
+  client AND a brand-new client from the same batch; two rows for one
+  not-yet-tracked name merging into a single client; a name-only/no-date
+  row still creating the client; an unchecked row and a Cancel both
+  correctly applying nothing; a code-fenced JSON response, a prose/
+  unparseable response, an empty `[]` response, a missing API key, a
+  thrown fetch error, and a `result.error` from the API — all handled
+  with a clear message rather than a crash; an XSS probe across both the
+  extracted name and task fields coming back fully inert; a malformed
+  non-ISO date treated as "no date" rather than silently mis-scheduling
+  something; and the concrete "works in unison" proof — an imported
+  due-today follow-up showing up in `__ctGetTodoSummary()`, the exact
+  data source Daily Tasks and the Daily Brief both already read. All 17
+  `<script>` blocks parse; div-tag balance held (opens === closes) after
+  the new markup.
+- **Deliberately not built**: reading anything back OUT of TMT (this is
+  one-way — screenshot in, tracker updated, nothing round-trips to
+  TMT itself, consistent with this file's standing "no real TMT/
+  Calendly API access from a static file with no backend" limitation
+  documented elsewhere) and auto-detecting import intent from a caption
+  typed alongside an attached image in Trip Assistant (a dedicated
+  button was simpler and more predictable than guessing at free-text
+  intent, and matches the "propose, don't guess" spirit everywhere else
+  in this file).
+- **Unverified live, and unusually so — this is the first AI extraction
+  pipeline in this file whose entire value depends on how well Claude's
+  vision actually reads a specific, real internal tool's UI**: whether
+  the model reliably distinguishes a client-name header from a plain
+  task row on a REAL TMT screenshot (as opposed to the two the DE
+  already shared, which this session's prompt was written against),
+  whether the `DD/MM/YY`→ISO conversion holds up across edge cases
+  (single-digit days, a year boundary), how the drag-and-drop highlight
+  actually feels in a real browser, and whether reviewing a dozen real
+  rows in the modal is fast enough to be worth using over just manually
+  adding follow-ups — none of this can be confirmed without a real
+  screenshot, a real key, and a real click-through. Test next: drag a
+  real TMT to-do screenshot onto the Client Tracker, check whether the
+  extracted rows and matched clients look right, Apply a small batch,
+  and confirm the result shows up correctly in both the client's own
+  Follow-ups section and the Daily Tasks panel.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
