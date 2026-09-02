@@ -784,22 +784,22 @@
      display:none (nothing to animate from) or safely display:none it
      before its own fade-out finishes playing. */
   #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
-  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay {
+  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay {
     opacity: 0; transition: opacity .18s ease;
   }
   #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
-  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown {
+  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown {
     opacity: 1;
   }
   #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
-  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal {
+  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal {
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
   #ta-itinerary-overlay.shown #ta-itinerary-modal, #ta-draft-overlay.shown #ta-draft-modal,
   #quote-builder-overlay.shown #quote-builder-modal, #dashboard-overlay.shown #dashboard-modal,
   #stale-overlay.shown #stale-modal, #tmm-overlay.shown #tmm-modal,
-  #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal {
+  #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal, #dt-overlay.shown #dt-modal {
     transform: translateY(0) scale(1);
   }
 
@@ -1616,7 +1616,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -12155,7 +12155,10 @@ Ground rules:
 - Answer directly — lead with the actual recommendation or answer, not a restatement of the question or a preamble about what you're about to do ("Let me look into that," "Based on the data I found," "I'll check..."). Skip narrating your own process; just give the answer and, only if it genuinely helps, the one-line reason behind it. This app shows your reply in a compact chat bubble — treat every extra sentence of throat-clearing as a real cost to how usable that bubble is, not free.
 - When the DE asks you to draft a client-ready email, write your ENTIRE reply as just the email — no preamble, no "here's a draft" — starting with "Subject: <subject line>" as the literal first line, then a blank line, then the body. This exact shape is how the app recognizes a real draft and attaches its Outlook/text-message/schedule-follow-up buttons automatically; without it those buttons never appear. Don't use this format for anything that isn't actually a ready-to-send email.
 - get_todo_list reads the DE's real Client Tracker (their actual follow-up list) — use it whenever asked what's due, what's on their plate, or which clients need attention, and answer from the real data it returns, never guess.
-- propose_todo_update drafts a change to one client's Client Tracker record (status, lead category, next follow-up, or a note) when the DE asks to mark something done, reschedule, or update a client from conversation. It NEVER applies anything by itself — the app shows the DE a Confirm/Cancel card, and only their tap actually changes data. After calling it, just confirm in plain language what you've prepared; don't claim the change is already made.`;
+- propose_todo_update drafts a change to one client's Client Tracker record (status, lead category, next follow-up, or a note) when the DE asks to mark something done, reschedule, or update a client from conversation. It NEVER applies anything by itself — the app shows the DE a Confirm/Cancel card, and only their tap actually changes data. After calling it, just confirm in plain language what you've prepared; don't claim the change is already made.
+- get_daily_tasks reads the DE's Daily Tasks checklist — their fixed daily/end-of-day routine, today's Client Tracker follow-ups due, and any ad-hoc tasks they've added, each with done/not-done state. Use it whenever asked what's on today's checklist or what's left to do today.
+- complete_daily_task checks off one item on that checklist (a routine item, an ad-hoc task, or a follow-up due today), matched by a short description. Unlike propose_todo_update this applies directly and immediately, with no confirm step — it's the DE's own personal checklist, not a client record, so there's nothing at stake if it's ever wrong beyond re-checking a box. Use it when the DE says they've done something on their list.
+- add_daily_task adds a new ad-hoc item to today's checklist. Use it when asked to add something to today's list or be reminded of something today.`;
 
   const TA_TOOLS = [
     { type: 'web_search_20260209', name: 'web_search' },
@@ -12193,6 +12196,21 @@ Ground rules:
         },
         required: ['clientName']
       }
+    },
+    {
+      name: 'get_daily_tasks',
+      description: "Read the DE's Daily Tasks checklist — the fixed daily/end-of-day routine, today's Client Tracker follow-ups due (overdue or due today), and any ad-hoc tasks they've added, each with its done/not-done state. Use whenever asked what's on today's checklist, what's left to do today, or whether something specific is already checked off.",
+      input_schema: { type: 'object', properties: {}, required: [] }
+    },
+    {
+      name: 'complete_daily_task',
+      description: 'Check off one item on the Daily Tasks checklist — a fixed routine item, an ad-hoc task, or a client follow-up due today — matched by a short description (case-insensitive, partial match is fine, e.g. "check emails" or "Amanda Jackson"). Applies directly and immediately, no confirm step needed — this is the DE\'s own personal checklist, not client data. Use when the DE says they\'ve done something on their list, or asks you to check something off.',
+      input_schema: { type: 'object', properties: { task: { type: 'string', description: 'A short description of the task to check off' } }, required: ['task'] }
+    },
+    {
+      name: 'add_daily_task',
+      description: "Add a new ad-hoc task to today's Daily Tasks checklist. Use when the DE asks you to remind them of something today or add something to their list.",
+      input_schema: { type: 'object', properties: { text: { type: 'string', description: 'The task text, e.g. "Call insurance about policy renewal"' } }, required: ['text'] }
     }
   ];
 
@@ -12351,6 +12369,40 @@ Ground rules:
     };
   }
 
+  // Daily Tasks tools (Sep 2026) — reads/writes go through window.__dt*
+  // (a separate script/IIFE, same cross-panel export pattern as
+  // window.__ct*). Unlike propose_todo_update above, complete_daily_task/
+  // add_daily_task apply directly with no confirm card: this is the DE's
+  // own personal checklist, not a client record, so there's no real
+  // blast radius if the model ever gets it wrong.
+  function runGetDailyTasksTool() {
+    if (!window.__dtGetSummary) return "Daily Tasks data isn't available right now — the panel script may not have loaded.";
+    const s = window.__dtGetSummary();
+    const fmt = (label, list, textKey) => list.length
+      ? `${label}:\n` + list.map(t => `- [${t.done ? 'x' : ' '}] ${t[textKey]}`).join('\n')
+      : '';
+    return [
+      fmt('Daily Checklist', s.checklist.filter(i => i.section === 'Daily Checklist'), 'label'),
+      fmt('Follow-ups due today', s.followUps, 'name'),
+      fmt("Today's extra tasks", s.custom, 'text'),
+      fmt('End of Day', s.checklist.filter(i => i.section === 'End of Day'), 'label')
+    ].filter(Boolean).join('\n\n') || 'Nothing on the Daily Tasks checklist right now.';
+  }
+  function runCompleteDailyTaskTool(input) {
+    const task = input && input.task;
+    if (!window.__dtCompleteTask) return "Daily Tasks data isn't available right now — the panel script may not have loaded.";
+    const match = window.__dtCompleteTask(task);
+    if (!match) return `Couldn't find a matching task for "${task || '(none given)'}" on today's Daily Tasks list.`;
+    return `Checked off: ${match.text}`;
+  }
+  function runAddDailyTaskTool(input) {
+    const text = input && input.text;
+    if (!window.__dtAddTask) return "Daily Tasks data isn't available right now — the panel script may not have loaded.";
+    const item = window.__dtAddTask(text);
+    if (!item) return "Couldn't add that — no task text was given.";
+    return `Added to today's Daily Tasks: ${item.text}`;
+  }
+
   // messages: array of {role:'user'|'assistant', content:string|array}
   // Returns { text, error }. Handles the client-side search_guide tool
   // loop; web_search is a server tool Anthropic resolves automatically,
@@ -12378,7 +12430,10 @@ Ground rules:
     get_city_data: 'Pulling hotel/restaurant/tour data…',
     find_matching_itinerary: 'Checking real Kensington itineraries…',
     get_todo_list: 'Checking your to-do list…',
-    propose_todo_update: 'Preparing that update…'
+    propose_todo_update: 'Preparing that update…',
+    get_daily_tasks: 'Checking your daily tasks…',
+    complete_daily_task: 'Checking that off…',
+    add_daily_task: 'Adding that to your list…'
   };
 
   // Single source of truth for the model — was 'claude-opus-5', reverted to
@@ -12691,7 +12746,7 @@ Ground rules:
         if (!data.content) {
           return { text: '', error: "The AI layer didn't return a usable response — try again." };
         }
-        clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary' || b.name === 'get_todo_list' || b.name === 'propose_todo_update'));
+        clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary' || b.name === 'get_todo_list' || b.name === 'propose_todo_update' || b.name === 'get_daily_tasks' || b.name === 'complete_daily_task' || b.name === 'add_daily_task'));
         textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
       } catch (e) {
         if (e && e.name === 'ClientTimeout') {
@@ -12729,6 +12784,9 @@ Ground rules:
             if (result.patch) pendingAction = result.patch; // last one wins if the model somehow proposes more than one in a turn
             return { type: 'tool_result', tool_use_id: tu.id, content: result.text };
           }
+          if (tu.name === 'get_daily_tasks') return { type: 'tool_result', tool_use_id: tu.id, content: runGetDailyTasksTool() };
+          if (tu.name === 'complete_daily_task') return { type: 'tool_result', tool_use_id: tu.id, content: runCompleteDailyTaskTool(tu.input || {}) };
+          if (tu.name === 'add_daily_task') return { type: 'tool_result', tool_use_id: tu.id, content: runAddDailyTaskTool(tu.input || {}) };
           return { type: 'tool_result', tool_use_id: tu.id, content: runSearchGuideTool(tu.input && tu.input.query) };
         });
         convo.push({ role: 'user', content: toolResults });
@@ -17064,6 +17122,353 @@ ${bodyHtml}
     ctRender();
     return { clientId: ctClients[foundIdx].id, clientName: ctClients[foundIdx].name };
   };
+})();
+</script>
+
+<style>
+  /* Daily Tasks (Sep 2026) — a third floating panel alongside Trip
+     Assistant (sage, bottom-right) and Client Tracker (gold, bottom-left):
+     a daily checklist bubble, "check off that it's done and actioned."
+     Placed directly above #ct-btn rather than inventing a third screen
+     corner — that vertical space was freed up when the four old
+     #random-tip-btn/#tell-me-more-btn/#quickSearchBtn/#why-reopen-btn
+     buttons were retired (display:none !important, see the Trip
+     Assistant redesign) and never reused since. Own accent color (a calm
+     teal) distinct from sage/gold so all three read as siblings, not
+     duplicates of each other. */
+  #dt-btn {
+    position: fixed; bottom: 88px; left: 24px; z-index: 9999;
+    width: 48px; height: 48px; border-radius: 50%; border: none;
+    background: linear-gradient(145deg, #3d7a8a, #2c5d6b);
+    color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 6px 18px rgba(20,50,55,0.32), 0 0 0 3px rgba(255,255,255,0.5) inset;
+    transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease;
+  }
+  #dt-btn:hover { transform: scale(1.08); box-shadow: 0 8px 22px rgba(20,50,55,0.4), 0 0 0 3px rgba(255,255,255,0.6) inset; }
+  #dt-badge {
+    position: absolute; top: -3px; right: -3px; background: var(--ct-overdue, #9C3B24); color: #fff;
+    font-size: 10px; font-weight: 800; min-width: 17px; height: 17px; border-radius: 20px;
+    display: flex; align-items: center; justify-content: center; padding: 0 3px;
+    border: 2px solid #fffdf9; font-family: 'Lato', sans-serif;
+  }
+  #dt-badge:empty { display: none; }
+
+  #dt-overlay {
+    position: fixed; inset: 0; z-index: 9998; background: rgba(20, 40, 45, 0.55);
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  #dt-overlay.open { display: flex; }
+  #dt-modal {
+    background: #fffdf9; border-radius: 18px; width: min(520px, 100%); max-height: min(680px, 100%);
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(10,20,25,0.3); border-top: 6px solid #3d7a8a;
+    font-family: 'Lato', sans-serif; position: relative;
+  }
+  #dt-head { padding: 22px 26px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  #dt-head h3 { font-family: 'Playfair Display', serif; color: #2c5d6b; margin: 0 0 4px; font-size: 22px; }
+  #dt-head p { margin: 0; font-size: 12.5px; color: var(--ct-ink-soft, #6b7568); }
+  #dt-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #dt-close:hover { color: #2c5d6b; }
+  #dt-progress-track { height: 6px; background: var(--beige-deep); border-radius: 20px; margin-top: 14px; overflow: hidden; }
+  #dt-progress-fill { height: 100%; background: linear-gradient(90deg, #3d7a8a, #5a9fb0); border-radius: 20px; transition: width .25s ease; width: 0%; }
+
+  #dt-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 26px 20px; transition: opacity .15s ease; }
+  .dt-section { margin-top: 18px; }
+  .dt-section-title {
+    font-size: 11.5px; font-weight: 800; color: var(--ct-ink-soft, #6b7568); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 0 0 8px; padding-left: 10px; border-left: 3px solid #3d7a8a;
+  }
+  .dt-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border-radius: 10px;
+    cursor: pointer; transition: background .12s ease;
+  }
+  .dt-row:hover { background: var(--beige, #f6f1e7); }
+  .dt-row input[type="checkbox"] { margin-top: 2px; width: 17px; height: 17px; accent-color: #3d7a8a; cursor: pointer; flex-shrink: 0; }
+  .dt-row-label { font-size: 14px; color: var(--text); line-height: 1.4; }
+  .dt-row.checked .dt-row-label { color: var(--ct-ink-soft, #8a8776); text-decoration: line-through; }
+  .dt-row-name { display: block; }
+  .dt-row-sub { display: block; font-size: 11.5px; color: var(--ct-ink-soft, #8a8776); margin-top: 1px; }
+  .dt-row-open {
+    margin-left: auto; background: none; border: none; font-size: 12px; color: #3d7a8a; cursor: pointer;
+    flex-shrink: 0; padding: 2px 6px; text-decoration: underline; text-underline-offset: 2px;
+  }
+  .dt-row-remove {
+    margin-left: auto; background: none; border: none; font-size: 15px; color: #b0aa96; cursor: pointer;
+    flex-shrink: 0; padding: 0 4px; opacity: 0; transition: opacity .12s ease;
+  }
+  .dt-row:hover .dt-row-remove { opacity: 1; }
+  .dt-empty-note { font-size: 12.5px; color: var(--ct-ink-soft, #8a8776); font-style: italic; padding: 4px 10px; }
+  #dt-add-row { display: flex; gap: 8px; margin-top: 10px; padding: 0 10px; }
+  #dt-add-input {
+    flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 20px;
+    font-family: 'Lato', sans-serif; font-size: 13px; background: #fff;
+  }
+  #dt-add-input:focus { outline: 2px solid rgba(61,122,138,0.3); border-color: #3d7a8a; }
+  #dt-add-task-btn { background: #3d7a8a; color: #fff; border: none; border-radius: 20px; padding: 8px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: 'Lato', sans-serif; flex-shrink: 0; }
+  #dt-add-task-btn:hover { background: #2c5d6b; }
+  @media (max-width: 900px) {
+    #dt-btn { bottom: 140px; left: 16px; width: 44px; height: 44px; font-size: 16px; }
+  }
+</style>
+
+<button id="dt-btn" title="Daily Tasks">✅<span id="dt-badge"></span></button>
+
+<div id="dt-overlay">
+  <div id="dt-modal">
+    <button id="dt-close" type="button" aria-label="Close">✕</button>
+    <div id="dt-head">
+      <h3>✅ Daily Tasks</h3>
+      <p>Your daily checklist, plus today's follow-ups pulled straight from the Client Tracker.</p>
+      <div id="dt-progress-track"><div id="dt-progress-fill"></div></div>
+    </div>
+    <div id="dt-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const DT_STORAGE_KEY = 'kt-daily-tasks:v1';
+  // The fixed checklist, verbatim from the DE's own daily routine.
+  const DT_STATIC_ITEMS = [
+    { id: 'dt-email', section: 'Daily Checklist', label: 'Check emails' },
+    { id: 'dt-leads-tmt', section: 'Daily Checklist', label: 'Check leads in TMT' },
+    { id: 'dt-meetings', section: 'Daily Checklist', label: 'Look at what meetings I have' },
+    { id: 'dt-followups-tmt', section: 'Daily Checklist', label: 'Update follow-ups from TMT' },
+    { id: 'dt-notes-tmt', section: 'Daily Checklist', label: 'Make sure all notes are updated in TMT' },
+    { id: 'dt-calendly', section: 'Daily Checklist', label: 'Update Calendly' },
+    { id: 'dt-eod-notes', section: 'End of Day', label: 'Update any notes or files' },
+    { id: 'dt-eod-followups', section: 'End of Day', label: 'Make sure there are no outstanding follow-ups' },
+  ];
+
+  function dtTodayISO() { return new Date().toISOString().slice(0, 10); }
+  function dtUid() { return 'dt' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function dtEscapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  // Resets on a new day, since the whole point is a fresh daily
+  // checklist — but an UNCHECKED custom (ad-hoc) task carries forward
+  // instead of silently vanishing at midnight, since it represents a real
+  // task the DE typed in that's still genuinely open; a CHECKED one is
+  // done, so it drops. The fixed checklist and today's follow-ups don't
+  // need this distinction — they're meant to start unchecked every day.
+  function dtLoadState() {
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(DT_STORAGE_KEY)); } catch (e) { stored = null; }
+    const today = dtTodayISO();
+    if (!stored || stored.date !== today) {
+      const carriedCustom = (stored && Array.isArray(stored.custom))
+        ? stored.custom.filter(t => !(stored.checked && stored.checked['custom:' + t.id]))
+        : [];
+      stored = { date: today, checked: {}, custom: carriedCustom };
+    }
+    if (!stored.checked) stored.checked = {};
+    if (!Array.isArray(stored.custom)) stored.custom = [];
+    return stored;
+  }
+
+  let dtState = dtLoadState();
+  function dtSaveState() {
+    try { localStorage.setItem(DT_STORAGE_KEY, JSON.stringify(dtState)); } catch (e) { /* storage unavailable — fail silently, same as every other panel here */ }
+  }
+
+  // Overdue-or-due-today follow-ups from the Client Tracker, via its
+  // existing __ctGetTodoSummary export — the exact same data source the
+  // Trip Assistant's get_todo_list tool already reads, so this list and
+  // any AI answer about follow-ups can never disagree. "Due this week"
+  // includes anything up to 7 days out, so that bucket is filtered down
+  // to just today; "overdue" is already <= today by definition.
+  function dtGetDueFollowUps() {
+    if (!window.__ctGetTodoSummary) return [];
+    let summary;
+    try { summary = window.__ctGetTodoSummary(); } catch (e) { return []; }
+    const today = dtTodayISO();
+    const dueToday = (summary.dueThisWeek || []).filter(c => c.nextFollowUp === today);
+    return [...(summary.overdue || []), ...dueToday];
+  }
+
+  function dtRenderRow(id, label, opts) {
+    opts = opts || {};
+    const checked = !!dtState.checked[id];
+    const sub = opts.sub ? `<span class="dt-row-sub">${dtEscapeHtml(opts.sub)}</span>` : '';
+    const openBtn = opts.clientId ? `<button type="button" class="dt-row-open" data-dt-open="${dtEscapeHtml(opts.clientId)}">Open →</button>` : '';
+    const removeBtn = opts.removable ? `<button type="button" class="dt-row-remove" data-dt-remove="${dtEscapeHtml(id)}" title="Remove">✕</button>` : '';
+    return `<label class="dt-row ${checked ? 'checked' : ''}">
+      <input type="checkbox" data-dt-check="${dtEscapeHtml(id)}" ${checked ? 'checked' : ''}>
+      <span class="dt-row-label"><span class="dt-row-name">${dtEscapeHtml(label)}</span>${sub}</span>
+      ${openBtn}${removeBtn}
+    </label>`;
+  }
+
+  function dtRender() {
+    const body = document.getElementById('dt-body');
+    if (!body) return;
+    const followUps = dtGetDueFollowUps();
+    const today = dtTodayISO();
+
+    let total = 0, done = 0;
+    const countRow = id => { total++; if (dtState.checked[id]) done++; };
+    const dailySection = DT_STATIC_ITEMS.filter(i => i.section === 'Daily Checklist');
+    const eodSection = DT_STATIC_ITEMS.filter(i => i.section === 'End of Day');
+    dailySection.forEach(i => countRow(i.id));
+    followUps.forEach(c => countRow('followup:' + c.id));
+    dtState.custom.forEach(t => countRow('custom:' + t.id));
+    eodSection.forEach(i => countRow(i.id));
+
+    let html = '';
+    html += `<div class="dt-section"><div class="dt-section-title">Daily Checklist</div>`;
+    html += dailySection.map(i => dtRenderRow(i.id, i.label)).join('');
+    html += `</div>`;
+
+    html += `<div class="dt-section"><div class="dt-section-title">Follow-ups Due Today${followUps.length ? ` (${followUps.length})` : ''}</div>`;
+    html += followUps.length
+      ? followUps.map(c => dtRenderRow('followup:' + c.id, c.name, {
+          sub: [c.nextFollowUp && c.nextFollowUp < today ? 'Overdue' : null, c.destination || null].filter(Boolean).join(' · '),
+          clientId: c.id,
+        })).join('')
+      : `<p class="dt-empty-note">Nothing due today — nice.</p>`;
+    html += `</div>`;
+
+    html += `<div class="dt-section"><div class="dt-section-title">Today's Extra Tasks</div>`;
+    html += dtState.custom.length
+      ? dtState.custom.map(t => dtRenderRow('custom:' + t.id, t.text, { removable: true })).join('')
+      : `<p class="dt-empty-note">Nothing added yet.</p>`;
+    html += `<div id="dt-add-row"><input type="text" id="dt-add-input" placeholder="Add a task for today…" maxlength="140"><button type="button" id="dt-add-task-btn">+ Add</button></div>`;
+    html += `</div>`;
+
+    html += `<div class="dt-section"><div class="dt-section-title">End of Day</div>`;
+    html += eodSection.map(i => dtRenderRow(i.id, i.label)).join('');
+    html += `</div>`;
+
+    body.style.opacity = '0';
+    body.innerHTML = html;
+    requestAnimationFrame(() => { body.style.opacity = '1'; });
+
+    body.querySelectorAll('[data-dt-check]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const id = cb.dataset.dtCheck;
+        if (cb.checked) dtState.checked[id] = true; else delete dtState.checked[id];
+        dtSaveState();
+        dtRender();
+      });
+    });
+    body.querySelectorAll('[data-dt-open]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          if (window.__ctOpenClientProfile) { dtCloseOverlay(); window.__ctOpenClientProfile(btn.dataset.dtOpen); }
+        } catch (err) { /* best-effort — worst case nothing happens */ }
+      });
+    });
+    body.querySelectorAll('[data-dt-remove]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.dataset.dtRemove;
+        const uid = id.replace(/^custom:/, '');
+        dtState.custom = dtState.custom.filter(t => t.id !== uid);
+        delete dtState.checked[id];
+        dtSaveState();
+        dtRender();
+      });
+    });
+    function addCustomTask() {
+      const input = document.getElementById('dt-add-input');
+      const text = input ? input.value.trim() : '';
+      if (!text) return;
+      dtState.custom.push({ id: dtUid(), text: text.slice(0, 140) });
+      dtSaveState();
+      dtRender();
+      const freshInput = document.getElementById('dt-add-input');
+      if (freshInput) freshInput.focus();
+    }
+    const addBtn = document.getElementById('dt-add-task-btn');
+    const addInput = document.getElementById('dt-add-input');
+    if (addBtn) addBtn.addEventListener('click', addCustomTask);
+    if (addInput) addInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTask(); } });
+
+    const fill = document.getElementById('dt-progress-fill');
+    if (fill) fill.style.width = total ? Math.round((done / total) * 100) + '%' : '0%';
+    const badge = document.getElementById('dt-badge');
+    if (badge) badge.textContent = (total - done) > 0 ? String(total - done) : '';
+  }
+
+  function dtOpenOverlay() {
+    dtState = dtLoadState(); // re-check the date in case the tab's been open across midnight
+    dtRender();
+    const overlay = document.getElementById('dt-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function dtCloseOverlay() {
+    const overlay = document.getElementById('dt-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
+
+  const dtBtn = document.getElementById('dt-btn');
+  if (dtBtn) dtBtn.addEventListener('click', dtOpenOverlay);
+  const dtCloseBtn = document.getElementById('dt-close');
+  if (dtCloseBtn) dtCloseBtn.addEventListener('click', dtCloseOverlay);
+  const dtOverlayEl = document.getElementById('dt-overlay');
+  if (dtOverlayEl) dtOverlayEl.addEventListener('click', e => { if (e.target === dtOverlayEl) dtCloseOverlay(); });
+
+  // Renders once on load (not just on open) so #dt-badge reflects today's
+  // Client Tracker follow-ups right away, before the panel's ever been
+  // opened this page load — safe since dtRender() only touches
+  // #dt-body/#dt-badge/#dt-progress-fill, all already present in the
+  // static markup above.
+  dtRender();
+
+  // ---------- Cross-panel exports for the Trip Assistant's AI tools ----------
+  // Same shape as window.__ct*: plain data in, the AI acts through these,
+  // never by reaching into localStorage itself. Unlike the Client
+  // Tracker's propose_todo_update (which never writes without an explicit
+  // DE Confirm tap, because it's touching real client-facing data),
+  // checking off or adding a personal daily-task item has no client-
+  // facing blast radius at all — worst case the DE unchecks a box — so
+  // these two apply directly instead of needing a second confirm step.
+  window.__dtGetSummary = function () {
+    dtState = dtLoadState();
+    const followUps = dtGetDueFollowUps();
+    return {
+      checklist: DT_STATIC_ITEMS.map(i => ({ id: i.id, label: i.label, section: i.section, done: !!dtState.checked[i.id] })),
+      followUps: followUps.map(c => ({ id: 'followup:' + c.id, name: c.name, done: !!dtState.checked['followup:' + c.id] })),
+      custom: dtState.custom.map(t => ({ id: 'custom:' + t.id, text: t.text, done: !!dtState.checked['custom:' + t.id] })),
+    };
+  };
+  window.__dtCompleteTask = function (query) {
+    if (!query) return null;
+    dtState = dtLoadState();
+    const q = String(query).trim().toLowerCase();
+    if (!q) return null;
+    const followUps = dtGetDueFollowUps();
+    const candidates = [
+      ...DT_STATIC_ITEMS.map(i => ({ id: i.id, text: i.label })),
+      ...followUps.map(c => ({ id: 'followup:' + c.id, text: c.name })),
+      ...dtState.custom.map(t => ({ id: 'custom:' + t.id, text: t.text })),
+    ];
+    const match = candidates.find(c => c.text.toLowerCase() === q)
+      || candidates.find(c => c.text.toLowerCase().includes(q))
+      || candidates.find(c => q.includes(c.text.toLowerCase()));
+    if (!match) return null;
+    dtState.checked[match.id] = true;
+    dtSaveState();
+    dtRender();
+    return { id: match.id, text: match.text };
+  };
+  window.__dtAddTask = function (text) {
+    const clean = String(text || '').trim();
+    if (!clean) return null;
+    dtState = dtLoadState();
+    const item = { id: dtUid(), text: clean.slice(0, 140) };
+    dtState.custom.push(item);
+    dtSaveState();
+    dtRender();
+    return item;
+  };
+  window.__dtOpenPanel = dtOpenOverlay;
 })();
 </script>
 

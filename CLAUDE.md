@@ -3560,6 +3560,133 @@ can't move to all clients or follow up."
   confirming next time the form is open and something else gets tapped
   by accident.
 
+## Daily Tasks — a new checkable checklist bubble, with full Trip Assistant access (Sep 2026, unverified live)
+
+Direct request, quoted in full since the exact wording defined the
+scope: "another use tool would be a Daily Tasks bubble. Something I can
+just check off that it is done and actioned. I would also like the
+follow up due that day in the tab in client tracker to add to this
+list. So the Daily Checklist - Check emails. Check Leads. In TMT. Look
+at what meetings I have. Update Follow Up's from TMT. Make sure all
+notes are updated in TMT. Update Calendly. End of day tasks - Update
+any notes or files. Make sure no outstanding follows. Any other helps
+tabs you think to add." Followed, mid-build, by: "The Assistant should
+have complete access to this."
+
+- **A third floating panel**, independent of Trip Assistant and Client
+  Tracker: `#dt-btn` (✅, teal to distinguish it from the sage/gold Trip
+  Assistant and Client Tracker buttons) placed at `bottom: 88px; left:
+  24px` — directly above `#ct-btn`, reusing vertical space on the left
+  side that four older right-side buttons (`#random-tip-btn`/`#tell-
+  me-more-btn`/`#quickSearchBtn`/`#why-reopen-btn`, retired to `display:
+  none !important` during the earlier Trip Assistant redesign) freed up,
+  rather than inventing a fourth screen corner for one more button.
+  `#dt-overlay`/`#dt-modal` follow the exact same centered-overlay
+  pattern (and the shared open/close fade-transition CSS recipe) every
+  other modal in this file already uses.
+- **The checklist items are the DE's exact wording, not a paraphrase** —
+  split into the two sections named in the request (`Daily Checklist`:
+  Check emails / Check leads in TMT / Look at what meetings I have /
+  Update follow-ups from TMT / Make sure all notes are updated in TMT /
+  Update Calendly; `End of Day`: Update any notes or files / Make sure
+  there are no outstanding follow-ups). Stored as a fixed `DT_STATIC_
+  ITEMS` array, checked state keyed by item id in `localStorage`
+  (`kt-daily-tasks:v1`).
+- **Today's follow-ups pulled in exactly as asked, with zero duplicate
+  logic.** `dtGetDueFollowUps()` reuses the Client Tracker's own already-
+  exported `window.__ctGetTodoSummary()` (the same data source
+  `get_todo_list`/the Daily Brief already use) — combines its `overdue`
+  array with whatever in `dueThisWeek` has `nextFollowUp === today`, so
+  this can never disagree with what the Client Tracker itself considers
+  due. No new Client Tracker code was needed for this part at all.
+- **"Any other helps tabs you think to add" — answered narrowly, on
+  purpose.** The one thing added beyond exactly what was asked is a
+  small ad-hoc "Today's Extra Tasks" list (`dt-add-input`/`dt-add-task-
+  btn`) — a free-text box to jot down something specific to today that
+  isn't part of the fixed routine (a one-off errand, a reminder to call
+  someone back). Chosen specifically because it's the one gap a purely
+  fixed checklist can't cover on its own, and because it's the same
+  "propose a task, no confirm needed, cheap to undo" shape as everything
+  else in this feature. Deliberately did NOT add a second recurring
+  checklist (weekly/monthly tasks), a real Calendly/TMT API integration,
+  or a due-time/reminder system for custom tasks — none of those were
+  asked for, and each is a genuinely bigger, riskier build (TMT/Calendly
+  in particular have no API access from a static file with no backend,
+  the same category of gap already documented for Outlook/Calendar
+  elsewhere in this file) that shouldn't be guessed into existence.
+- **Reset semantics, chosen deliberately rather than defaulting to
+  "clear everything daily" or "keep everything forever."**
+  `dtLoadState()` resets ALL checked state on a new day (the fixed
+  checklist and today's follow-ups are meant to be freshly earned each
+  day — carrying yesterday's checkmarks forward would make the checklist
+  meaningless) but CARRIES FORWARD any still-unchecked custom task (it's
+  still genuinely open work) while dropping any checked one (it's done,
+  no reason to keep it around). A completed follow-up isn't itself
+  tracked as "done" anywhere outside this panel — checking it off here
+  only marks it done in Daily Tasks' own local state, it does NOT write
+  anything back to the Client Tracker record; this was a deliberate
+  scope boundary, not an oversight, since conflating "I acknowledged
+  this in my daily list" with "this client's follow-up is actually
+  resolved" would be a real correctness risk for a CRM record.
+- **Full Trip Assistant AI access, per the explicit "complete access"
+  ask** — three new tools, `get_daily_tasks`/`complete_daily_task`/
+  `add_daily_task`, added to `TA_TOOLS` alongside the existing
+  `get_todo_list`/`propose_todo_update` pair, each backed by a new
+  `window.__dt*` export (`__dtGetSummary`/`__dtCompleteTask`/
+  `__dtAddTask`/`__dtOpenPanel`) — same cross-IIFE pattern as every other
+  Trip-Assistant-reads-Client-Tracker integration in this file.
+  `__dtCompleteTask(query)` does a fuzzy match (exact, then substring
+  either direction) across all three sources at once — the fixed
+  checklist, today's follow-ups, and custom tasks — so "check off Amanda
+  Jackson" and "check off checking emails" both work through one tool.
+- **Deliberately DIRECT-ACTION, not propose-then-confirm — a real
+  divergence from `propose_todo_update`'s pattern, reasoned explicitly
+  rather than copied by default.** `propose_todo_update` never writes
+  directly because it touches a real client record — a wrong AI-driven
+  edit there is a real CRM data-integrity risk. The Daily Tasks list is
+  the DE's own personal, disposable checklist with no client-facing
+  blast radius at all: the worst case of a wrong `complete_daily_task`
+  call is a DE re-checking a box, which is a strictly smaller and more
+  recoverable failure than a bad client-record patch. `complete_daily_
+  task`/`add_daily_task` apply immediately with no confirm card, which
+  is also simply what "complete access" and "check something off for
+  me" actually mean as a request — a confirm-card round trip for
+  checking off "check emails" would be friction for its own sake.
+- Verified with real Node execution-harness tests (not paraphrased
+  copies) against the actual extracted Daily Tasks script: a fresh load
+  with no Client Tracker present (8 items across the 2 correct sections,
+  all undone, badge shows 8, zero follow-ups since `__ctGetTodoSummary`
+  doesn't exist yet); completing a fixed item and a custom item both by
+  fuzzy match; a genuinely unmatched query correctly returning `null`;
+  adding a custom task and seeing it reflected in both the summary and
+  the badge count; empty/whitespace-only input correctly rejected by
+  `__dtAddTask`; an XSS probe in a custom task's text stored raw but
+  rendered fully escaped with no live `<script>` tag reaching the DOM;
+  state surviving a simulated same-day reload; and the new-day reset
+  scenario specifically (checked items reset, a checked custom task
+  dropped, an unchecked custom task carried forward and starting
+  unchecked in the new day). Separately verified the Client Tracker
+  follow-up integration (overdue + due-today correctly combined and
+  deduplicated, upcoming/no-date entries correctly excluded) and the
+  three new Trip Assistant tool handlers end-to-end (found-and-applied,
+  not-found, and Client-Tracker-not-loaded-yet cases for all three), plus
+  a full regression pass confirming every pre-existing Trip Assistant
+  tool (`search_guide`/`get_city_data`/`find_matching_itinerary`/
+  `get_todo_list`/`propose_todo_update`) still dispatches correctly after
+  the tool-list/filter/dispatch-mapping changes. All 17 `<script>` blocks
+  parse; div-tag balance held even (opens === closes) after the new
+  markup.
+- **Unverified live, same caveat as everything else in this file**: the
+  panel's actual look/placement next to the Client Tracker button, the
+  checkbox interaction feel, whether the fixed checklist's exact wording
+  matches how the DE actually thinks about the routine day to day, and
+  whether the AI tools' fuzzy matching holds up against how a DE
+  naturally phrases "check that off" in a real conversation — none of
+  this has been seen in a real browser from this environment. Test next:
+  open the Daily Tasks panel, check a few items off, add a custom task,
+  then ask Jarvis (typed or voice) "what's left on my daily list today"
+  and "check off checking emails" and confirm both work end-to-end.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
