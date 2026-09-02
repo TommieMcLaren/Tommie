@@ -2938,6 +2938,120 @@ code is broken" from "this code is fine and something else is going on."
   used here. Not built now since it wasn't what was reported — flagged
   here so it doesn't get "discovered" a second time.
 
+## Full-file health check (Sep 2026) — one real bug found, one false alarm corrected
+
+Direct request: "make sure all other functions are operating correctly,"
+prompted by the Draft-button investigation above finding a real,
+previously-undiscovered bug. Ran the full battery of static checks this
+project already uses, specifically hunted for other instances of the same
+persist/restore bug class, and re-ran the real function-level Node
+execution harness against the current file.
+
+- **Syntax**: all 16 `<script>` blocks still parse. **Tag balance**: div
+  1,660/1,660 (clean); button 408/406 raw-grep but both "extra opens" are
+  false positives from two prose comments literally containing the text
+  `<button>`/`<span>` as example notation (confirmed via a real sequential
+  depth-scanner, not just a flat grep count) — not unclosed markup.
+- **Correction to an earlier finding this session**: the "pre-existing
+  `<span>` tag imbalance (775/774)" flagged during the toolbar-facelift
+  work was investigated further here and turns out to be the SAME kind of
+  false alarm, not a real missing closing tag — a single comment (right
+  above `maybeSurfaceDailyBrief`'s HTML-building code) reading "*a
+  `<button>` inside a `<span>` right beside another button*" contains a
+  literal, un-closed `<span>` substring as prose, which is the entire
+  source of the 775-vs-774 discrepancy (confirmed via the same sequential
+  scanner: final depth 1, the one "still open" tag pointing exactly at that
+  comment line, nothing else). There is no actual unclosed `<span>` in this
+  file's real markup. Retracting the earlier "worth a line-by-line hunt
+  someday" note — there's nothing to hunt for.
+- **Orphaned-reference sweep, redone properly this time**: an earlier pass
+  this session's methodology (bare-call extraction, camelCase filter) still
+  let through a lot of English-prose noise from comments/strings (a naive
+  regex can't tell "the `<button>`s" in a comment from a real function
+  call). Tightened the filter to bare calls (not `.method()` calls) that
+  are genuine camelCase (an internal capital letter, which real function
+  names in this file always have and English words never do) — 23
+  candidates, all resolved as known false positives: JS/DOM builtins my
+  filter list missed (`setTimeout`, `parseInt`, `requestAnimationFrame`,
+  etc.), the already-documented parameter-name/shorthand cases
+  (`onDone`/`onEvent`/`retryFn`/`noteRecent`/`toggleTripPin`), and — newly
+  checked one by one — `clientProfile`/`getVoices`/`innerHTML`/
+  `replyText`/`requestPermission`/`stopPropagation`, which turned out to
+  all be comment-text mentions, not real code. Zero genuine dead/missing
+  references found.
+- **`getElementById` cross-check**: all 246 distinct string-literal ids
+  requested via `document.getElementById(...)` resolve to a real `id="..."`
+  somewhere in the document. Zero misses.
+- **`window.__ta*`/`window.__ct*` cross-IIFE export audit**: all 19 defined
+  exports are referenced from at least one other call site (no dead
+  exports), and the only two "referenced but never defined" hits were
+  comment text (`window.__ct*`/`window.__ta*` used generically in prose to
+  describe the pattern, not real code).
+- **Specifically hunted for other instances of the Draft-button bug class**
+  (rendered HTML persisted to `localStorage`, then reconstructed via raw
+  `innerHTML` injection on a later load WITHOUT re-running whatever wired
+  its listeners) — confirmed there is exactly one function shaped like this
+  in the whole file, `restoreState()`, and it's the one already fixed
+  above. Every other `localStorage`-backed UI in this file (sidebar
+  bookmarks/recently-viewed `renderGroup()`, the Client Tracker's
+  `ctRender()`, the dashboard's `renderDashResume()`) rebuilds its markup
+  AND wires its listeners together in the same function call, every time
+  it runs — including on initial page load — which is exactly what makes
+  those safe: there's no split between "how it was first built" and "how
+  it gets reconstructed later" for the bug to hide in.
+- **A second real, confirmed bug found and fixed**: `extractClientName()`'s
+  one pattern for "for NAME" required a literal trailing COMMA
+  (`/for\s+(...)\s*,/`) — but the exact message `ctDraftOutreach()` builds
+  (`"Draft an outreach email for Amanda Jackson. They're interested in
+  ..."`) ends the name with a PERIOD, not a comma. This directly
+  contradicts what this file's own "Itinerary document export..." section
+  above explicitly documents as a benefit: "`send()`'s own
+  `extractClientName()`... naturally pick[s] this client's name... out of
+  the constructed message... with no extra wiring needed." It didn't —
+  confirmed via the real Node harness that `extractClientName` returned
+  `null` on the actual generated text, every time, meaning `taState.
+  clientName` (and therefore the context bar, and anything depending on it
+  being set for a client the DE hasn't already been mid-conversation with)
+  silently never got set from a first "Draft outreach" click on a fresh
+  conversation. Fixed by widening that one pattern to accept a period OR a
+  comma (`\s*[.,]`) — the minimal change that matches the real generated
+  text without broadening the pattern's matching surface any further than
+  necessary (still requires trailing punctuation immediately after the
+  name, same specificity as before, just tolerant of both common
+  sentence-enders instead of only one).
+- Verified with a real Node execution-harness test (8 cases): the exact
+  real `ctDraftOutreach`-generated string now correctly extracts "Amanda
+  Jackson"; the original comma-terminated case still works (regression
+  guard); a name with NO trailing punctuation at all still correctly
+  returns `null` (this fix is deliberately about tolerating punctuation
+  that's present, not about removing the requirement for punctuation
+  entirely, which would have risked false-positiving on ordinary sentences
+  mentioning a capitalized word after "for"); and all other existing
+  patterns (`client name is X`, `client X wants...`, `for the Xs`, `Mr. and
+  Mrs. X`, a plain question with no name) still resolve exactly as before.
+  Re-ran the full Draft-button/client-link reload harness from the section
+  above against the updated file and confirmed no regression there either.
+  All 16 script blocks parse; div-tag balance unaffected (pure regex
+  change, no markup touched).
+- **Everything else checked came back clean**: re-ran the established
+  real-function Node harness (`runSearchGuideTool`, `runGetCityDataTool`,
+  `runFindMatchingItineraryTool`, `runGetTodoListTool`,
+  `runProposeTodoUpdateTool`, `extractDestination`, `extractTier`,
+  `extractOccasion`, `extractVibes`, `isNewClientSignal`, `splitSummary`,
+  `looksLikeStructuredMarkdown`, `renderMarkdownLite`) against the current
+  file — all still execute cleanly against realistic inputs, matching
+  their last-verified shapes from earlier this session with no
+  regressions from any of today's edits (the toggle-button change, the
+  Draft-button reload fix, or this `extractClientName` fix).
+- **Not exhaustive, stated plainly**: this covers everything checkable
+  from static analysis plus real function-level execution in Node —
+  it does not and cannot substitute for the still-outstanding "test this
+  live in a real browser" caveat that applies to nearly every feature
+  documented above. A genuinely complete check would also need a real
+  browser pass (mouse/touch interaction, real speech recognition, real
+  ElevenLabs/Anthropic network calls) that this environment has never been
+  able to do.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
