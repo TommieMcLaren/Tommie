@@ -3052,6 +3052,118 @@ execution harness against the current file.
   ElevenLabs/Anthropic network calls) that this environment has never been
   able to do.
 
+## Loading/waiting states + an overlapping-panels z-index audit (Sep 2026, unverified live)
+
+Direct follow-up: asked to do "all of it" from the earlier three-part
+"more seamless and fluid" list — the modal-transition work already
+covered "panels snap open/closed"; this covers the other two, "loading/
+waiting feels dead" and "overlapping panels feel disjointed."
+
+- **Shared spinner.** One CSS recipe, `.ta-spinner` (a small rotating
+  ring using `border: 2px solid currentColor; border-right-color:
+  transparent;`, so it automatically matches whatever text color the
+  button or status text it's dropped into already has — no per-site
+  color tuning needed) plus a `@keyframes ta-spin`, placed right after
+  the existing typing-dots CSS. Every button/status-text spot in the
+  Trip Assistant and Client Tracker that disables itself and shows a
+  static "X…" label while waiting on a REAL network/AI call now prepends
+  `<span class="ta-spinner"></span>` to that label: the error-retry
+  button, the "🔊 Read aloud" button, the draft pop-out's "📱 Text
+  version" SMS-condense button, the ⚙️ Settings "🔄 Load voices"
+  (ElevenLabs) status line, and the Client Tracker's "🧠 Asking the AI to
+  match an itinerary…" placeholder. Also gave `#ta-mic.speaking` (silent
+  since it was built — `animation: none`) the same gentle pulse
+  `#ta-mic.listening` already uses, just slower (1.8s vs. 1s) so it
+  reads as calm rather than urgent — the mic button used to go fully
+  static while actually speaking a reply aloud, the single longest wait
+  state in the whole panel on a long answer.
+- **Deliberately NOT touched**: `addPendingActionCard`'s Confirm/Cancel
+  buttons (line up like a loading state — disable, relabel — but the
+  underlying `window.__ctApplyPatch` call is synchronous local
+  `localStorage` I/O with no real network wait, so a spinner there would
+  just flash uselessly for a frame), and the guide's own separate OCR/
+  quick-search voice loading text (a different, non-assistant part of
+  this file, outside what "the assistant" scoping was actually about).
+- Verified with real Node execution-harness tests against the actual
+  extracted `addAiAnswerMsg`/`addErrorWithRetry` source (not
+  paraphrases): the read-aloud button shows the spinner immediately on
+  click, disables correctly, and cleanly restores to its plain label
+  with the spinner gone once `speakText`'s `onDone` fires; the retry
+  button shows the spinner and disables on click, and the wrapped
+  `retryFn` still actually fires. The SMS/ElevenLabs/AI-match sites are
+  the identical one-line pattern (a static `.textContent =`/`.innerHTML
+  =` assignment gets a `<span class="ta-spinner">` prefix, restored the
+  same way it always was) and weren't separately harnessed beyond a
+  syntax check, given how mechanically identical and low-risk the change
+  is once the pattern's been proven twice. All 16 script blocks parse;
+  div-tag balance unaffected (1,660/1,660); span count moved from
+  775/774 to 780/779 — the +5/+5 exactly matches the five new
+  self-contained `<span class="ta-spinner"></span>` pairs added, so the
+  underlying 1-off (the known false-alarm comment, see the full-file
+  health check above) is unchanged and unrelated.
+- **z-index audit, done properly rather than guessed at.** Built the
+  complete table of every overlay/panel z-index value tied to the
+  assistant/dashboard/guide-tools system and checked each pair that
+  could plausibly ever be open at once for whether the code that opens
+  the second one actually accounts for the first still being open.
+  Found the architecture is largely already sound: every full-screen
+  overlay (Dashboard, Quote Builder, Quiz, Exam Mode, Random Tip) that
+  can be launched from a button living INSIDE another already-open
+  overlay explicitly calls that overlay's own close function first
+  (`closeDashboard()` before `quoteBuilderBtn.click()`, etc.) — so there
+  is no live double-backdrop for any of those, despite some of them
+  sharing or even inverting raw z-index numbers (e.g. Quote Builder's
+  3000 is actually LOWER than Dashboard's 3100 — harmless only because
+  Dashboard is always closed first, not because of the numbers
+  themselves). The sidebar's own "Quick access" buttons (✨ Assistant /
+  🔍 Search / ⏱️ What's Stale) turned out NOT to be a live risk either,
+  even though none of their handlers close the Dashboard first — `
+  #sidebar` itself carries no explicit z-index (0 on desktop, 1000 on
+  the mobile drawer), well under any full-screen overlay's z-index, so
+  the whole sidebar — quick-access buttons included — is already
+  visually buried and unclickable behind ANY open full-screen overlay,
+  making a "click Search from the sidebar while Dashboard is open"
+  double-backdrop scenario unreachable in the first place, not
+  reachable-but-lucky. `#ta-panel`/`#ct-overlay` deliberately outrank
+  every full-screen overlay (9999/10000, vs. every one of the above
+  topping out at 3100) specifically because Trip Assistant and Client
+  Tracker are meant to be persistent floating utilities, not exclusive
+  modal dialogs — confirmed the ONE real cross-panel handoff between
+  them (`ctDraftOutreach`, Client Tracker → Trip Assistant) already
+  explicitly closes Client Tracker's overlay first; the reverse
+  direction (opening Client Tracker while Trip Assistant is already
+  open) intentionally lets Client Tracker's full-screen overlay cover
+  Trip Assistant rather than closing it, matching the pattern
+  `#ta-itinerary-overlay`/`#ta-draft-overlay` already use for "opened
+  from within, stays on top, reveals what was underneath when closed."
+- **One real fragility found and hardened, though not a confirmed live
+  bug**: `#dashboard-overlay` and `#stale-overlay` shared the literal
+  same z-index (3100/3100) — coincidental, not deliberate — with no
+  actual reachable path found that opens both at once (the only button
+  that could have triggered this, `quickAccessStaleBtn`, is itself one
+  of the sidebar buttons just established to be unreachable while any
+  full-screen overlay is open). Bumped `#stale-overlay` to 3150 anyway,
+  with a comment explaining the intended "opened from within, stays on
+  top" relationship explicitly — equal z-index between two
+  independently-triggerable overlays is fragile by construction even
+  when today's code happens to never exercise it, and the fix costs
+  nothing to make explicit rather than accidentally-correct.
+- **Net honest conclusion**: the "overlapping panels feel disjointed"
+  complaint most likely was NOT about a stacking/z-index bug — the
+  audit didn't find one that's actually reachable. It's much more
+  likely about the visual/motion language (now addressed by the modal-
+  transition work earlier this session) or something that only shows up
+  in actual use that this kind of static audit can't surface. Worth
+  asking directly what specifically felt disjointed, if it still does,
+  next time this comes up live.
+- **Unverified live, same caveat as everything else**: whether the
+  spinner's motion/timing/sizing looks right against each button's real
+  styling (especially the tiny 10.5px AI-match button and the
+  ElevenLabs status line, both smaller text than the chat-bubble
+  buttons), and whether the slower `.speaking` pulse reads as intended
+  rather than distracting during a long spoken reply — none of this has
+  been seen in a real browser from this environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
