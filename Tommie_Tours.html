@@ -13777,16 +13777,72 @@ Tommie McLaren`
   // real client-ready document." A full structured-data export (like the
   // Quote Builder's own qbBuildDocumentHtml/qbDownloadDoc, reusing its
   // hotel/day/tour objects) would need the model's free-text answer
-  // parsed back into that same shape — a bigger, riskier build. This is
-  // the smaller version instead: the exact markdown already shown in the
-  // "View full details" pop-out, re-rendered into the same branded,
-  // printable document shell the Quote Builder already uses (Georgia
-  // serif, sage/gold accents), downloaded as a .doc file the same way
-  // qbDownloadDoc() does (a Blob typed application/msword — Word opens
-  // well-formed HTML saved with a .doc extension directly, no real
-  // document-format conversion needed).
+  // parsed back into that same shape — a bigger, riskier build, since it
+  // means matching hotel/restaurant/tour names the model mentions against
+  // QB_HOTELS/QB_RESTAURANTS/QB_TOURS with no guarantee the model used the
+  // exact same names this guide's own data does. This is the smaller
+  // version instead: the exact markdown already shown in the "View full
+  // details" pop-out, re-rendered into the same branded, printable
+  // document shell the Quote Builder already uses (Georgia serif, sage/
+  // gold accents), downloaded as a .doc file the same way qbDownloadDoc()
+  // does (a Blob typed application/msword — Word opens well-formed HTML
+  // saved with a .doc extension directly, no real document-format
+  // conversion needed).
+  //
+  // Day-by-day cards (Sep 2026, unverified live) — a real step toward the
+  // "bigger version" above without the hotel/tour name-matching risk: a
+  // genuine city-by-city breakdown IS achievable safely, because it only
+  // needs the model's own markdown headers (already reliably present —
+  // KT itinerary answers consistently break days out under their own
+  // "### Day 1: Madrid"-style headings), not fuzzy matching against this
+  // guide's real hotel/restaurant/tour data. taSplitItineraryByDay() below
+  // finds those header boundaries and each becomes its own bordered card
+  // instead of one continuous flowing document. Deliberately falls all
+  // the way back to the exact old flowing-markdown render whenever fewer
+  // than 2 real day/city sections are found — a short answer, a reply
+  // that isn't itinerary-shaped at all, or one the model didn't format
+  // with headers looks and behaves exactly as it always has, zero
+  // regression risk for anything that doesn't cleanly split.
+  function taSplitItineraryByDay(text) {
+    const lines = String(text || '').split('\n');
+    const rawSections = [];
+    let current = null;
+    const introLines = [];
+    lines.forEach(line => {
+      const m = line.match(/^#{1,3}\s+(.+)/);
+      if (m) {
+        if (current) rawSections.push(current);
+        current = { heading: m[1].trim(), lines: [] };
+      } else if (current) {
+        current.lines.push(line);
+      } else {
+        introLines.push(line);
+      }
+    });
+    if (current) rawSections.push(current);
+    // A header with nothing under it before the next header reads like a
+    // decorative title ("## Your Itinerary"), not a real day/city section
+    // — skip it rather than giving it its own near-empty card.
+    const days = rawSections
+      .map(s => ({ heading: s.heading, body: s.lines.join('\n').trim() }))
+      .filter(s => s.body);
+    return { intro: introLines.join('\n').trim(), days };
+  }
+  function taFormatDayHeading(heading) {
+    let s = escapeHtml(heading);
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return s;
+  }
   function taBuildItineraryDocHtml(fullText) {
     const clientName = taState.clientName || 'Prospective Client';
+    const { intro, days } = taSplitItineraryByDay(fullText);
+    const useDayCards = days.length >= 2;
+    const bodyHtml = useDayCards
+      ? (intro ? renderMarkdownLite(intro) : '') + days.map(d =>
+          `<div class="itin-day-card"><h2>${taFormatDayHeading(d.heading)}</h2>${renderMarkdownLite(d.body)}</div>`
+        ).join('')
+      : renderMarkdownLite(fullText);
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>${escapeHtml(clientName)} — Spain Itinerary</title>
 <style>
@@ -13799,11 +13855,13 @@ Tommie McLaren`
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #ccc; }
   th { background: #faf6ee; }
   .md-note { background: #f3ead9; border-left: 4px solid #c8a552; padding: 8px 12px; margin: 12px 0; }
+  .itin-day-card { border: 1px solid #e3ddc8; border-radius: 8px; padding: 2px 20px 14px; margin: 18px 0; background: #fffdf9; }
+  .itin-day-card h2 { margin-top: 12px; }
   .doc-footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #ccc; font-size: 11.5px; color: #8a8776; font-style: italic; }
 </style>
 </head><body>
 <h1>Spain — Itinerary for ${escapeHtml(clientName)}</h1>
-${renderMarkdownLite(fullText)}
+${bodyHtml}
 <div class="doc-footer">Prepared by your Kensington Tours Destination Expert — a draft starting point only. Confirm real-time hotel/rate availability in TMT/KHP before quoting the client. Your journey, expertly curated.</div>
 </body></html>`;
   }
@@ -13861,33 +13919,21 @@ ${renderMarkdownLite(fullText)}
     // generation, so the fix is a real button here, not a smarter
     // prompt. Always shown (not just when there's a pop-out) since
     // reading aloud is useful for a short reply too.
-    html += `<div class="ta-rec-actions">`;
+    // data-full (Sep 2026): the answer text these two buttons need used to
+    // live only in this function's own JS closure — meaning a bubble
+    // restored from localStorage on a later page load (restoreState()
+    // rebuilds the markup exactly, but a click listener isn't part of the
+    // HTML) had buttons that looked right and did nothing, the same bug
+    // found in the Daily Brief's Draft button. Baking the full text into a
+    // data attribute means it travels with the persisted HTML for free —
+    // restoreState() can re-wire these buttons from the DOM alone, no
+    // separate persisted-text bookkeeping needed. escapeHtml() here is the
+    // one already used for every other attribute value in this file.
+    html += `<div class="ta-rec-actions" data-full="${escapeHtml(fullText || summaryText)}">`;
     if (hasMore) html += `<button type="button" class="ta-rec-confirm" data-action="view-full">📋 View full details</button>`;
     html += `<button type="button" class="ta-rec-confirm" data-action="read-aloud">🔊 Read aloud</button></div>`;
     const div = addMsg('bot', html, true);
-    if (hasMore) {
-      const btn = div.querySelector('[data-action="view-full"]');
-      if (btn) btn.addEventListener('click', () => openItineraryModal(fullText));
-    }
-    const readBtn = div.querySelector('[data-action="read-aloud"]');
-    const startReading = () => {
-      readBtn.disabled = true;
-      readBtn.innerHTML = '<span class="ta-spinner"></span>🔊 Reading…';
-      speakText(fullText, () => { readBtn.disabled = false; readBtn.textContent = '🔊 Read aloud'; });
-    };
-    if (readBtn) readBtn.addEventListener('click', startReading);
-    // autoPlay (Sep 2026): "I don't want to click read aloud, can it not
-    // just action that? I also want the info to show as they are
-    // reading it." — typed replies now open the full-details pop-out
-    // (when there is one) AND start reading automatically, no click
-    // needed, while the manual buttons stay for replay or in case
-    // autoPlay was off (Conversation Mode never sets it — see
-    // renderAiReply). Opening first, then reading, so the DE can follow
-    // along on screen while it plays, matching the request literally.
-    if (opts && opts.autoPlay) {
-      if (hasMore) openItineraryModal(fullText);
-      startReading();
-    }
+    wireAiAnswerButtons(div, opts);
     // Reported live (Aug 2026): a client mentioned in a normal chat reply
     // (not the Daily Brief, not the itinerary pop-out) read as plain text
     // with no way to act on it — this is the shared bubble every live-AI
@@ -13897,6 +13943,55 @@ ${renderMarkdownLite(fullText)}
     // worked, instead of the feature only existing in two specific spots.
     wireClientProfileLinks(div);
     return div;
+  }
+
+  // Split out of addAiAnswerMsg (Sep 2026) so restoreState() can call just
+  // this half on a restored bubble, exactly the same "markup already
+  // rebuilt, only the listeners need re-attaching" split used for the
+  // Daily Brief's wireBriefDraftButtons/wireClientLinkClicks. Reads the
+  // answer text from data-full on .ta-rec-actions rather than a function
+  // parameter, so it works identically whether div was just created (the
+  // attribute was set moments ago) or reconstructed from localStorage (the
+  // attribute came back as part of the saved HTML) — same data either way.
+  // opts is only ever passed at creation time; restoreState() calls this
+  // with no second argument, so autoPlay can never fire for a restored
+  // message (a page load auto-speaking or auto-popping-open an old answer
+  // would be a real regression, not a fix).
+  // Takes a container, not a single bubble — a freshly created bubble only
+  // ever has one .ta-rec-actions block in it, so this behaves exactly as
+  // before at creation time, but restoreState() can also call it once
+  // across the whole #ta-msgs list and every restored bubble's buttons get
+  // re-wired in one pass, same shape as wireBriefDraftButtons above.
+  function wireAiAnswerButtons(container, opts) {
+    container.querySelectorAll('.ta-rec-actions').forEach(actionsEl => {
+      const fullText = actionsEl.dataset.full || '';
+      const viewBtn = actionsEl.querySelector('[data-action="view-full"]');
+      if (viewBtn) viewBtn.addEventListener('click', () => openItineraryModal(fullText));
+      const readBtn = actionsEl.querySelector('[data-action="read-aloud"]');
+      const startReading = () => {
+        if (!readBtn) return;
+        readBtn.disabled = true;
+        readBtn.innerHTML = '<span class="ta-spinner"></span>🔊 Reading…';
+        speakText(fullText, () => { readBtn.disabled = false; readBtn.textContent = '🔊 Read aloud'; });
+      };
+      if (readBtn) readBtn.addEventListener('click', startReading);
+      // autoPlay (Sep 2026): "I don't want to click read aloud, can it not
+      // just action that? I also want the info to show as they are
+      // reading it." — typed replies open the full-details pop-out (when
+      // there is one) AND start reading automatically, no click needed,
+      // while the manual buttons stay for replay or in case autoPlay was
+      // off (Conversation Mode never sets it — see renderAiReply). Opening
+      // first, then reading, so the DE can follow along on screen while it
+      // plays, matching the request literally. opts is only ever passed
+      // at creation time (a fresh bubble has exactly one .ta-rec-actions,
+      // so this only ever fires once) — restoreState() never passes it,
+      // so a restored message can never auto-speak or auto-pop-open on
+      // page load.
+      if (opts && opts.autoPlay) {
+        if (viewBtn) openItineraryModal(fullText);
+        startReading();
+      }
+    });
   }
 
   // The one place a live-AI conversation can actually change Client
@@ -14478,6 +14573,12 @@ ${renderMarkdownLite(fullText)}
         // querySelectorAll finding nothing).
         wireBriefDraftButtons(msgsEl);
         wireClientLinkClicks(msgsEl);
+        // Same fix, extended (Sep 2026): the "🔊 Read aloud"/"📋 View full
+        // details" buttons on a normal AI reply have the identical bug —
+        // flagged as a known gap when the Draft-button fix above shipped,
+        // now closed the same way. No opts passed, so autoPlay can never
+        // fire for a restored message.
+        wireAiAnswerButtons(msgsEl);
       }
       if (Array.isArray(saved.convoHistory)) convoHistory = saved.convoHistory;
     } catch (e) { /* corrupt or unavailable — just start fresh */ }

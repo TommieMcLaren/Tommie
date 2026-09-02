@@ -3164,6 +3164,182 @@ waiting feels dead" and "overlapping panels feel disjointed."
   rather than distracting during a long spoken reply — none of this has
   been seen in a real browser from this environment.
 
+## Read-aloud / View-full-details buttons fixed for the same reload bug (Sep 2026, unverified live)
+
+Direct follow-up: this was flagged as a known-but-unfixed gap the moment
+the Daily Brief Draft button's reload bug was found and fixed — "worth
+building later, not done here." Closed now.
+
+- Same root cause, same fix shape as the Draft button: `persistState()`
+  saves a bubble's rendered HTML, but `restoreState()`'s reconstruction
+  never re-attached any click listeners. The Draft/client-link buttons
+  were fixable straight from the DOM (their data was already sitting in
+  attributes); these two buttons were harder because the answer text
+  they need only ever lived in a JS closure at creation time — a
+  restored bubble's HTML had the buttons but nothing for them to speak
+  or pop open.
+- **Fixed by baking the answer text into the HTML itself.**
+  `addAiAnswerMsg` now writes `data-full="..."` (escaped the same way
+  every other attribute in this file is) onto the `.ta-rec-actions`
+  wrapper div, so the text travels with the persisted HTML for free —
+  no separate bookkeeping needed. Split the wiring logic out into
+  `wireAiAnswerButtons(container, opts)`, which reads the answer text
+  from that attribute instead of a function parameter — identical
+  behavior at creation time (a fresh bubble has exactly one
+  `.ta-rec-actions`) and now also callable across the whole restored
+  `#ta-msgs` list in `restoreState()`, same shape as the Draft-button
+  fix's `wireBriefDraftButtons`/`wireClientLinkClicks`. `opts` (the
+  `autoPlay` flag) is only ever passed at creation time — `restoreState()`
+  calls this with none, so a restored message can never auto-speak or
+  auto-pop-open the pop-out modal on page load, which would have been a
+  real regression, not a fix.
+- Verified with a Node execution-harness test simulating a full reload
+  (fresh session creates the bubble via a realistic persisted-HTML
+  shape, then a second, completely separate session loads with the same
+  `localStorage` and confirms `restoreState()` reconstructs AND
+  re-wires both buttons — clicking them post-reload no longer no-ops).
+  Also unit-tested `addAiAnswerMsg`/`wireAiAnswerButtons` directly
+  against the real extracted source: `data-full` carries the exact full
+  text, both buttons fire with the correct text, `autoPlay` still works
+  at creation time, a short reply (no pop-out) still omits the
+  view-full button while still setting `data-full` for read-aloud to
+  use, and an XSS probe in the answer text comes back fully escaped
+  inside the attribute (confirmed no live `<script>`/`<img>` tag reaches
+  the rendered HTML either way). All 16 script blocks parse; div-tag
+  balance unaffected (pure JS refactor, no new markup — the buttons'
+  own HTML shape didn't change, just where the wiring code reads its
+  data from).
+- **Unverified live**: same caveat as always — the actual reload
+  behavior in a real browser hasn't been seen, only simulated.
+
+## Structure-aware itinerary document cards (Sep 2026, unverified live)
+
+Direct progress on a gap named explicitly in this file's own history:
+"a full structured-data export... would need the model's free-text
+answer parsed back into [Quote Builder's] shape — a real project on its
+own," deliberately not attempted when "Download as document" first
+shipped. Built the safely-achievable slice of that, not the whole
+thing.
+
+- **What's actually hard vs. actually easy, worked out first.** The
+  Quote Builder's own document (`qbBuildDocumentHtml`) is built from
+  real structured objects (`qbCollectItinerary()` — hotel/restaurant/
+  tour records selected via its own UI, pulled from `QB_HOTELS`/
+  `QB_RESTAURANTS`/`QB_TOURS`). Reconstructing THAT shape from an AI
+  reply would mean matching hotel/restaurant/tour names the model
+  mentions against this guide's real data with no guarantee the model
+  used the exact same names — genuinely fragile, no reliable ground
+  truth. A real city-by-city, day-by-day BREAKDOWN, on the other hand,
+  doesn't need any of that — KT itinerary answers already reliably
+  come back with the model's own markdown headers per day/city (`###
+  Day 1: Madrid`, etc.), which `renderMarkdownLite` already parses
+  today, just not as document-level structure.
+- **`taSplitItineraryByDay(text)`** — finds every `#`/`##`/`###` header
+  line and treats each as a section boundary, returning `{ intro, days
+  }` (days = `{ heading, body }` pairs). Text before the first header
+  becomes `intro` (a client-facing lead-in like "Here's a 3-day
+  itinerary:" isn't discarded). A header with nothing under it before
+  the next one — a decorative title like `## Your Itinerary` sitting
+  above the real day headers — is filtered out rather than becoming its
+  own near-empty card, so it doesn't clutter the output with a stray
+  blank section.
+- **`taBuildItineraryDocHtml` now renders each day as its own bordered
+  `.itin-day-card`** (matching the guide's own beige/gold card
+  language) instead of one continuous flowing document — genuinely
+  closer to how a real itinerary document should read, city by city.
+  **Only when there are 2+ real sections** — `taSplitItineraryByDay`
+  finding 0 or 1 falls all the way back to the exact previous behavior
+  (`renderMarkdownLite(fullText)` as one flowing block). This is the
+  load-bearing safety net: a short reply, a non-itinerary answer, or
+  one the model didn't happen to format with headers renders exactly as
+  it always did — zero regression risk for anything that doesn't
+  cleanly split into real day sections.
+- **`taFormatDayHeading(heading)`** — headings come from raw,
+  unescaped text (`taSplitItineraryByDay` operates before
+  `renderMarkdownLite`'s own internal escaping happens), so this
+  duplicates `renderMarkdownLite`'s own `escapeHtml` + `**bold**` +
+  `[link](url)` handling for the one place (day-card headings) that
+  needs it outside that function — a small, deliberate duplication
+  rather than exporting `inlineFormat` out of `renderMarkdownLite`'s
+  closure for one caller, matching this file's own established
+  "sometimes three similar lines beats a new export" calls elsewhere.
+- Verified with a real Node execution-harness test against the actual
+  extracted `taSplitItineraryByDay`/`taFormatDayHeading`/
+  `taBuildItineraryDocHtml` source (22 checks): a realistic 3-day
+  itinerary correctly splits into 3 day cards with the intro text
+  preserved and the client's name in the title; a short no-header reply
+  and a single-header reply both correctly fall back to the old
+  flowing render (checked by looking for an actual `<div
+  class="itin-day-card">` in the output, not just the CSS rule's own
+  mention of the class name, which is always present regardless); a
+  decorative empty-bodied title above real day headers is correctly
+  skipped rather than becoming its own card; an XSS probe in both a day
+  heading and a day's body comes back fully escaped with no live
+  `<script>`/`<img>` tag reaching the output; bold text and a markdown
+  link inside a day heading render correctly as `<strong>`/`<a href>`;
+  a missing client name falls back to "Prospective Client" as before;
+  and a KT-shaped realistic example (bold hotel names, a note callout,
+  a trailing "happy to adjust" line with no header after it) preserves
+  all of that correctly inside the right cards. All 16 script blocks
+  parse; div-tag balance incremented by exactly one (the new
+  `.itin-day-card` div pattern in the template, itself balanced), spans
+  unaffected.
+- **Deliberately not attempted**: matching mentioned hotels/restaurants/
+  tours against this guide's real `QB_HOTELS`/`QB_RESTAURANTS`/
+  `QB_TOURS` data to enrich or verify them — that's still the
+  genuinely bigger, riskier build flagged when this feature first
+  shipped, and nothing about today's work changes that risk
+  assessment. This is real, additive progress toward "structure-aware,"
+  not a replacement for it.
+- **Unverified live**: whether real KT itinerary answers reliably use
+  `#`/`##`/`###` headers per day the way the test cases assume (this
+  session's own screenshots of real model output show 3-hash headers
+  used for OTHER structured answers — to-do lists — which is the basis
+  for that assumption, but no real ITINERARY answer's exact header
+  shape has actually been seen), and how the bordered day cards
+  actually look/print in Word once opened from a real `.doc` download —
+  neither can be confirmed without a real browser and a live model
+  response.
+
+## GitHub Pages hosting — verified what's checkable from here (Sep 2026)
+
+Direct follow-up to "host over HTTPS" as a recommended next step (it
+unlocks mic-permission persistence and the service worker's background
+reminders, both silently inert on `file://`). What this environment
+could and couldn't confirm:
+
+- **Confirmed**: `sw.js` and `Tommie_Tours.html` are both committed at
+  the repo root (`git ls-files` — required for `sw.js`'s own
+  `./sw.js`-relative registration to resolve once hosted), and every
+  recent push's "pages build and deployment" GitHub Actions run
+  completed with `conclusion: success` — the deploy pipeline itself is
+  healthy and current.
+- **Could NOT confirm from this environment**: whether the live
+  `https://tommiemclaren.github.io/Tommie/...` URL actually serves the
+  page correctly, registers the service worker without error, or
+  behaves as expected — this sandbox's network egress proxy blocks
+  `*.github.io` outright (`EGRESS_BLOCKED`), and there's no GitHub API
+  tool available here that exposes the Pages configuration itself
+  (custom domain, HTTPS enforcement, build source) to double-check
+  independent of fetching the live URL.
+- **One real thing worth knowing**: there's no `index.html` in this
+  repo, so the bare root URL (`.../Tommie/`) almost certainly 404s or
+  shows a directory listing — the real working URL is very likely
+  `https://tommiemclaren.github.io/Tommie/Tommie_Tours.html` specifically
+  (the exact hostname assumes the standard `<owner>.github.io/<repo>/`
+  GitHub Pages URL shape for a project page with no custom domain,
+  itself not independently confirmed from here). Worth bookmarking the
+  direct file URL rather than the bare repo root, and worth adding a
+  one-line redirect `index.html` later if the bare root URL is ever
+  wanted to work too — not done here since it wasn't asked for and
+  isn't blocking anything.
+- **Net honest status**: this is as far as static-analysis-plus-Actions-
+  API verification can take it. Confirming the URL actually works,
+  `sw.js` registers, and the mic-permission/background-reminder
+  improvements are real needs a real browser hitting the real hosted
+  URL — genuinely the one item on this list that only a live check
+  outside this environment can close out.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
