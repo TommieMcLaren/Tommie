@@ -3441,6 +3441,76 @@ drop down feature to switch statuses would be good too."
   and whether switching between the two views feels smooth or jarring in
   a real browser — none of this has been seen outside this environment.
 
+## "All Clients" view, cleaned up after real live feedback (Sep 2026, unverified live)
+
+The DE sent a real screenshot of the just-shipped "All Clients" view
+working — first live confirmation it actually renders — with "clean this
+up. Make [it] more fluid and organize it a bit better." Reading the
+screenshot directly rather than guessing blind:
+
+- **The actual problem, diagnosed from the screenshot, not assumed**:
+  `#ct-view-toggle` and `#ct-tabs` used identical styling and identical
+  padding (`.ct-view-tab`/`.ct-tab` were both plain white pills, both
+  `padding: 12px 26px 0`) — stacked directly on top of each other they
+  read as one long, repetitive row of near-identical buttons, not two
+  different controls. Made worse by color: the view toggle's active
+  state was gold, the tab row's active state (visible in the screenshot,
+  "Hot Lead") was dark green — two different accent colors on two rows
+  of the same-looking pill button reads as visually competing, not
+  intentional.
+- **Fixed by making them different SHAPES, not just different colors.**
+  `#ct-view-toggle` is now a real segmented control — one bordered/
+  beige track with `padding: 3px`, the active segment a raised white
+  pill with a soft shadow inside it (the familiar iOS-style switch
+  pattern) — immediately reads as "this changes a mode" at a glance,
+  distinct from the plain pill row of filter tabs below it, which still
+  reads as "these narrow a list." The color clash resolves itself once
+  the shapes no longer look like the same control repeated.
+- **Tightened the vertical rhythm**: `#ct-tabs`'s top padding dropped
+  from 12px to 8px specifically so it reads as connected to the toggle
+  above it (one toolbar area: mode switch, then its filters) rather than
+  a second independently-floating row.
+- **Group headers got more visual weight** — `.ct-group-title` (e.g.
+  "INQUIRY 1" in the screenshot) gained a gold left-accent bar and bumped
+  from 700 to 800 weight, matching the gold-accent-bar language already
+  used for headings elsewhere in this file (Quote Builder/itinerary
+  documents' `h2`) — was plain small-caps gray text with comparatively
+  little presence against the now-more-polished toolbar above it.
+- **A real fade transition on re-render**, not just the toolbar restyle
+  — direct response to "more fluid," matching this session's established
+  vocabulary from the earlier modal-transition work. New
+  `ctSetListHtml(list, html)` replaces every direct `list.innerHTML =`
+  assignment in `ctRender()` (three call sites: the two empty-states and
+  the real grouped-cards render) — drops `#ct-list`'s opacity to 0,
+  updates the content synchronously (so the very next line's
+  `querySelectorAll` wiring still finds real elements immediately, no
+  timing gap), then restores opacity to 1 on the next animation frame.
+  `#ct-list` already needed a `transition: opacity .15s ease` rule added
+  for this to actually animate rather than snap. Fires on every
+  `ctRender()` call — switching views, typing a search, changing the
+  status filter, picking a new status from the inline dropdown — so the
+  whole panel feels like one consistently fluid surface, not just the
+  one toggle that prompted the complaint.
+- Verified with the existing real Node execution-harness test (the one
+  built for the "All Clients" view itself) re-run against the restyled/
+  re-rendered source — confirmed zero functional regression (view
+  switching, status grouping/counts/sort order, the inline dropdown's
+  save-and-re-render, the XSS probe all still pass exactly as before,
+  since this pass was pure CSS plus one small rendering helper, no
+  logic changes). Added one new targeted check for the fade mechanic
+  itself: opacity drops to 0 synchronously, the new content is already
+  queryable before the animation frame fires (proving the wiring calls
+  right after `ctSetListHtml` aren't racing the fade), and opacity
+  restores to 1 once the queued `requestAnimationFrame` callback runs.
+  All 16 script blocks parse; div-tag balance unaffected (pure CSS +
+  one JS helper, no new markup).
+- **Unverified live**: whether the segmented-control restyle, the
+  tightened spacing, and the fade actually read as "fluid and organized"
+  in a real browser the way they're intended to — this round shipped in
+  direct response to a real screenshot, but the fix itself hasn't been
+  seen live yet. Worth a look at the actual result next time the panel's
+  open.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

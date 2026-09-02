@@ -14922,21 +14922,37 @@ ${bodyHtml}
   }
   #ct-call-btn:hover { background: var(--gold-text); transform: translateY(-1px); }
 
-  /* "All Clients" view toggle (Sep 2026) — same visual language as
-     .ct-tab below (reusing it directly would collide with the existing
-     unscoped document.querySelectorAll('.ct-tab') calls that wire up the
-     lead-temp tabs, so this is a deliberately separate class rather than
-     shared markup). */
-  #ct-view-toggle { display: flex; gap: 8px; padding: 12px 26px 0; flex-shrink: 0; }
+  /* "All Clients" view toggle (Sep 2026, restyled after live feedback —
+     "clean this up... more fluid... organize a bit better"). Originally
+     styled as plain pill buttons matching .ct-tab below, which read as a
+     confusing second row of the same control (same shape, same size,
+     stacked directly on top of the real filter tabs) — a gold "All
+     Clients" pill sitting right above a green "Hot Lead" pill looked like
+     two competing accents on the same kind of thing, not two different
+     kinds of thing. Restyled as a real segmented control (a single
+     bordered track, the active segment gets a solid raised pill inside
+     it) — a visually distinct SHAPE communicates "this switches a mode,"
+     the filter tabs below it staying plain pills communicates "these
+     narrow down a list." Deliberately still a separate class from
+     .ct-tab, not shared markup — reusing it would collide with the
+     existing unscoped document.querySelectorAll('.ct-tab') calls that
+     wire up the lead-temp tabs. */
+  #ct-view-toggle {
+    display: inline-flex; gap: 3px; padding: 3px; margin: 14px 26px 0;
+    background: var(--beige, #f3ead9); border-radius: 12px; flex-shrink: 0;
+  }
   #ct-view-toggle[hidden] { display: none; }
   .ct-view-tab {
-    background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft);
+    background: transparent; border: none; color: var(--ct-ink-soft);
     font-family: 'Lato', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer;
-    border-radius: 20px; padding: 7px 14px; transition: background .12s ease, border-color .12s ease, color .12s ease;
+    border-radius: 9px; padding: 7px 15px; transition: background .15s ease, color .15s ease, box-shadow .15s ease;
   }
-  .ct-view-tab:hover { border-color: var(--gold); color: var(--dark); }
-  .ct-view-tab.active { background: var(--gold); border-color: var(--gold); color: #fff; }
-  #ct-tabs { display: flex; gap: 8px; padding: 12px 26px 0; flex-shrink: 0; flex-wrap: wrap; }
+  .ct-view-tab:hover { color: var(--dark); }
+  .ct-view-tab.active { background: #fff; color: var(--sage-darker); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+  /* Tighter top padding than the view-toggle above it (14px vs. 8px) —
+     the two now read as one connected toolbar area (mode switch, then
+     its filters) instead of two independently-floating rows of pills. */
+  #ct-tabs { display: flex; gap: 8px; padding: 8px 26px 0; flex-shrink: 0; flex-wrap: wrap; }
   #ct-tabs[hidden] { display: none; }
   .ct-tab {
     background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft);
@@ -15062,12 +15078,13 @@ ${bodyHtml}
   #ct-save-btn:hover { background: var(--sage-darker); }
   #ct-err-name { color: var(--ct-overdue); font-size: 11.5px; margin: 4px 0 0; display: none; }
 
-  #ct-list { padding: 18px 26px 10px; }
+  #ct-list { padding: 18px 26px 10px; transition: opacity .15s ease; }
   .ct-group { margin-bottom: 22px; }
   .ct-group-title {
-    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700;
-    color: var(--ct-ink-soft); margin: 0 0 10px; padding-bottom: 7px; border-bottom: 1px solid var(--ct-line);
-    letter-spacing: 0.02em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800;
+    color: var(--sage-darker); margin: 0 0 10px; padding: 0 0 7px 10px;
+    border-bottom: 1px solid var(--ct-line); border-left: 3px solid var(--gold);
+    letter-spacing: 0.03em; text-transform: uppercase;
   }
   .ct-group-count { font-weight: 400; background: var(--ct-closed-soft); color: var(--ct-ink-soft); border-radius: 20px; padding: 1px 9px; font-size: 11px; text-transform: none; letter-spacing: normal; }
   .ct-group-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
@@ -16594,6 +16611,19 @@ ${bodyHtml}
   // stage — a different, complementary organization, not a replacement.
   let ctListView = 'urgency';
 
+  // Small fade so a re-render (switching views, typing a search, changing
+  // a status, anything that calls ctRender) reads as new content replacing
+  // old rather than an instant, jarring swap — the same "fluid, not
+  // snapping" complaint this session's modal-transition work addressed
+  // elsewhere. #ct-list already has `transition: opacity .15s ease` in
+  // its own CSS rule; this just drives it on every render instead of
+  // setting innerHTML directly.
+  function ctSetListHtml(list, html) {
+    list.style.opacity = '0';
+    list.innerHTML = html;
+    requestAnimationFrame(() => { list.style.opacity = '1'; });
+  }
+
   function ctRender() {
     const search = document.getElementById('ct-search').value.trim().toLowerCase();
     const statusFilter = document.getElementById('ct-status-filter').value;
@@ -16629,11 +16659,11 @@ ${bodyHtml}
     const list = document.getElementById('ct-list');
 
     if (ctClients.length === 0) {
-      list.innerHTML = `<div class="ct-empty"><p class="ct-empty-big">No clients yet</p><p>Add your first client to start tracking follow-ups.</p></div>`;
+      ctSetListHtml(list, `<div class="ct-empty"><p class="ct-empty-big">No clients yet</p><p>Add your first client to start tracking follow-ups.</p></div>`);
       return;
     }
     if (filtered.length === 0) {
-      list.innerHTML = `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`;
+      ctSetListHtml(list, `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`);
       return;
     }
 
@@ -16667,7 +16697,7 @@ ${bodyHtml}
         <div class="ct-group-cards">${items.map(c => ctCardHTML(c, cardOpts)).join('')}</div>
       </div>`;
     });
-    list.innerHTML = html;
+    ctSetListHtml(list, html);
 
     list.querySelectorAll('[data-open]').forEach(el => {
       el.addEventListener('click', () => ctOpenDetail(el.dataset.open));
