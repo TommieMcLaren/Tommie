@@ -14922,6 +14922,20 @@ ${bodyHtml}
   }
   #ct-call-btn:hover { background: var(--gold-text); transform: translateY(-1px); }
 
+  /* "All Clients" view toggle (Sep 2026) — same visual language as
+     .ct-tab below (reusing it directly would collide with the existing
+     unscoped document.querySelectorAll('.ct-tab') calls that wire up the
+     lead-temp tabs, so this is a deliberately separate class rather than
+     shared markup). */
+  #ct-view-toggle { display: flex; gap: 8px; padding: 12px 26px 0; flex-shrink: 0; }
+  #ct-view-toggle[hidden] { display: none; }
+  .ct-view-tab {
+    background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft);
+    font-family: 'Lato', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    border-radius: 20px; padding: 7px 14px; transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .ct-view-tab:hover { border-color: var(--gold); color: var(--dark); }
+  .ct-view-tab.active { background: var(--gold); border-color: var(--gold); color: #fff; }
   #ct-tabs { display: flex; gap: 8px; padding: 12px 26px 0; flex-shrink: 0; flex-wrap: wrap; }
   #ct-tabs[hidden] { display: none; }
   .ct-tab {
@@ -15077,6 +15091,19 @@ ${bodyHtml}
   .ct-flag.temp.warm { background: var(--ct-gold-soft); color: var(--gold-text); }
   .ct-flag.temp.checkback { background: #E4E9F0; color: #3d5470; }
   .ct-flag.temp.cold { background: #E7ECEF; color: #5c7080; }
+  /* "All Clients" view's inline status switcher — same color language as
+     .ct-flag.status (a plain badge everywhere else) so a card looks the
+     same at a glance in either view, just with a real control here
+     instead of static text. */
+  .ct-inline-status {
+    appearance: none; -webkit-appearance: none; font: inherit; font-size: 10px; font-weight: 700;
+    padding: 2px 20px 2px 8px; border-radius: 20px; border: none; cursor: pointer; white-space: nowrap;
+    background-color: var(--ct-gold-soft); color: var(--gold-text);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%234a3a10' d='M2.5 4.5l3.5 3 3.5-3z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center; background-size: 9px;
+  }
+  .ct-inline-status.booked { background-color: #eef4ea; color: var(--sage-darker); }
+  .ct-inline-status.closed { background-color: var(--ct-closed-soft); color: var(--ct-closed); }
   .ct-meta-line { font-size: 12px; color: var(--ct-ink-soft); margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--ct-line); }
   .ct-card-note-btn {
     margin-left: auto; background: none; border: none; font-size: 14px; cursor: pointer; padding: 2px 4px;
@@ -15223,6 +15250,10 @@ ${bodyHtml}
       <button type="button" id="ct-add-btn">+ Add client</button>
       <button type="button" id="ct-call-btn">🎯 Qualifying Call</button>
     </div>
+  </div>
+  <div id="ct-view-toggle">
+    <button type="button" class="ct-view-tab active" data-view="urgency">📅 Follow-up</button>
+    <button type="button" class="ct-view-tab" data-view="all">📇 All Clients</button>
   </div>
   <div id="ct-tabs">
     <button type="button" class="ct-tab active" data-temp="">All<span class="ct-tab-count"></span></button>
@@ -15454,6 +15485,14 @@ ${bodyHtml}
   // an Artifacts-runtime-only API and doesn't exist when this file is
   // opened as a plain file:// page (see CLAUDE.md's BYOK migration notes).
   const CT_STORAGE_KEY = 'kt-client-tracker:v1';
+  // Single source of truth for the six pipeline statuses — used by the new
+  // "All Clients" view's per-status grouping and its inline status
+  // dropdown. The two pre-existing hardcoded <option> lists (the toolbar's
+  // status filter, the Add/Edit form's own status field) are left as
+  // static HTML rather than generated from this too — they already work,
+  // and converting them isn't needed for what this constant is actually
+  // for.
+  const CT_STATUSES = ['Inquiry', 'Quote sent', 'Booked', 'Traveling', 'Follow-up needed', 'Closed'];
   let ctClients = [];
   let ctEditingId = null;
   // Which card (by id) currently has its inline "quick note" panel open —
@@ -16128,6 +16167,24 @@ ${bodyHtml}
     return groups;
   }
 
+  // The "All Clients" view's grouping (Sep 2026) — same shape as
+  // ctGroupClients (an object of arrays, alphabetically sorted within each)
+  // but bucketed by real pipeline status instead of follow-up urgency. A
+  // client whose status somehow isn't one of CT_STATUSES (hand-edited
+  // localStorage, an older/odd import) still shows up rather than
+  // silently vanishing — falls into its own "Other" bucket instead of
+  // being dropped.
+  function ctGroupByStatus(list) {
+    const groups = {};
+    CT_STATUSES.forEach(s => { groups[s] = []; });
+    groups['Other'] = [];
+    list.forEach(c => {
+      (groups[c.status] || groups['Other']).push(c);
+    });
+    Object.values(groups).forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name)));
+    return groups;
+  }
+
   // REPLACED the MCP-based version (Aug 2026) after confirming live why
   // it 400'd: "Authentication error while communicating with MCP server."
   // The Messages API's mcp_servers connector requires its OWN
@@ -16228,7 +16285,7 @@ ${bodyHtml}
   // opened by clicking the card — direct response to the card feeling
   // cluttered once destination/itinerary/phone/email/TMT were all
   // showing at once.
-  function ctCardHTML(c) {
+  function ctCardHTML(c, opts) {
     const diff = c.nextFollowUp ? ctDaysBetween(c.nextFollowUp) : null;
     const isOverdue = diff !== null && diff < 0 && c.status !== 'Closed';
     let followText = 'No follow-up date set';
@@ -16245,12 +16302,22 @@ ${bodyHtml}
     // deliberately not a second note system, just a faster door into the
     // same one.
     const quickNoteOpen = ctQuickNoteOpenId === c.id;
+    // Inline status switcher (Sep 2026) — only in the "All Clients" view
+    // (opts.statusSelect), where quickly moving someone through the
+    // pipeline without opening the full Edit form is the whole point of
+    // being there. The default urgency view keeps the plain static badge
+    // — that view is "who needs me next," not a management screen, and a
+    // live dropdown on every card there would be a control with nothing
+    // to do most of the time.
+    const statusMarkup = (opts && opts.statusSelect)
+      ? `<select class="ct-inline-status ${ctStatusClass(c.status)}" data-status-select="${c.id}" title="Change status">${CT_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.status ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select>`
+      : `<span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>`;
 
     return `
       <div class="ct-card ${isOverdue ? 'overdue' : ''} ${c.status === 'Closed' ? 'closed' : ''}" data-open="${c.id}">
         <div class="ct-name-row">
           <span class="ct-client-name">${ctEscapeHtml(c.name)}</span>
-          <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
+          ${statusMarkup}
           ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
           ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
           <button type="button" class="ct-card-note-btn" data-quicknote-toggle="${c.id}" title="Add a quick note">📝</button>
@@ -16493,6 +16560,7 @@ ${bodyHtml}
     ctDetailId = id;
     ctDetailNoteOpen = false;
     document.getElementById('ct-toolbar').hidden = true;
+    document.getElementById('ct-view-toggle').hidden = true;
     document.getElementById('ct-tabs').hidden = true;
     document.getElementById('ct-list').hidden = true;
     ctRenderDetail();
@@ -16504,6 +16572,7 @@ ${bodyHtml}
     ctDetailNoteOpen = false;
     document.getElementById('ct-detail').hidden = true;
     document.getElementById('ct-toolbar').hidden = false;
+    document.getElementById('ct-view-toggle').hidden = false;
     document.getElementById('ct-tabs').hidden = false;
     document.getElementById('ct-list').hidden = false;
   }
@@ -16513,6 +16582,17 @@ ${bodyHtml}
   // status is where a client sits in the booking pipeline, this is how
   // urgently they're worth chasing right now.
   let ctActiveTempTab = '';
+
+  // View mode (Sep 2026) — direct response to "not having an area... for
+  // all existing clients... organize and filter and scroll through all
+  // leads... what status they are in." The default "urgency" view
+  // (ctGroupClients, unchanged) answers "who needs me next" — genuinely
+  // useful, but not a real roster: a client with no near-term follow-up
+  // date sits quietly in "No follow-up date" regardless of where they
+  // actually are in the pipeline. "all" groups the exact same filtered
+  // list by STATUS instead, so the whole roster is browsable by pipeline
+  // stage — a different, complementary organization, not a replacement.
+  let ctListView = 'urgency';
 
   function ctRender() {
     const search = document.getElementById('ct-search').value.trim().toLowerCase();
@@ -16557,27 +16637,55 @@ ${bodyHtml}
       return;
     }
 
-    const groups = ctGroupClients(filtered);
-    const sections = [
-      ['overdue', 'Overdue', groups.overdue],
-      ['soon', 'Due this week', groups.soon],
-      ['later', 'Upcoming', groups.later],
-      ['noDate', 'No follow-up date', groups.noDate],
-      ['closed', 'Closed', groups.closed]
-    ];
+    // Two grouping modes, same filtered list either way — ctListView
+    // decides which. "all" (the Sep 2026 "All Clients" view) passes
+    // { statusSelect: true } so every card renders a live status dropdown
+    // instead of a static badge; the default "urgency" view is untouched.
+    let sections, cardOpts;
+    if (ctListView === 'all') {
+      const statusGroups = ctGroupByStatus(filtered);
+      sections = CT_STATUSES.map(s => [s, s, statusGroups[s]]);
+      if (statusGroups['Other'].length) sections.push(['Other', 'Other', statusGroups['Other']]);
+      cardOpts = { statusSelect: true };
+    } else {
+      const groups = ctGroupClients(filtered);
+      sections = [
+        ['overdue', 'Overdue', groups.overdue],
+        ['soon', 'Due this week', groups.soon],
+        ['later', 'Upcoming', groups.later],
+        ['noDate', 'No follow-up date', groups.noDate],
+        ['closed', 'Closed', groups.closed]
+      ];
+      cardOpts = undefined;
+    }
 
     let html = '';
     sections.forEach(([key, label, items]) => {
       if (items.length === 0) return;
       html += `<div class="ct-group">
         <div class="ct-group-title">${label} <span class="ct-group-count">${items.length}</span></div>
-        <div class="ct-group-cards">${items.map(ctCardHTML).join('')}</div>
+        <div class="ct-group-cards">${items.map(c => ctCardHTML(c, cardOpts)).join('')}</div>
       </div>`;
     });
     list.innerHTML = html;
 
     list.querySelectorAll('[data-open]').forEach(el => {
       el.addEventListener('click', () => ctOpenDetail(el.dataset.open));
+    });
+
+    // Inline status dropdown (Sep 2026, "All Clients" view only) —
+    // stopPropagation on the click too, not just change: without it,
+    // clicking the select to OPEN its own option list already counts as
+    // a click on the card underneath, opening the profile before the
+    // dropdown even has a chance to register the actual selection.
+    list.querySelectorAll('[data-status-select]').forEach(sel => {
+      sel.addEventListener('click', (e) => e.stopPropagation());
+      sel.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const id = sel.dataset.statusSelect;
+        const ok = window.__ctApplyPatch && window.__ctApplyPatch(id, { status: sel.value });
+        if (!ok) ctSetStatus('Could not update status — try again.');
+      });
     });
 
     // Quick note on the card itself — stopPropagation() everywhere here
@@ -16771,6 +16879,13 @@ ${bodyHtml}
   document.querySelectorAll('.ct-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       ctActiveTempTab = tab.dataset.temp;
+      ctRender();
+    });
+  });
+  document.querySelectorAll('.ct-view-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ctListView = btn.dataset.view;
+      document.querySelectorAll('.ct-view-tab').forEach(b => b.classList.toggle('active', b === btn));
       ctRender();
     });
   });

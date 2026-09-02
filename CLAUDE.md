@@ -3340,6 +3340,107 @@ could and couldn't confirm:
   URL — genuinely the one item on this list that only a live check
   outside this environment can close out.
 
+## Client Tracker: an "All Clients" view, grouped by status (Sep 2026, unverified live)
+
+Direct request: "a real gap is not having an area in the client tracker
+for all existing clients... store and organize that nicely. Be able to
+filter and scroll through all leads... and what status they are in. A
+drop down feature to switch statuses would be good too."
+
+- **What was actually already there vs. the real gap.** The default list
+  already shows every client (`ctGroupClients` buckets everyone into
+  Overdue/Due this week/Upcoming/No date/Closed — that IS the full
+  roster, nothing was hidden) — but always organized by follow-up
+  urgency, never by where someone actually sits in the booking pipeline.
+  A client with no near-term follow-up date quietly sits in "No
+  follow-up date" regardless of whether they're a fresh Inquiry or
+  sitting at Quote Sent — the real gap wasn't visibility, it was a
+  roster-shaped VIEW of it.
+- **New `#ct-view-toggle`** — two pills, "📅 Follow-up" (the existing
+  behavior, unchanged, still the default) and "📇 All Clients" (new).
+  Deliberately a toggle rather than a replacement: "who needs me next"
+  is still the more useful default for a DE opening the panel
+  day-to-day, this just adds the roster-shaped alternative alongside it.
+  Reuses the search box, the status filter dropdown, and the lead-temp
+  tabs unchanged in both views — only the GROUPING changes.
+- **`ctGroupByStatus(list)`** — same shape as the existing
+  `ctGroupClients` (an object of arrays, alphabetically sorted within
+  each) but bucketed by the real six-value pipeline status
+  (`CT_STATUSES`, newly pulled out as one shared constant) instead of
+  follow-up urgency. A client whose stored status somehow isn't one of
+  the six (a hand-edited `localStorage` value, an odd import) falls into
+  its own "Other" bucket rather than silently vanishing from the list.
+- **Inline status dropdown, "All Clients" view only.** `ctCardHTML(c,
+  opts)` now takes an options param — with `{ statusSelect: true }` it
+  renders a real `<select>` (styled to match the existing status badge's
+  color language) instead of the plain static badge; every other view
+  (including the default urgency one) passes no options and renders
+  exactly as before, zero visual change there. Changing the dropdown
+  calls the same `window.__ctApplyPatch` the AI-driven `propose_
+  todo_update` confirm flow already uses — one save path, not a second
+  one — which re-renders the whole list immediately, so picking a new
+  status visibly moves the card into its new group right away.
+  `stopPropagation()` on both the select's `click` and `change` — without
+  it, opening the dropdown's own option list already counts as a click on
+  the card underneath (the whole card is a click target for "open
+  profile"), popping the profile open before the actual selection even
+  registers.
+- **A real bug caught before it shipped, not after**: `items.map(
+  ctCardHTML)` — the existing call site for the default view — would
+  have silently broken once `ctCardHTML` gained a second parameter.
+  `Array.prototype.map` calls its callback with `(item, index, array)`,
+  so the array INDEX would have leaked into `opts` for every card past
+  the first one; by luck this wouldn't have visibly broken anything
+  (`opts.statusSelect` on a number is always `undefined`, still falsy),
+  but it's exactly the kind of fragile-by-accident code this file's own
+  audits keep finding. Fixed by making both call sites explicit (`items.
+  map(c => ctCardHTML(c, cardOpts))`) rather than relying on that luck.
+- **Also caught before shipping**: the new view-toggle buttons could not
+  reuse the existing `.ct-tab` class, even though they're visually
+  styled the same way — two places in this file already do an unscoped
+  `document.querySelectorAll('.ct-tab')` to wire up the lead-temp tabs,
+  and reusing that class would have made the new buttons ALSO fire the
+  lead-temp click handler (setting `ctActiveTempTab` to `undefined`,
+  since the new buttons use `data-view` not `data-temp`). Given a
+  distinct class, `.ct-view-tab`, instead.
+- `#ct-view-toggle` is hidden/shown alongside `#ct-toolbar`/`#ct-tabs` in
+  `ctOpenDetail`/`ctCloseDetail` (the profile drill-down already hides
+  the other list-level controls; this one needed the same treatment or
+  it would have kept floating above an open profile).
+- Verified with a real Node execution-harness test loading the actual
+  extracted Client Tracker script and seeding five synthetic clients
+  across four different statuses: the default view still shows static
+  badges and zero dropdowns (regression guard); switching views shows
+  one dropdown per client and zero static badges; the status groups
+  render in the correct `CT_STATUSES` order with correct counts; a
+  two-client group sorts alphabetically; changing a dropdown actually
+  persists the new status to `localStorage`, calls `stopPropagation`,
+  and the list visibly re-renders with the client now in its new group
+  (count grew from 2 to 3 in the target group); and an XSS probe in a
+  client name comes back fully escaped with no live `<script>` tag in
+  the rendered list. Also had to extend the test harness itself with a
+  generic event-`trigger()` method (previously only `click()` existed)
+  to fire the dropdown's real `change` listener rather than reaching
+  into its internals. All 16 script blocks parse; div/button tag
+  balance incremented by exactly the new static markup added (one
+  `#ct-view-toggle` div, two `.ct-view-tab` buttons), select-tag balance
+  held.
+- **Deliberately not built**: bulk status changes (select multiple
+  clients, change all at once) and a true virtualized/paginated scroll
+  for a very large roster — the existing `#ct-body` container is already
+  a real scrollable region (`overflow-y: auto`, fixed from an earlier
+  session's clipping-bug fix), so "scroll through all leads" is already
+  satisfied by the browser's native scrolling for any roster size this
+  file is realistically used at; a custom virtual-scroll implementation
+  would be solving a problem that doesn't exist yet.
+- **Unverified live**: how the inline dropdown's custom arrow icon and
+  color-coding actually look against each status (especially "Traveling"
+  and "Follow-up needed," which don't have their own distinct color the
+  way Booked/Closed do — they inherit the default gold badge look,
+  matching what the static badge already did for those two statuses),
+  and whether switching between the two views feels smooth or jarring in
+  a real browser — none of this has been seen outside this environment.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
