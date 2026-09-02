@@ -14692,32 +14692,59 @@ ${renderMarkdownLite(fullText)}
   }
   #ct-head b { font-family: 'Playfair Display', serif; font-size: 21px; letter-spacing: 0.2px; }
   #ct-head span { display: block; font-size: 12.5px; opacity: 0.88; margin-top: 4px; line-height: 1.4; }
-  #ct-close, #ct-notify-btn, #ct-export-btn, #ct-import-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 16px; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; margin-left: 10px; transition: background .15s ease; }
-  #ct-close:hover, #ct-notify-btn:hover, #ct-export-btn:hover, #ct-import-btn:hover { background: rgba(255,255,255,0.3); }
+  /* Sep 2026 facelift — direct response to "clean up the toolbar... give
+     it a face lift, fluid and clean." Four icon buttons (notify/export/
+     import/close) used to sit in one undifferentiated row with only a
+     hover tooltip telling them apart. #ct-head-actions groups them with
+     a real flex gap instead of each button carrying its own
+     margin-left, and two thin .ct-head-divider rules split the row into
+     three legible clusters: the persistent 🔕 reminder toggle, the one-
+     shot 📥/📤 backup actions, and ✕ dismiss — so the grouping reads at
+     a glance instead of four identical circles in a line. Scoped as
+     "#ct-head .ct-head-divider" (id + class) rather than a bare class,
+     since the existing "#ct-head span" rule above is itself an id
+     selector and would otherwise win the specificity fight and force
+     display:block/subtitle styling onto the divider. */
+  #ct-head-actions { display: flex; align-items: center; gap: 6px; }
+  #ct-head .ct-head-divider { display: block; width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 2px; }
+  #ct-close, #ct-notify-btn, #ct-export-btn, #ct-import-btn {
+    background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 16px; cursor: pointer;
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    transition: background .15s ease, transform .12s ease;
+  }
+  #ct-close:hover, #ct-notify-btn:hover, #ct-export-btn:hover, #ct-import-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
   #ct-notify-btn.on { background: rgba(255,255,255,0.32); }
 
-  #ct-toolbar { display: flex; gap: 10px; padding: 16px 26px 0; flex-shrink: 0; }
+  #ct-toolbar { display: flex; flex-wrap: wrap; gap: 10px; row-gap: 10px; padding: 16px 26px 0; flex-shrink: 0; }
   #ct-search {
     flex: 1; min-width: 100px; padding: 9px 13px; border: 1px solid var(--ct-line);
     border-radius: 8px; font-size: 14px; font-family: 'Lato', sans-serif; background: #fff;
+    transition: border-color .12s ease, outline-color .12s ease;
   }
   #ct-search:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
   #ct-status-filter {
     padding: 9px 10px; border: 1px solid var(--ct-line); border-radius: 8px;
     background: #fff; font-family: 'Lato', sans-serif; font-size: 13.5px; color: var(--dark);
+    transition: border-color .12s ease;
   }
+  #ct-status-filter:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
+  /* Groups the two "start a new client" actions (a blank form vs. the
+     call-friendly Qualifying Call flow) with a tighter gap than the
+     toolbar's own 10px, so they read as one related pair rather than
+     just the last two items in a flat row of unrelated controls. */
+  #ct-toolbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
   #ct-add-btn {
     background: var(--sage-dark); color: #fff; border: none; border-radius: 8px;
     padding: 9px 16px; font-size: 13.5px; font-weight: 700; cursor: pointer; flex-shrink: 0;
-    font-family: 'Lato', sans-serif; transition: background .12s ease;
+    font-family: 'Lato', sans-serif; transition: background .12s ease, transform .12s ease;
   }
-  #ct-add-btn:hover { background: var(--sage-darker); }
+  #ct-add-btn:hover { background: var(--sage-darker); transform: translateY(-1px); }
   #ct-call-btn {
     background: var(--gold); color: #fff; border: none; border-radius: 8px;
     padding: 9px 16px; font-size: 13.5px; font-weight: 700; cursor: pointer; flex-shrink: 0;
-    font-family: 'Lato', sans-serif; transition: background .12s ease;
+    font-family: 'Lato', sans-serif; transition: background .12s ease, transform .12s ease;
   }
-  #ct-call-btn:hover { background: var(--gold-text); }
+  #ct-call-btn:hover { background: var(--gold-text); transform: translateY(-1px); }
 
   #ct-tabs { display: flex; gap: 8px; padding: 12px 26px 0; flex-shrink: 0; flex-wrap: wrap; }
   #ct-tabs[hidden] { display: none; }
@@ -14995,14 +15022,18 @@ ${renderMarkdownLite(fullText)}
 <div id="ct-panel">
   <div id="ct-head">
     <div><b>Client Tracker</b><span id="ct-head-subtitle">Every active client, sorted by who needs you next</span></div>
-    <button type="button" id="ct-notify-btn" title="Browser reminders when a follow-up is due">🔕</button>
-    <button type="button" id="ct-export-btn" title="Download a backup of every client">📥</button>
-    <button type="button" id="ct-import-btn" title="Restore clients from a backup file">📤</button>
-    <input type="file" id="ct-import-file" accept="application/json,.json" hidden>
-    <button type="button" id="ct-close" aria-label="Close">✕</button>
+    <div id="ct-head-actions">
+      <button type="button" id="ct-notify-btn" class="ct-head-group" title="Browser reminders when a follow-up is due">🔕</button>
+      <span class="ct-head-divider"></span>
+      <button type="button" id="ct-export-btn" class="ct-head-group" title="Download a backup of every client">📥</button>
+      <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file">📤</button>
+      <input type="file" id="ct-import-file" accept="application/json,.json" hidden>
+      <span class="ct-head-divider"></span>
+      <button type="button" id="ct-close" aria-label="Close">✕</button>
+    </div>
   </div>
   <div id="ct-toolbar">
-    <input type="search" id="ct-search" placeholder="Search by name, destination, or notes">
+    <input type="search" id="ct-search" placeholder="🔍 Search by name, destination, or notes">
     <select id="ct-status-filter">
       <option value="">All statuses</option>
       <option>Inquiry</option>
@@ -15012,8 +15043,10 @@ ${renderMarkdownLite(fullText)}
       <option>Follow-up needed</option>
       <option>Closed</option>
     </select>
-    <button type="button" id="ct-add-btn">+ Add client</button>
-    <button type="button" id="ct-call-btn">🎯 Qualifying Call</button>
+    <div id="ct-toolbar-actions">
+      <button type="button" id="ct-add-btn">+ Add client</button>
+      <button type="button" id="ct-call-btn">🎯 Qualifying Call</button>
+    </div>
   </div>
   <div id="ct-tabs">
     <button type="button" class="ct-tab active" data-temp="">All<span class="ct-tab-count"></span></button>

@@ -2730,6 +2730,78 @@ first one.
   feel like part of one coherent app instead of some snapping and
   others fading.
 
+## Client Tracker toolbar/header facelift (Sep 2026, unverified live)
+
+Direct follow-up request: "clean up the tool bar. Same idea, clean
+organized, easy to navigate. Can give it a face lift in appearance."
+The only place literally called a "toolbar" in this file is `#ct-toolbar`
+(the Client Tracker's search/filter/add-client/qualifying-call row) —
+targeted that plus its `#ct-head` icon-button row directly above it,
+since both had grown crowded this session (`#ct-head` picked up two
+more icon buttons for backup/restore on top of the existing notify and
+close buttons).
+
+- **`#ct-head`'s four icon buttons (🔕/📥/📤/✕) now visually group into
+  three clusters** instead of one undifferentiated row: the persistent
+  🔕 reminder toggle, the one-shot 📥/📤 backup actions, and ✕ dismiss
+  — separated by two thin `.ct-head-divider` rules. Wrapped in a new
+  `#ct-head-actions` container so the gap between buttons comes from
+  one flex `gap` instead of each button carrying its own
+  `margin-left`. The divider is deliberately scoped as `#ct-head
+  .ct-head-divider` (id + class) rather than a bare class — the
+  existing `#ct-head span` rule is itself an id selector and would
+  otherwise win the specificity fight, forcing the subtitle's
+  `display:block` styling onto what's supposed to be a 1px vertical
+  line.
+- **`#ct-toolbar` now wraps** (`flex-wrap: wrap; row-gap: 10px`)
+  instead of only ever being one rigid row — on a narrow window the
+  controls now drop to a second line cleanly instead of squeezing or
+  overflowing.
+- **"+ Add client" and "🎯 Qualifying Call" are now grouped** in a new
+  `#ct-toolbar-actions` wrapper with a tighter 8px gap between them
+  (vs. the toolbar's own 10px), so the two "start a new client" paths
+  read as a related pair instead of just the last two items in a flat
+  row of otherwise-unrelated controls. Because it's `flex-shrink: 0`
+  and not `flex: 1`, the pair wraps to a new line together as one unit
+  if the toolbar runs out of room, never splitting mid-group.
+- **Search field gets a real icon** — `placeholder="🔍 Search by
+  name..."`, matching the exact convention the Working Dashboard's own
+  search field already established elsewhere in this file (an emoji
+  baked into the placeholder text, not a separately-positioned icon
+  overlay) rather than inventing a second pattern for the same idea.
+- **Small hover polish across the board** — the head's icon buttons
+  now scale up slightly on hover (`transform: scale(1.08)`), the two
+  toolbar action buttons lift slightly (`translateY(-1px)`), and the
+  search field/status filter now transition their focus outline
+  in (`.12s ease`) instead of snapping — small, low-risk additions in
+  the same "fluid" spirit as the modal-transition work above, without
+  changing any layout or behavior.
+- Verified via static analysis (this is CSS + trivial DOM structure,
+  nothing meaningfully executable in Node): the camelCase-filtered
+  orphaned-reference sweep and the `getElementById`-vs-real-`id`
+  cross-check from the file-health pass earlier this session both
+  still come back clean (same 8 known false positives, zero missing
+  ids). All 16 script blocks parse; div-tag balance held (1,658/1,658
+  → 1,660/1,660, matching the two new wrapper `<div>`s added).
+- **Found, not caused, while re-running that health check**: the
+  file's `<span>` tags are off by one (one more open than close)
+  confirmed via `git show HEAD:Tommie_Tours.html` to already be true
+  in the last commit, before any of today's edits. Harmless in
+  practice — browsers auto-close an unclosed inline element like
+  `<span>` with no visible effect — and not worth a disproportionate
+  hunt through 14,000 lines for a single missing closing tag that's
+  evidently caused zero reported problems through many prior sessions.
+  Flagged here rather than silently ignored; worth a "search line-by-
+  line for the exact spot" pass if it's ever convenient, but not
+  urgent.
+- **Unverified live**: whether the divider lines are visible enough
+  against the gold gradient header background to actually read as
+  grouping (vs. just adding visual noise), and whether the toolbar's
+  new wrap behavior looks clean or awkward on an actual narrow window
+  — neither can be judged without a real browser. Test next: resize
+  the Client Tracker panel narrow and confirm the toolbar wraps
+  cleanly rather than overlapping or clipping.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
