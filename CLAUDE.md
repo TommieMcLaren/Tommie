@@ -3983,6 +3983,53 @@ work in unison to talk to each other as well for this."
   and confirm the result shows up correctly in both the client's own
   Follow-ups section and the Daily Tasks panel.
 
+## Paste-to-attach for images (Sep 2026, unverified live)
+
+Direct follow-up to the TMT import feature, once the DE saw the "Scan
+TMT"/drag-drop screenshot in the Client Tracker: "the idea was to be
+able to screenshot the information and then paste it with out having to
+save it as a file" — explicitly asking for the same Ctrl/Cmd+V-to-attach
+mechanic Claude's own chat box already has, rather than requiring
+Save-as-file → pick-that-file first.
+
+- **Trip Assistant's 📎 image attach**: the file-input `change` handler's
+  FileReader logic was pulled out into a shared `attachImageFile(file,
+  sourceLabel)` (used by both the file picker and the new paste path —
+  one copy of the read/size-check/preview logic, not two). A `paste`
+  listener on `#ta-input` checks `e.clipboardData.items` for an image
+  MIME type; if none is present, does nothing and lets a normal text
+  paste proceed completely untouched. A pasted image has no filename, so
+  the preview label falls back to "Pasted image."
+- **Client Tracker's TMT import**: same mechanic, reusing the already-
+  built `ctReadImageFile`/`ctOpenScanReview` pipeline. Unlike Trip
+  Assistant, there's no single obvious element to attach a `paste`
+  listener to for "paste anywhere on this panel" (no dedicated input
+  box) — listens on `document` instead, gated by checking
+  `#ct-overlay.classList.contains('open')` before acting, matching the
+  same "don't interfere with anything outside this panel" discipline the
+  drag-and-drop drop-zone already uses.
+- **Deliberately not built**: paste support inside the scan-review modal
+  itself (e.g. pasting a second screenshot while reviewing the first) —
+  wasn't asked for, and the modal is already a review-then-Apply step
+  for one extraction at a time.
+- Verified via syntax parsing (all 17 `<script>` blocks) and a full
+  regression run of every existing Client Tracker Node harness test
+  (TMT import, All-Clients-view, stuck-in-the-form fix, multi-follow-up)
+  against the updated source — zero regressions, since this was pure
+  event-listener wiring with no changes to any function signature those
+  tests exercise. Div-tag balance unaffected (no new markup, only JS).
+- **Unverified live, and genuinely can't be fully checked from here**:
+  whether `document`-level `paste` actually fires in a real browser when
+  nothing in the Client Tracker panel currently has keyboard focus (a
+  real, known browser quirk — some browsers only dispatch `paste` to a
+  focused, editable element) — if pasting silently does nothing, that's
+  the first thing to check, and the fix would likely be focusing some
+  element (or adding a `tabindex` to the panel itself) when it opens.
+  Trip Assistant's version is lower-risk here since `#ta-input` is a
+  real, commonly-focused textarea. Test next: copy a screenshot
+  (Win+Shift+S / Cmd+Shift+4) and paste directly into both the Trip
+  Assistant input box and the open Client Tracker panel.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

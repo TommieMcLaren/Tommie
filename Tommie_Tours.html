@@ -13434,12 +13434,15 @@ Tommie McLaren`
       addMsg('sys', "Client Tracker hasn't loaded yet — try again in a moment.", false);
     }
   });
-  if (imageFileInput) imageFileInput.addEventListener('change', () => {
-    const file = imageFileInput.files && imageFileInput.files[0];
+  // Shared by the 📎 file picker AND pasting an image directly (Ctrl/Cmd+V
+  // — same "paste a screenshot straight in" mechanic as Claude's own chat
+  // box, direct request rather than requiring Save-as-file-then-attach
+  // first). Both paths end up with a real File/Blob, so one function
+  // reads it and populates pendingImage either way.
+  function attachImageFile(file, sourceLabel) {
     if (!file) return;
     if (file.size > TA_MAX_IMAGE_BYTES) {
       addMsg('sys', `That image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB) — try one under 5MB.`, false);
-      imageFileInput.value = '';
       return;
     }
     const reader = new FileReader();
@@ -13448,17 +13451,34 @@ Tommie McLaren`
       const m = typeof dataUrl === 'string' && dataUrl.match(/^data:([^;]+);base64,(.*)$/);
       if (!m) {
         addMsg('sys', "Couldn't read that image — try a different file.", false);
-        imageFileInput.value = '';
         return;
       }
-      pendingImage = { dataUrl, mediaType: m[1], base64: m[2], name: file.name };
+      pendingImage = { dataUrl, mediaType: m[1], base64: m[2], name: sourceLabel || file.name || 'Pasted image' };
       imagePreviewThumb.src = dataUrl;
-      imagePreviewName.textContent = file.name;
+      imagePreviewName.textContent = pendingImage.name;
       imagePreviewEl.classList.add('shown');
       input.focus();
     };
-    reader.onerror = () => { addMsg('sys', "Couldn't read that image — try a different file.", false); imageFileInput.value = ''; };
+    reader.onerror = () => addMsg('sys', "Couldn't read that image — try a different file.", false);
     reader.readAsDataURL(file);
+  }
+  if (imageFileInput) imageFileInput.addEventListener('change', () => {
+    const file = imageFileInput.files && imageFileInput.files[0];
+    attachImageFile(file);
+    imageFileInput.value = '';
+  });
+  // Paste-to-attach: a screenshot copied to the clipboard (Win+Shift+S /
+  // Cmd+Shift+4, or copying an image from anywhere) attaches directly on
+  // Ctrl/Cmd+V into the input box, no "save it as a file first" step.
+  // Only intercepts when the clipboard actually contains image data —
+  // a normal text paste into the textarea is completely unaffected.
+  input.addEventListener('paste', (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    const imageItem = Array.from(items).find(it => it.type && it.type.startsWith('image/'));
+    if (!imageItem) return;
+    e.preventDefault();
+    attachImageFile(imageItem.getAsFile(), 'Pasted image');
   });
 
   // ---------- Voice — tap the mic for a real back-and-forth: listen →
@@ -17556,6 +17576,26 @@ text. If you can't find any rows at all, respond with exactly: []`;
   document.getElementById('ct-scan-cancel').addEventListener('click', ctCloseScanReview);
   document.getElementById('ct-scan-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'ct-scan-overlay') ctCloseScanReview();
+  });
+  // Paste-to-import: Ctrl/Cmd+V a screenshot straight in — same mechanic
+  // just added to Trip Assistant's image attach, direct request rather
+  // than requiring "save the screenshot as a file, then pick it" first.
+  // There's no single obvious input to focus for "paste anywhere on this
+  // panel" the way Trip Assistant has its textarea, so this listens on
+  // the whole document and just checks the Client Tracker overlay is
+  // actually open before acting — a normal text paste anywhere (the
+  // search box, a form field) is untouched, since this only intercepts
+  // when the clipboard actually carries image data.
+  document.addEventListener('paste', (e) => {
+    if (!document.getElementById('ct-overlay').classList.contains('open')) return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    const imageItem = Array.from(items).find(it => it.type && it.type.startsWith('image/'));
+    if (!imageItem) return;
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    ctReadImageFile(file).then(img => ctOpenScanReview(img.base64, img.mediaType)).catch(err => ctSetStatus(err.message));
   });
   document.getElementById('ct-scan-apply').addEventListener('click', ctApplyScanReview);
   document.getElementById('ct-cancel-btn').addEventListener('click', ctCloseForm);
