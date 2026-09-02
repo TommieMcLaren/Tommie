@@ -2656,6 +2656,80 @@ condensing fix above:
   check rather than assuming the literal request is automatically the
   best long-term feel.
 
+## Consistent open/close transitions across every modal (Sep 2026, unverified live)
+
+Direct request: "I would like a more seamless and fluid interface
+experience," narrowed via a follow-up question to three concrete pain
+points — "Panels snap open/closed," "Overlapping panels feel
+disjointed," and "Loading/waiting feels dead." This entry covers the
+first one.
+
+- **Only `#ta-panel` and `#ct-overlay` had a real open/close
+  transition before this.** Both already used a fade + a slight
+  rise-and-scale on the inner box (`opacity` on the overlay,
+  `transform: translateY(14px) scale(0.98)` on the panel/modal,
+  triggered via `classList.add('open')` then, next animation frame,
+  `classList.add('shown')` — the two-step is required because you
+  can't transition FROM `display:none`, there's nothing to animate).
+  Every other modal in this file — the itinerary pop-out, the draft
+  pop-out, the Quote Builder, the Working Dashboard, the stale-content
+  list, "Tell Me More," the quiz, and the random-tip modal — just
+  hard-toggled `display:none`/`flex` with zero transition, so half the
+  app felt smooth and the other half snapped.
+- **One shared CSS recipe instead of eight copies.** Added a single
+  comma-selector rule block (right before the itinerary-modal CSS)
+  applying the exact same opacity/transform timing to all eight
+  remaining overlay/modal id pairs at once, rather than pasting the
+  same few lines eight times.
+- **Every affected open() function** now does `classList.add('open')`
+  then `requestAnimationFrame(() => el.classList.add('shown'))`;
+  **every close path** now does `classList.remove('shown')` then
+  `setTimeout(() => el.classList.remove('open'), 180)` (180ms matching
+  the CSS transition duration) instead of removing `'open'`
+  immediately — removing it immediately would have skipped the
+  fade-out entirely, since `display:none` applies instantly and there'd
+  be nothing left on screen to animate. Several modals had multiple
+  close sites (a close button, a backdrop click, an Escape key, a
+  "jump to this section" link that closes-then-scrolls) — pulled each
+  into one shared `close*()` function (`closeQuoteBuilderOverlay`,
+  `closeStaleOverlay`, `closeTmmOverlay`, `closeQuizOverlay`,
+  `closeTipModal`) so there's one place per modal that knows how to
+  close it correctly, not four copies of the same two-line dance that
+  could drift out of sync.
+- **Deliberately left untouched**: the map/lightbox overlays, the
+  guide's inline search-results dropdown, the quick-search overlay,
+  the "why-bubble" explainer, and the Client Tracker's own internal
+  `#ct-form-panel`/`#ct-detail` view-swap — none of these are the
+  "modal popping up over the app" pattern this pass targeted; they're
+  either inline dropdowns or a state swap inside an already-open panel,
+  a different interaction shape that a fade-in wouldn't obviously
+  improve.
+- Verified via static analysis rather than a Node harness (this is
+  pure CSS + trivial DOM class toggling, nothing meaningfully
+  executable in Node): confirmed every `classList.add('open')` site in
+  the file now has a paired `requestAnimationFrame(...'shown')` call
+  immediately after it, and every `classList.remove('open')` site
+  removes `'shown'` first and defers `'open'` by 180ms — checked by
+  grepping every remaining bare `classList.add/remove('open')` call in
+  the file and confirming each one belongs to a deliberately-excluded
+  element above, not a missed modal. All 16 script blocks still parse;
+  div-tag balance unaffected (pure CSS + JS logic, no new markup); the
+  same camelCase-filtered orphaned-reference sweep from the file-health
+  check earlier this session still comes back with only the same 8
+  known false positives (parameter names and object-method shorthand),
+  nothing new.
+- **Unverified live, and this is real CSS/animation behavior no static
+  check can confirm**: whether 180ms actually feels smooth rather than
+  sluggish once seen in a real browser, whether the fade-out timing
+  lines up cleanly with the 180ms `setTimeout` on slower devices (a
+  late-firing timeout would flash the modal back to full opacity for a
+  frame before hiding), and whether eight modals now animating
+  consistently actually reads as "seamless" the way the request meant
+  it. Test next: open and close the itinerary pop-out, a draft, the
+  Quote Builder, and the Working Dashboard, and see whether they now
+  feel like part of one coherent app instead of some snapping and
+  others fading.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

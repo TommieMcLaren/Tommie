@@ -759,6 +759,42 @@
   #stale-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
   #stale-close:hover { color: var(--sage-darker); }
 
+  /* Shared fade+scale-in transition for every overlay/modal pop-up in this
+     file (Sep 2026) — direct response to "seamless and fluid interface,"
+     specifically "panels snap open/closed." Only #ta-panel and #ct-overlay
+     had this treatment before (a fade + a slight rise-and-scale on the
+     inner box); every other modal here just hard-toggled display:none/flex
+     with no transition at all. One shared recipe applied to all of them
+     instead of copy-pasting the same rule eight times — matches the exact
+     opacity/transform timing #ta-panel and #ct-overlay already use, so the
+     whole app now animates consistently rather than some panels being
+     smooth and others snapping. Each open()/close() function below now
+     adds 'open' + (next frame) 'shown' to reveal, and removes 'shown' +
+     (after 180ms, matching the transition duration) 'open' to dismiss —
+     the same two-step dance #ta-panel/#ct-overlay already used, needed
+     because you can't transition an element's opacity starting from
+     display:none (nothing to animate from) or safely display:none it
+     before its own fade-out finishes playing. */
+  #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
+  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay {
+    opacity: 0; transition: opacity .18s ease;
+  }
+  #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
+  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown {
+    opacity: 1;
+  }
+  #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
+  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal {
+    transform: translateY(14px) scale(0.98);
+    transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
+  }
+  #ta-itinerary-overlay.shown #ta-itinerary-modal, #ta-draft-overlay.shown #ta-draft-modal,
+  #quote-builder-overlay.shown #quote-builder-modal, #dashboard-overlay.shown #dashboard-modal,
+  #stale-overlay.shown #stale-modal, #tmm-overlay.shown #tmm-modal,
+  #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal {
+    transform: translateY(0) scale(1);
+  }
+
   /* Pop-out for a full live-AI answer (see addAiAnswerMsg/openItineraryModal)
      — z-index above #ta-panel (9999) since it's opened from inside it. */
   #ta-itinerary-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
@@ -9161,15 +9197,20 @@ Tommie McLaren</p>
       `You marked ${quizScore.gotIt} of ${total} card${total === 1 ? '' : 's'} as "Got it" this session. Nice work!`;
   }
 
+  function closeQuizOverlay() {
+    const overlay = document.getElementById('quiz-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
   document.getElementById('quizModeBtn').addEventListener('click', () => {
-    document.getElementById('quiz-overlay').classList.add('open');
+    const overlay = document.getElementById('quiz-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
     startQuiz();
   });
-  document.getElementById('quiz-close').addEventListener('click', () => {
-    document.getElementById('quiz-overlay').classList.remove('open');
-  });
+  document.getElementById('quiz-close').addEventListener('click', closeQuizOverlay);
   document.getElementById('quiz-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'quiz-overlay') document.getElementById('quiz-overlay').classList.remove('open');
+    if (e.target.id === 'quiz-overlay') closeQuizOverlay();
   });
   document.getElementById('quiz-reveal').addEventListener('click', () => {
     document.getElementById('quiz-answer').classList.add('shown');
@@ -9745,15 +9786,20 @@ ${resultsBody}
     document.getElementById('quote-builder-results').classList.add('shown');
   }
 
+  function closeQuoteBuilderOverlay() {
+    const overlay = document.getElementById('quote-builder-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
   document.getElementById('quoteBuilderBtn').addEventListener('click', () => {
-    document.getElementById('quote-builder-overlay').classList.add('open');
+    const overlay = document.getElementById('quote-builder-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
     document.getElementById('quote-builder-form').classList.remove('hidden');
   });
-  document.getElementById('quote-builder-close').addEventListener('click', () => {
-    document.getElementById('quote-builder-overlay').classList.remove('open');
-  });
+  document.getElementById('quote-builder-close').addEventListener('click', closeQuoteBuilderOverlay);
   document.getElementById('quote-builder-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'quote-builder-overlay') document.getElementById('quote-builder-overlay').classList.remove('open');
+    if (e.target.id === 'quote-builder-overlay') closeQuoteBuilderOverlay();
   });
   document.getElementById('quote-builder-back').addEventListener('click', () => {
     document.getElementById('quote-builder-results').classList.remove('shown');
@@ -9988,11 +10034,15 @@ ${resultsBody}
       tipJumpLink.style.display = 'none';
     }
   }
+  function closeTipModal() {
+    tipModal.classList.remove('shown');
+    setTimeout(() => tipModal.classList.remove('open'), 180);
+  }
   tipJumpLink.addEventListener('click', (e) => {
     e.preventDefault();
     const id = tipJumpLink.getAttribute('href').slice(1);
     const el = document.getElementById(id);
-    tipModal.classList.remove('open');
+    closeTipModal();
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       el.classList.add('search-highlight-flash');
@@ -10002,9 +10052,10 @@ ${resultsBody}
   document.getElementById('random-tip-btn').addEventListener('click', () => {
     showRandomTip();
     tipModal.classList.add('open');
+    requestAnimationFrame(() => tipModal.classList.add('shown'));
   });
   document.getElementById('tip-modal-next').addEventListener('click', showRandomTip);
-  document.getElementById('tip-modal-close').addEventListener('click', () => tipModal.classList.remove('open'));
+  document.getElementById('tip-modal-close').addEventListener('click', closeTipModal);
 
   // Print Bookmarks — reads straight from localStorage under the same key
   // the sidebar's bookmark star buttons use (that logic lives inside its
@@ -10054,8 +10105,8 @@ ${resultsBody}
     setTimeout(() => win.print(), 300); // let the new document finish rendering before invoking print
   }
   document.getElementById('printBookmarksBtn').addEventListener('click', printBookmarks);
-  tipModal.addEventListener('click', (e) => { if (e.target === tipModal) tipModal.classList.remove('open'); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') tipModal.classList.remove('open'); });
+  tipModal.addEventListener('click', (e) => { if (e.target === tipModal) closeTipModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTipModal(); });
 
   // ============================================================
   // "Tell Me More" — tracks whatever card the person last flipped open
@@ -10268,6 +10319,7 @@ ${resultsBody}
     tmmTitle.textContent = '🔎 ' + (subject.displayTitle || subject.name);
     tmmBody.innerHTML = '<p class="tmm-loading">Loading live info…</p>';
     tmmOverlay.classList.add('open');
+    requestAnimationFrame(() => tmmOverlay.classList.add('shown'));
 
     let weatherHtml = '', wikiHtml = '';
     const jobs = [];
@@ -10303,10 +10355,14 @@ ${resultsBody}
     tmmBody.innerHTML = weatherHtml + wikiHtml + googleLink;
   }
 
+  function closeTmmOverlay() {
+    tmmOverlay.classList.remove('shown');
+    setTimeout(() => tmmOverlay.classList.remove('open'), 180);
+  }
   document.getElementById('tell-me-more-btn').addEventListener('click', openTellMeMore);
-  document.getElementById('tmm-close').addEventListener('click', () => tmmOverlay.classList.remove('open'));
-  tmmOverlay.addEventListener('click', (e) => { if (e.target === tmmOverlay) tmmOverlay.classList.remove('open'); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') tmmOverlay.classList.remove('open'); });
+  document.getElementById('tmm-close').addEventListener('click', closeTmmOverlay);
+  tmmOverlay.addEventListener('click', (e) => { if (e.target === tmmOverlay) closeTmmOverlay(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTmmOverlay(); });
 
   // ============================================================
   // Guide Search — client-side "command bar" style search, plus
@@ -10736,12 +10792,14 @@ ${resultsBody}
 
   function openDashboard() {
     dashOverlay.classList.add('open');
+    requestAnimationFrame(() => dashOverlay.classList.add('shown'));
     dashSearchInput.value = '';
     dashSearchResultsEl.innerHTML = '';
     if (typeof renderDashResume === 'function') renderDashResume();
   }
   function closeDashboard() {
-    dashOverlay.classList.remove('open');
+    dashOverlay.classList.remove('shown');
+    setTimeout(() => dashOverlay.classList.remove('open'), 180);
   }
   document.getElementById('dashboardEntryBtn').addEventListener('click', openDashboard);
   document.getElementById('dashboard-close').addEventListener('click', closeDashboard);
@@ -13646,10 +13704,13 @@ Tommie McLaren`
     body.innerHTML = renderMarkdownLite(fullText);
     wireClientProfileLinks(body);
     overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
   }
   function closeItineraryModal() {
     const overlay = getItineraryOverlay();
-    if (overlay) overlay.classList.remove('open');
+    if (!overlay) return;
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
   // "📄 Download as document" (Aug 2026, unverified live) — direct
@@ -14298,10 +14359,13 @@ ${renderMarkdownLite(fullText)}
     if (smsResultEl) { smsResultEl.innerHTML = ''; smsResultEl.hidden = true; }
     wireDraftModalActions(actionsEl);
     overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
   }
   function closeDraftModal() {
     const overlay = getDraftOverlay();
-    if (overlay) overlay.classList.remove('open');
+    if (!overlay) return;
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
   }
   // Lets the Client Tracker (a separate script/IIFE, loaded after this
   // one) reopen a previously-saved draft from a client's profile without
@@ -16727,7 +16791,7 @@ ${renderMarkdownLite(fullText)}
       listEl.querySelectorAll('.stale-jump').forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
-          overlay.classList.remove('open');
+          closeStaleOverlay();
           const el = document.getElementById(link.dataset.target);
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -16738,14 +16802,21 @@ ${renderMarkdownLite(fullText)}
       });
     }
     overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+
+  function closeStaleOverlay() {
+    const overlay = document.getElementById('stale-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
   if (staleBtn) staleBtn.addEventListener('click', openStaleOverlay);
   const staleClose = document.getElementById('stale-close');
   const staleOverlayEl = document.getElementById('stale-overlay');
-  if (staleClose) staleClose.addEventListener('click', () => staleOverlayEl.classList.remove('open'));
+  if (staleClose) staleClose.addEventListener('click', closeStaleOverlay);
   if (staleOverlayEl) staleOverlayEl.addEventListener('click', (e) => {
-    if (e.target.id === 'stale-overlay') staleOverlayEl.classList.remove('open');
+    if (e.target.id === 'stale-overlay') closeStaleOverlay();
   });
 
   // ---------- Breadcrumb "you are here" — shows the current H2 › H3 as you
