@@ -2851,6 +2851,93 @@ a typical chat-bubble launcher does (tap to open, tap again to close).
   that case in the harness above, but hasn't been tried against a real
   double-tap in a real browser).
 
+## Daily Brief "Draft" button — real root cause found: restored bubbles have dead buttons (Sep 2026)
+
+Reported live via screenshot: "the draft button doesn't work" (the Daily
+Brief's "✉️ Draft" quick-action). Root-caused this time with a real
+end-to-end Node execution harness (not just static reading) that actually
+simulates the DOM — creates real elements, parses the HTML this file
+generates via `innerHTML`, and fires a real click event through the whole
+chain across BOTH the Trip Assistant and Client Tracker `<script>` blocks —
+built specifically because static review alone couldn't distinguish "this
+code is broken" from "this code is fine and something else is going on."
+
+- **The actual bug: it only ever breaks after a page reload, never on the
+  very first render.** `persistState()` saves a message bubble's rendered
+  `innerHTML` (button markup included) into `localStorage` so the chat log
+  survives a reload; `restoreState()` reconstructs it via
+  `addMsgRaw()`/`span.innerHTML = html`. That correctly rebuilds the
+  MARKUP — but a click listener is a JS-side attachment, never part of the
+  HTML itself, so nothing about the restored button is actually wired to
+  anything. It looks pixel-identical to the original and is silently,
+  permanently dead. Since `maybeSurfaceDailyBrief()` only creates a FRESH
+  brief once per day (its own dedup key), any panel reopen after the first
+  page load of the day is showing a `restoreState()`-reconstructed bubble —
+  which is most real usage, not an edge case. The harness proved this
+  directly: a "session 1" fresh click sent a message correctly; a "session
+  2" simulated reload (same `localStorage`, brand-new in-memory DOM/JS
+  state, exactly like a real browser refresh) reproduced the reported
+  symptom exactly — click, nothing happens, no error, no message sent.
+- **The same root cause silently breaks the "jump to client profile" name
+  links too** (`wireClientProfileLinks`, used by the Daily Brief's own
+  summary lines and by every AI reply bubble via `addAiAnswerMsg` — see
+  "Clickable client names extended to every chat reply" above) — same
+  persist/restore gap, not something newly introduced, just not yet
+  reported. Confirmed via the harness: fresh links work, restored links
+  didn't (pre-fix), for the identical reason.
+- **Fix**: split both `wireClientProfileLinks` and the Daily Brief's inline
+  Draft-button wiring into a "build the markup" half and a "just attach
+  listeners" half — `wrapClientNamesInText()`/`wireClientLinkClicks()`, and
+  a standalone `wireBriefDraftButtons()`. The text-to-button DOM rewriting
+  in `wrapClientNamesInText` must only ever run ONCE per name (re-running
+  it against already-wrapped text would wrap the button's own label a
+  second time, nesting a button inside a button — a real risk this pass
+  checked for directly, see below) — but attaching a click listener is
+  safe to redo any number of times on the same button, since the button's
+  own `data-client-id`/`data-client-id`-equivalent attributes are already
+  baked into the persisted markup and need no extra state to re-wire from.
+  `restoreState()` now calls `wireBriefDraftButtons(msgsEl)` and
+  `wireClientLinkClicks(msgsEl)` (the listener-only halves) once across the
+  whole restored message list right after reconstructing it — safe to call
+  even on bubbles that have neither kind of button, since both just no-op
+  via `querySelectorAll` finding nothing. `wireClientProfileLinks` itself
+  is now a two-line wrapper calling both halves, so every existing call
+  site (the itinerary pop-out, `addAiAnswerMsg`, the Daily Brief) is
+  unchanged.
+- Verified with a real Node execution-harness test that goes further than
+  anything else this session: a small custom DOM (real element tree,
+  `classList`/`dataset`, a working `innerHTML` fragment parser AND
+  serializer — the serializer had to read the LIVE mutated tree, not a
+  cached string, since `wrapClientNamesInText` mutates via `replaceChild`
+  rather than reassigning `.innerHTML` — and a real `TreeWalker` over text
+  nodes) loads the actual extracted Trip Assistant and Client Tracker
+  `<script>` blocks together via `new Function`, seeds a synthetic client
+  in `localStorage` matching the reported screenshot (Amanda Jackson, Hot
+  Lead, due this week), and runs two full "sessions": a fresh load (brief
+  created live, button click correctly sends a draft message) and a
+  simulated reload (brand-new DOM/JS state, same `localStorage` — the
+  actual bug scenario), confirming the restored button was broken before
+  this fix and works after it, and separately that restored client-name
+  links now correctly open the right profile too, with no button-nested-
+  in-a-button double-wrap regression (checked explicitly: the restored
+  link count matches the fresh render's own count, and zero
+  `.ta-client-link .ta-client-link` matches exist in the output either
+  way). All 16 script blocks still parse; div-tag balance held at
+  1,660/1,660 (pure JS refactor, no new markup) and the pre-existing
+  775/774 span imbalance is unrelated and unchanged.
+- **Worth building later, not done here**: the "🔊 Read aloud"/"📋 View
+  full details" buttons on a normal AI reply bubble (`addAiAnswerMsg`)
+  have the exact same root cause and are likely ALSO dead after a reload —
+  but unlike the Draft button and the client-name links, those buttons'
+  behavior depends on the full/summary text captured in a JS closure at
+  creation time, not just data already sitting in the DOM as an attribute,
+  so re-wiring them on restore needs a small design decision (most likely:
+  also persist the full text per message, e.g. as a `data-full` attribute
+  baked into the bubble's own HTML, so it travels through
+  persistState/restoreState for free) rather than the same drop-in fix
+  used here. Not built now since it wasn't what was reported — flagged
+  here so it doesn't get "discovered" a second time.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

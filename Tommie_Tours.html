@@ -13651,7 +13651,19 @@ Tommie McLaren`
   // attribute by accident, and only wraps the first match per text node
   // (a name repeated twice in one line is rare, and matching it once is
   // enough to make it actionable).
-  function wireClientProfileLinks(container) {
+  // Split into two steps (Sep 2026) — see the restoreState() fix below for
+  // why: persistState() saves a message bubble's rendered innerHTML
+  // (button markup included) but NOT the click listeners JS attached to
+  // it, so a reloaded page's restored bubbles look identical but every
+  // button in them is dead until re-wired. Text-to-button wrapping must
+  // only ever run ONCE per name (re-running it on already-wrapped text
+  // would wrap the button's own label a second time, nesting a button
+  // inside a button) — but attaching click listeners is safe to redo any
+  // number of times on the same buttons. Splitting lets restoreState()
+  // call only the listener-attaching half on restored content, which
+  // already has its .ta-client-link markup (dataset.clientId included)
+  // baked into the saved HTML from the original render.
+  function wrapClientNamesInText(container) {
     if (!window.__ctListClients) return;
     let clients;
     try { clients = window.__ctListClients(); } catch (e) { return; }
@@ -13683,6 +13695,8 @@ Tommie McLaren`
         break;
       }
     });
+  }
+  function wireClientLinkClicks(container) {
     container.querySelectorAll('.ta-client-link').forEach(btn => {
       btn.addEventListener('click', () => {
         closeItineraryModal();
@@ -13697,6 +13711,25 @@ Tommie McLaren`
           else addMsg('sys', "Couldn't open that client — the Client Tracker panel hasn't loaded yet. Try again in a moment.", false);
         } catch (e) {
           addMsg('sys', "Couldn't open that client: " + (e && e.message ? e.message : String(e)), false);
+        }
+      });
+    });
+  }
+  function wireClientProfileLinks(container) {
+    wrapClientNamesInText(container);
+    wireClientLinkClicks(container);
+  }
+  // Same split for the Daily Brief's "✉️ Draft" quick-action buttons —
+  // their markup (including data-client-id) is also just as durable across
+  // a restore as any other button's, only the listener needs re-attaching.
+  function wireBriefDraftButtons(container) {
+    container.querySelectorAll('.ta-brief-draft-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        try {
+          if (window.__ctDraftOutreachById) window.__ctDraftOutreachById(btn.dataset.clientId);
+          else addMsg('sys', "Couldn't start that draft — the Client Tracker panel hasn't loaded yet. Try again in a moment.", false);
+        } catch (e) {
+          addMsg('sys', "Couldn't start that draft: " + (e && e.message ? e.message : String(e)), false);
         }
       });
     });
@@ -14187,16 +14220,7 @@ ${renderMarkdownLite(fullText)}
     const div = addMsg('bot', html, true);
     const linesEl = div.querySelector('.ta-brief-lines');
     if (linesEl) wireClientProfileLinks(linesEl);
-    div.querySelectorAll('.ta-brief-draft-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        try {
-          if (window.__ctDraftOutreachById) window.__ctDraftOutreachById(btn.dataset.clientId);
-          else addMsg('sys', "Couldn't start that draft — the Client Tracker panel hasn't loaded yet. Try again in a moment.", false);
-        } catch (e) {
-          addMsg('sys', "Couldn't start that draft: " + (e && e.message ? e.message : String(e)), false);
-        }
-      });
-    });
+    wireBriefDraftButtons(div);
   }
 
   // Confirmed broken live (Aug 2026): this was originally defined right
@@ -14417,6 +14441,23 @@ ${renderMarkdownLite(fullText)}
         msgsEl.innerHTML = '';
         saved.messages.forEach(m => addMsgRaw(m.role, m.html));
         msgsEl.scrollTop = msgsEl.scrollHeight;
+        // Confirmed live (Sep 2026): the Daily Brief's "✉️ Draft" button
+        // "doesn't work" — but only ever after a page reload, never on the
+        // very first render. Root cause: persistState() saves a bubble's
+        // rendered innerHTML (button markup included) but click listeners
+        // are a JS-side attachment, not part of the HTML — addMsgRaw()
+        // above reconstructs the markup exactly, but none of it is wired
+        // to anything. Every restored button (Draft, and any client-name
+        // link wireClientProfileLinks already turned into a
+        // .ta-client-link earlier this session) is visually identical to
+        // the original and silently dead until re-wired here. Both re-wire
+        // functions only attach listeners — they don't touch the DOM
+        // structure — so calling them across the whole restored list is
+        // safe to do unconditionally, and safe to call again even on a
+        // bubble that never had either kind of button (they no-op via
+        // querySelectorAll finding nothing).
+        wireBriefDraftButtons(msgsEl);
+        wireClientLinkClicks(msgsEl);
       }
       if (Array.isArray(saved.convoHistory)) convoHistory = saved.convoHistory;
     } catch (e) { /* corrupt or unavailable — just start fresh */ }
