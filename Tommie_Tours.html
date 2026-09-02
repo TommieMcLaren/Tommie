@@ -15994,6 +15994,13 @@ ${bodyHtml}
     document.getElementById('ct-f-mobility').value = client ? (client.mobilityNeeds || '') : '';
     document.getElementById('ct-err-name').style.display = 'none';
     document.getElementById('ct-form-panel').classList.add('open');
+    // Confirmed live (Sep 2026): unlike ctOpenDetail (which correctly
+    // hides #ct-list), this never did — #ct-list has no CSS tying its
+    // visibility to the form being open, so the full card list stayed
+    // rendered right below the form the whole time, just out of view
+    // until scrolled past. Hiding it here (and restoring it in
+    // ctCloseForm) matches the profile view's own pattern.
+    document.getElementById('ct-list').hidden = true;
     document.getElementById('ct-f-name').focus();
     ctUpdateSectionBadges(client);
     // Editing a client who already has a destination but no itinerary
@@ -16044,6 +16051,7 @@ ${bodyHtml}
   function ctCloseForm() {
     document.getElementById('ct-form-panel').classList.remove('open');
     document.getElementById('ct-form-panel').classList.remove('ct-call-mode');
+    document.getElementById('ct-list').hidden = false;
     // Reset sections back to their normal default (only Client Details
     // starts open) so a later plain Add/Edit isn't left in call-mode's
     // force-everything-open state.
@@ -16906,14 +16914,25 @@ ${bodyHtml}
   });
   document.getElementById('ct-search').addEventListener('input', ctRender);
   document.getElementById('ct-status-filter').addEventListener('change', ctRender);
+  // Confirmed live (Sep 2026): "if I accidentally click qualify call or
+  // add client, I can't move to all clients or follow up." Root cause —
+  // ctOpenForm() never hides #ct-list or closes itself when something
+  // else is clicked, so the view-toggle/lead-temp tabs stayed visible
+  // and clickable ABOVE the open form, but clicking them only re-rendered
+  // #ct-list underneath it — invisible, no visible effect, reads as
+  // stuck. Both handlers now close the form first (a no-op if it wasn't
+  // open), same reset ctCancelBtn's own click already does, so tapping
+  // either row always genuinely gets back to the list.
   document.querySelectorAll('.ct-tab').forEach(tab => {
     tab.addEventListener('click', () => {
+      ctCloseForm();
       ctActiveTempTab = tab.dataset.temp;
       ctRender();
     });
   });
   document.querySelectorAll('.ct-view-tab').forEach(btn => {
     btn.addEventListener('click', () => {
+      ctCloseForm();
       ctListView = btn.dataset.view;
       document.querySelectorAll('.ct-view-tab').forEach(b => b.classList.toggle('active', b === btn));
       ctRender();

@@ -3511,6 +3511,55 @@ screenshot directly rather than guessing blind:
   seen live yet. Worth a look at the actual result next time the panel's
   open.
 
+## Client Tracker: fixed getting stuck in the Add/Edit form (Sep 2026, unverified live)
+
+Direct report: "if I accidentally click qualify call or add client, I
+can't move to all clients or follow up."
+
+- **Root cause, confirmed by reading `ctOpenForm()` directly**: it adds
+  `.open` to `#ct-form-panel` but never touches `#ct-list`, and neither
+  the view-toggle's nor the lead-temp tabs' click handlers ever closed
+  the form — they just called `ctRender()`, which rebuilds `#ct-list`'s
+  content whether or not anything is actually visible. With the form
+  open, `#ct-list` was still sitting in the DOM (not hidden — a second,
+  separate gap found while investigating, see below), just positioned
+  below the form in normal document flow — so clicking "All Clients" or
+  a lead-temp tab silently re-rendered content the DE couldn't see
+  without scrolling past the whole form. From the DE's side: tap the
+  button, nothing visibly happens, genuinely stuck.
+- **Fixed at the two click handlers**: both `.ct-tab` and `.ct-view-tab`
+  now call `ctCloseForm()` before doing their normal filter/view-switch
+  work — a no-op if the form wasn't open, the same reset the Cancel
+  button already triggers otherwise. Tapping either row now always
+  genuinely returns to the list, whether or not the form happened to be
+  open.
+- **A second, related gap found while investigating and fixed
+  alongside it**: `ctOpenForm()`/`ctCloseForm()` never hid/showed
+  `#ct-list` at all — unlike `ctOpenDetail()`/`ctCloseDetail()` (the
+  profile view), which already does this correctly. `#ct-list` now
+  hides when the form opens and restores when it closes (by Cancel,
+  Save, or the new close-on-navigate fix above), matching the profile
+  view's own established pattern instead of leaving the full card list
+  rendered out of view underneath the form.
+- Verified with a real Node execution-harness test reproducing the
+  exact reported scenario end-to-end: opening "+ Add client" now
+  correctly hides the list (confirming the second gap was real);
+  clicking "All Clients" while stuck in the form now closes it, shows
+  the list again, switches the view, and a real client card is visible
+  — the literal fix for what was reported; the same check repeated for
+  a lead-temp tab; and a regression guard confirming the existing
+  Cancel button still closes the form and restores the list exactly as
+  before. All 16 script blocks parse; div-tag balance unaffected (pure
+  JS logic change, no new markup).
+- **Unverified live**: whether this is the complete fix or the DE hits
+  the same "stuck" feeling somewhere else not covered here (e.g. the
+  search box or status filter dropdown, deliberately left untouched
+  this pass since neither was named in the report and losing in-
+  progress form data just from typing a search feels like a different,
+  less obvious tradeoff than a dedicated navigation button) — worth
+  confirming next time the form is open and something else gets tapped
+  by accident.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
