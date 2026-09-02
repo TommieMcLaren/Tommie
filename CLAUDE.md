@@ -4030,6 +4030,127 @@ Save-as-file → pick-that-file first.
   (Win+Shift+S / Cmd+Shift+4) and paste directly into both the Trip
   Assistant input box and the open Client Tracker panel.
 
+## TMT import: a real paste conflict fixed, a wider prompt, and a Daily Tasks hookup (Sep 2026, unverified live)
+
+Direct follow-up after the DE actually tried the paste feature: clicking
+"📷 Scan TMT" opened a native OS file-browser dialog (a screenshot of
+that dialog was sent) with "I need to be able to paste. Can this be
+re-worked." A round of clarifying questions established the real ask —
+"the new client card would be created or it locates an existing client
+card and updates it... a prompt should pop up saying 'Do you wish to
+update existing file'... if there is a task/to do associated with it,
+add that to the follow up section and task list" — alongside a genuine
+parsing failure the DE hit (a "Couldn't make sense of that image"
+error), both addressed here.
+
+- **A real, confirmed conflict bug, not a guess**: this guide already
+  has its own page-wide "paste a screenshot to search" feature
+  (`#guideSearchHint`'s `document.addEventListener('paste', ...)`,
+  built long before Client Tracker existed) — global, unconditional, and
+  registered EARLIER in the file than Client Tracker's own paste
+  listener. Since listeners on the same target fire in registration
+  order, and `preventDefault()` only blocks the browser's native paste-
+  insert (not OTHER listeners on the same event), pasting a TMT
+  screenshot while Client Tracker was open got claimed by the guide's
+  own OCR search FIRST — likely why paste looked like it silently didn't
+  work, pushing the DE toward the file-browser button instead. Fixed
+  with a `ctPanelWantsPaste()` guard added to the guide's paste/drag/drop
+  listeners (skip entirely when `#ct-overlay` is open) — establishing
+  the rule that whichever surface is actually open owns paste, and the
+  page-wide search shortcut is the fallback, not an automatic first
+  claim. Trip Assistant's own paste-to-attach (`#ta-input`) gets the
+  same protection a different way — `e.stopPropagation()` — since that
+  listener fires in the event's target phase before ever reaching
+  `document`.
+- **Paste reliability**: `#ct-btn`'s click handler now focuses `#ct-search`
+  the moment the panel opens — the one already-flagged real risk in the
+  previous entry (some browsers only dispatch `paste` to a focused,
+  editable element) now has a concrete, harmless target the instant the
+  panel is open, not just whenever the DE happens to click into the
+  search box first.
+- **Discoverability**: the "📷 Scan TMT" button's tooltip now explicitly
+  says "Paste (Ctrl+V), drop, or click to pick," and a new small
+  `#ct-scan-hint` line under the toolbar ("📋 Tip: paste (Ctrl+V) a TMT
+  screenshot anywhere in here to import it") advertises the gesture the
+  same way the guide's own `#guideSearchHint` already does — paste was
+  real but effectively invisible before this, with nothing on screen
+  suggesting it existed.
+- **The extraction prompt only ever described ONE TMT screen shape** (a
+  to-do list grouped under client-name headers) — a screenshot of a
+  SINGLE client's own profile/detail page (no list of separate task
+  rows at all, which is what the DE's "couldn't make sense" screenshot
+  was almost certainly showing) had no shape for the model to recognize,
+  so it correctly-but-unhelpfully returned `[]`. Widened the same note
+  to explicitly cover both cases — a to-do list (one row per task, as
+  before) or a single client's profile page (exactly one row: `client`
+  from the page's own name/title, `task` as a short one-line summary of
+  whatever's relevant, `date` from any follow-up date shown) — while
+  keeping the exact same `{client, task, date}` JSON schema, so none of
+  the matching/review/Apply code needed to change at all, just what the
+  model is told to look for.
+- **Matched rows now read as an explicit update, not just a highlighted
+  row** — direct answer to "a prompt should pop up saying 'Do you wish
+  to update existing file'": rather than adding a second, separate
+  confirm-dialog UI, the existing review row (which already IS the
+  confirm step — nothing writes until Apply) now says "✓ matches
+  existing client — will update their file" in its meta line when
+  `matchedId` is set, instead of the more passive "mentioned: X." Same
+  underlying flow, clearer that ticking Apply on that row means
+  updating a real existing record.
+- **Every applied row now also lands on the Daily Tasks checklist, per
+  the explicit "add that to the follow up section AND task list" ask** —
+  not just implicitly, via a due-today follow-up surfacing through
+  `__ctGetTodoSummary()` (which already worked, but only for follow-ups
+  due today specifically). `ctApplyScanReview()` now calls the already-
+  exported `window.__dtAddTask()` for every row that actually resulted
+  in a change (matched an existing client OR created a new one),
+  labeled `"<client name>: <task text>"`, regardless of whether that row
+  had a date — a skipped row, or one Daily Tasks hasn't loaded yet for
+  (`window.__dtAddTask` missing), no-ops safely, same "best-effort,
+  never block on it" spirit as this file's other cross-panel exports.
+  The Apply summary toast now reports this count too ("Added 2 follow-
+  ups. Created 1 new client. Added 3 to Daily Tasks.").
+- **A second real bug found by testing this combination specifically,
+  not the first attempt's fix**: the previous session's fix for "a
+  date-less new client never gets saved" (`ctAddFollowUp` is the only
+  thing that calls `ctSaveData()`/`ctRender()`, and it's skipped for a
+  row with no date) only re-saved when `clientsCreated && !followUpsAdded`
+  — meaning a MIXED batch (one row with a date, one without) could still
+  lose the date-less client: the dated row's own `ctAddFollowUp` call
+  saves `ctClients` at THAT moment, which can be before a later row has
+  even pushed its new client onto the array, and the narrow `!followUpsAdded`
+  condition then skips the catch-up save entirely since the batch
+  clearly "did" add a follow-up (just not for the right row). Fixed by
+  removing the narrow condition — `ctSaveData()`/`ctRender()` now run
+  once, unconditionally, whenever `clientsCreated || followUpsAdded` (a
+  cheap, idempotent call, skipped only when nothing changed at all).
+- Verified with a real Node execution-harness test (9 new checks) against
+  the actual extracted source, added to the existing 36-check scan-
+  import suite (45 total, all passing): the matched-row copy change; the
+  Daily Tasks push firing for both a matched-with-date row AND a new-
+  client-with-no-date row in the SAME batch (the exact scenario that
+  caught the save bug above — confirmed the client-side effects still
+  happened correctly alongside the Daily Tasks push, not instead of it);
+  a skipped/unchecked row correctly never reaching Daily Tasks;
+  `window.__dtAddTask` missing entirely being a graceful no-op rather
+  than a crash; and a single-object (profile-page-shaped) response
+  correctly rendering as one real, matched row through the unchanged
+  parsing/matching/render pipeline. Also re-ran the full pre-existing
+  regression suite (All-Clients-view, stuck-in-the-form, multi-follow-up)
+  with zero failures. All 17 `<script>` blocks parse; div-tag balance
+  held (+1, the new `#ct-scan-hint` div).
+- **Unverified live, same caveat as the paste-to-attach entry above,
+  now narrower**: whether the widened prompt actually gets a real model
+  to correctly tell a to-do list apart from a single client's profile
+  page on genuine TMT screenshots (only tested here via the parsing
+  pipeline with a hand-written stand-in response, not a real vision
+  call), and whether the paste-conflict fix actually resolves what the
+  DE hit — ask them to try Ctrl+V again with Client Tracker open, and
+  separately confirm the guide's own "paste to search" feature still
+  works normally when Client Tracker is closed (that path is
+  unaffected, but worth a quick check since the same listener was
+  touched).
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

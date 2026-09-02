@@ -10966,7 +10966,23 @@ ${resultsBody}
   // need to click into the search bar first. Only intercepts when the
   // clipboard actually contains an image; normal text-paste elsewhere on
   // the page is untouched.
+  //
+  // Real conflict found and fixed (Sep 2026): this listener is global and
+  // unconditional, registered before the Client Tracker's own paste-to-
+  // import (see ctReadImageFile's paste listener) — so pasting a TMT
+  // screenshot while Client Tracker was open got hijacked by THIS
+  // handler first (running the guide's own OCR search instead of, or
+  // alongside, the Client Tracker import), which is what made paste look
+  // broken there. Both this and the drop listener below now yield when
+  // Client Tracker is the panel actually open — matches the general rule
+  // that whichever surface is topmost/open owns paste on this page, and
+  // this page-wide search shortcut is the fallback, not the only owner.
+  function ctPanelWantsPaste() {
+    const ctOverlayEl = document.getElementById('ct-overlay');
+    return !!(ctOverlayEl && ctOverlayEl.classList.contains('open'));
+  }
   document.addEventListener('paste', (e) => {
+    if (ctPanelWantsPaste()) return;
     const items = e.clipboardData && e.clipboardData.items;
     if (!items) return;
     for (const item of items) {
@@ -10985,19 +11001,23 @@ ${resultsBody}
   const searchBarEl = document.getElementById('guide-search-bar');
   let dragCounter = 0;
   document.addEventListener('dragover', (e) => {
+    if (ctPanelWantsPaste()) return;
     if (e.dataTransfer && Array.from(e.dataTransfer.items || []).some(i => i.type.startsWith('image/'))) {
       e.preventDefault();
     }
   });
   document.addEventListener('dragenter', (e) => {
+    if (ctPanelWantsPaste()) return;
     dragCounter++;
     document.body.classList.add('page-drag-active');
   });
   document.addEventListener('dragleave', () => {
+    if (ctPanelWantsPaste()) return;
     dragCounter = Math.max(0, dragCounter - 1);
     if (dragCounter === 0) document.body.classList.remove('page-drag-active');
   });
   document.addEventListener('drop', (e) => {
+    if (ctPanelWantsPaste()) return;
     e.preventDefault();
     dragCounter = 0;
     document.body.classList.remove('page-drag-active');
@@ -13478,6 +13498,13 @@ Tommie McLaren`
     const imageItem = Array.from(items).find(it => it.type && it.type.startsWith('image/'));
     if (!imageItem) return;
     e.preventDefault();
+    // Stops this from ALSO bubbling up to the guide's own page-wide OCR
+    // paste listener (registered on document, see "Paste a screenshot
+    // anywhere on the page" above) — without this, pasting an image
+    // while typing here would attach it AND trigger the guide's search
+    // at the same time, since preventDefault alone only blocks the
+    // browser's native paste-insert, not other listeners on the event.
+    e.stopPropagation();
     attachImageFile(imageItem.getAsFile(), 'Pasted image');
   });
 
@@ -15049,6 +15076,14 @@ ${bodyHtml}
     font-size: 16px; font-weight: 700; color: #3d5470; text-align: center; padding: 20px; pointer-events: none;
   }
   #ct-panel.ct-dragover #ct-dropzone-overlay { display: flex; }
+  /* Small persistent discoverability hint — a real bug this session
+     traced to a page-wide "paste anywhere to search the guide" listener
+     (see the guide-search script's own paste handler) silently claiming
+     this same Ctrl+V before Client Tracker could, making paste look
+     broken. That's fixed now, but paste is still an invisible gesture
+     with no button to click — this line is the only place it's actually
+     advertised, matching the guide's own #guideSearchHint pattern. */
+  #ct-scan-hint { font-size: 11px; color: var(--ct-ink-soft); padding: 0 26px 8px; flex-shrink: 0; }
 
   /* "All Clients" view toggle (Sep 2026, restyled after live feedback —
      "clean this up... more fluid... organize a bit better"). Originally
@@ -15490,11 +15525,12 @@ ${bodyHtml}
     <div id="ct-toolbar-actions">
       <button type="button" id="ct-add-btn">+ Add client</button>
       <button type="button" id="ct-call-btn">🎯 Qualifying Call</button>
-      <button type="button" id="ct-scan-btn" title="Drop or pick a TMT screenshot to import follow-ups">📷 Scan TMT</button>
+      <button type="button" id="ct-scan-btn" title="Paste (Ctrl+V), drop, or click to pick a TMT screenshot">📷 Scan TMT</button>
       <input type="file" id="ct-scan-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     </div>
   </div>
   <div id="ct-dropzone-overlay">📷 Drop a TMT screenshot here to import follow-ups</div>
+  <div id="ct-scan-hint">📋 Tip: paste (Ctrl+V) a TMT screenshot anywhere in here to import it</div>
   <div id="ct-view-toggle">
     <button type="button" class="ct-view-tab active" data-view="urgency">📅 Follow-up</button>
     <button type="button" class="ct-view-tab" data-view="all">📇 All Clients</button>
@@ -16151,12 +16187,13 @@ ${bodyHtml}
   function ctScanRowMeta(row) {
     const bits = [];
     bits.push(row.date ? ctFormatDate(row.date) : 'no date detected');
-    if (row.client) bits.push(`mentioned: ${row.client}`);
+    if (row.matchedId) bits.push(`✓ matches existing client — will update their file`);
+    else if (row.client) bits.push(`mentioned: ${row.client}`);
     return bits.join(' · ');
   }
 
   function ctRenderScanRows(rows) {
-    if (!rows.length) return '<div class="ct-scan-error">Didn\'t find any follow-up rows in that image — try a clearer screenshot of the to-do list.</div>';
+    if (!rows.length) return '<div class="ct-scan-error">Didn\'t find any client or follow-up information in that image — try a clearer screenshot.</div>';
     const matchedCount = rows.filter(r => r.matchedId).length;
     const summary = `<div class="ct-scan-summary">${rows.length} row${rows.length === 1 ? '' : 's'} found — ${matchedCount} matched to an existing client. Review each one below, then Apply.</div>`;
     const optionsFor = (row, defaultIsNew) => {
@@ -16228,20 +16265,32 @@ ${bodyHtml}
     }
     const content = [
       { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-      { type: 'text', text: 'Extract every follow-up/to-do row from this screenshot.' }
+      { type: 'text', text: 'Extract client and follow-up information from this screenshot.' }
     ];
-    const note = `This is a screenshot from Kensington Tours' internal system (TMT) showing a
-list of follow-up/to-do tasks, grouped under client-name headers (a blue link showing the
-client's name, sometimes with a small number badge). Extract EVERY task row into a JSON array.
-For each row output an object with exactly these keys:
-{"client": the name from the nearest client-name header above this row, or null if you genuinely
-can't tell which client it belongs to, "task": the row's own text exactly as written, "date": the
-row's own date converted to YYYY-MM-DD, or null if no date is shown}.
+    // Handles TWO different real TMT screen shapes with the same JSON
+    // schema, not just the grouped to-do list — a real gap found live:
+    // a screenshot of a single client's own profile/detail page (no list
+    // of separate task rows at all) was coming back "[]" and showing a
+    // confusing "couldn't make sense of that" error, since the original
+    // prompt only ever described the to-do-list shape.
+    const note = `This is a screenshot from Kensington Tours' internal system (TMT). It could be
+EITHER of two different things — figure out which one you're looking at:
+(a) A follow-up/to-do LIST: rows grouped under client-name headers (a blue link showing the
+client's name, sometimes with a small number badge), with individual task rows and dates nested
+under each. Extract ONE object per task row.
+(b) A SINGLE client's own profile/detail page — their name plus other info (destination, contact
+details, status, notes), with no list of separate task rows. Extract exactly ONE object for that
+client: use "task" for a short one-line summary of whatever's relevant on the page, and "date" for
+any follow-up/next-contact date shown, or null if none is visible.
+Whichever shape it is, output a JSON array where each object has exactly these keys:
+{"client": the client's name (from a list header, or the page's own name/title field), or null if
+you genuinely can't identify one, "task": the row's own text (case a) or your short summary
+(case b), "date": the associated date converted to YYYY-MM-DD, or null if none is shown}.
 IMPORTANT: this system's dates are formatted DD/MM/YY (day first, then month, then a 2-digit year
 meaning 20YY) — NOT American MM/DD/YY. So "22/08/26" means August 22, 2026, which you must output
 as "2026-08-22". Get this conversion right.
 Respond with ONLY the JSON array — no markdown code fence, no explanation, no leading or trailing
-text. If you can't find any rows at all, respond with exactly: []`;
+text. If you genuinely can't find any client or task information at all, respond with exactly: []`;
     let result;
     try {
       result = await window.__taCallClaudeAI([{ role: 'user', content }], note, null, null);
@@ -16255,7 +16304,7 @@ text. If you can't find any rows at all, respond with exactly: []`;
     }
     const parsed = ctParseScanJson(result.text);
     if (!parsed) {
-      bodyEl.innerHTML = `<div class="ct-scan-error">Couldn't make sense of that image as a TMT follow-up list — try a clearer screenshot.</div>`;
+      bodyEl.innerHTML = `<div class="ct-scan-error">Couldn't make sense of that image — try a clearer screenshot.</div>`;
       return;
     }
     const rows = parsed
@@ -16274,7 +16323,7 @@ text. If you can't find any rows at all, respond with exactly: []`;
 
   function ctApplyScanReview() {
     const newClientIds = new Map(); // lowercased extracted name -> freshly created client id, so 3 rows for the same not-yet-tracked name don't create 3 separate clients
-    let followUpsAdded = 0, clientsCreated = 0, skipped = 0;
+    let followUpsAdded = 0, clientsCreated = 0, skipped = 0, dailyTasksAdded = 0;
     document.querySelectorAll('.ct-scan-row').forEach(rowEl => {
       const i = rowEl.dataset.row;
       const checked = document.querySelector(`[data-row-check="${i}"]`).checked;
@@ -16283,11 +16332,12 @@ text. If you can't find any rows at all, respond with exactly: []`;
       const value = select.value;
       const row = ctScanCurrentRows[Number(i)];
       if (!row || value === 'skip') { skipped++; return; }
-      let clientId = null;
+      let clientId = null, clientName = null;
       if (value === 'new') {
         const nameInput = document.querySelector(`[data-row-newname="${i}"]`);
         const name = nameInput ? nameInput.value.trim() : '';
         if (!name) { skipped++; return; }
+        clientName = name;
         const key = name.toLowerCase();
         if (newClientIds.has(key)) {
           clientId = newClientIds.get(key);
@@ -16299,6 +16349,8 @@ text. If you can't find any rows at all, respond with exactly: []`;
         }
       } else if (value.startsWith('existing:')) {
         clientId = value.slice('existing:'.length);
+        const existing = ctClients.find(c => c.id === clientId);
+        clientName = existing ? existing.name : null;
       }
       if (!clientId) { skipped++; return; }
       if (row.date) {
@@ -16307,20 +16359,40 @@ text. If you can't find any rows at all, respond with exactly: []`;
       } else {
         skipped++;
       }
+      // Direct request: "if there is a task/to do associated with it...
+      // add that to the follow up section and task list" — every row
+      // that actually resulted in an update (matched an existing client
+      // or created a new one) also lands as an ad-hoc entry on the Daily
+      // Tasks checklist, not just in that client's own Follow-ups
+      // section, regardless of whether the row had a date. window.__dt*
+      // may not have loaded (a different script/IIFE) — best-effort,
+      // same "never block on it" spirit as the rest of this file's
+      // cross-panel exports.
+      if (row.task && window.__dtAddTask) {
+        const label = clientName ? `${clientName}: ${row.task}` : row.task;
+        if (window.__dtAddTask(label)) dailyTasksAdded++;
+      }
     });
-    // A real bug caught by testing, not guessed at: ctAddFollowUp already
-    // saves+re-renders on its own, but a brand-new client created from a
-    // row with NO date (nothing to schedule yet, so ctAddFollowUp above
-    // is never reached for it) was pushed onto ctClients in memory and
-    // then silently never persisted or shown anywhere — this is the one
-    // remaining save path for that case. Harmless extra write on a batch
-    // that also added follow-ups (ctSaveData/ctRender are cheap and
-    // idempotent), and skipped entirely when nothing changed at all.
-    if (clientsCreated && !followUpsAdded) { ctSaveData(); ctRender(); }
+    // A real bug caught by testing, not guessed at (twice — the first
+    // fix here was itself too narrow): ctAddFollowUp already saves+
+    // re-renders on its own, but a brand-new client created from a row
+    // with NO date (ctAddFollowUp is never reached for it) was pushed
+    // onto ctClients in memory with no save path of its own. The first
+    // attempt at this fix only re-saved when NO row in the whole batch
+    // added a follow-up — which missed a MIXED batch (one row with a
+    // date, one without): the dated row's own ctAddFollowUp call saves
+    // whatever ctClients looked like at THAT moment, which can be BEFORE
+    // a later date-less row has even pushed its new client on, and
+    // nothing runs again afterward to catch it. Unconditionally saving
+    // once here whenever anything actually changed is simpler and
+    // correct — ctSaveData/ctRender are cheap and idempotent, and this
+    // is skipped entirely when nothing changed at all.
+    if (clientsCreated || followUpsAdded) { ctSaveData(); ctRender(); }
     ctCloseScanReview();
     const parts = [];
     if (followUpsAdded) parts.push(`Added ${followUpsAdded} follow-up${followUpsAdded === 1 ? '' : 's'}.`);
     if (clientsCreated) parts.push(`Created ${clientsCreated} new client${clientsCreated === 1 ? '' : 's'}.`);
+    if (dailyTasksAdded) parts.push(`Added ${dailyTasksAdded} to Daily Tasks.`);
     if (skipped) parts.push(`${skipped} row${skipped === 1 ? '' : 's'} skipped.`);
     ctSetStatus(parts.length ? parts.join(' ') : 'Nothing applied.');
   }
@@ -17510,6 +17582,14 @@ text. If you can't find any rows at all, respond with exactly: []`;
   ctBtn.addEventListener('click', () => {
     ctOverlay.classList.add('open');
     requestAnimationFrame(() => ctOverlay.classList.add('shown'));
+    // Some browsers only dispatch a paste event to a focused, editable
+    // element rather than the page generally — without something
+    // focused, Ctrl/Cmd+V for the TMT screenshot import could silently
+    // do nothing. The search box is the one always-present, harmless
+    // thing to focus (matches what a DE would likely click into first
+    // anyway), giving paste a real target the moment the panel opens.
+    const searchEl = document.getElementById('ct-search');
+    if (searchEl) searchEl.focus();
     ctCheckDueReminders();
     // Same once-a-day Daily Brief the Trip Assistant's own open button
     // triggers (see __taMaybeSurfaceDailyBrief/maybeSurfaceDailyBrief) —
