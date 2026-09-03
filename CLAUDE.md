@@ -4814,6 +4814,121 @@ navigation (recently viewed, keyboard nav, a global quick-switcher).
   couple of times and confirm the timeline reflects it, and try
   Ctrl+Shift+K from outside the Client Tracker entirely.
 
+## Three new "brain" tools: full client-profile read, real-data grounding check, honest price reference (Sep 2026, unverified live)
+
+Direct follow-up to "what function do you believe is missing" — the
+answer, on reflection, wasn't more UI, it was reasoning capability: the
+live AI's tool set could read a to-do-shaped client summary and propose
+narrow patches, but couldn't answer a detail question about a client
+grounded in the real record, couldn't check a specific hotel/restaurant/
+tour name against real data before stating it, and had no way to answer
+a pricing question with a real number. Three new tools close those three
+gaps, all read-only (or reference-only), no new write paths.
+
+- **`get_client_profile`** — reads a client's FULL Client Tracker record
+  (trip vision, budget, hotel/dining/transfer prefs, dietary
+  restrictions, tags, linked itinerary resolved to its real title, most
+  recent note) instead of the todo-shaped summary `get_todo_list`
+  returns. Reuses the already-exported `window.__ctFindClientByName`
+  (already returns the full client object — no new Client Tracker export
+  needed) rather than building a second lookup path. **Deliberately
+  excludes passport numbers, dates of birth, and every additional
+  traveler's own passport details** — it only ever reports whether
+  passport info is on file and how many travelers, never the actual
+  sensitive values. There's no legitimate reason for the model to hold a
+  real passport number in its context (it can't act on it, and repeating
+  it back in a chat reply or a drafted email would be a real exposure),
+  so this is enforced by the tool itself rather than trusted to a system
+  prompt instruction alone.
+- **`verify_recommendation`** — the tool that actually answers the
+  original "what's missing" conversation's stated #1 worry. The existing
+  `looksLikeHallucinatedToolCall` safety net only catches the model
+  narrating a FAKE tool call as text; it does nothing for a hallucinated
+  hotel/restaurant/tour name recalled from general training data and
+  presented inside an otherwise-real, successful response. This tool
+  lets the model self-check a specific name against the real
+  `QB_HOTELS`/`QB_RESTAURANTS`/`QB_TOURS` data for a city before stating
+  it as confirmed — the system prompt now explicitly instructs it to
+  call this for any name that didn't come directly from a `get_city_data`
+  result earlier in the same turn. Matching is deliberately tolerant
+  (case-insensitive, substring either direction) so a minor paraphrase
+  doesn't false-flag a real match — the point is catching a genuinely
+  invented name, not penalizing imperfect wording.
+- **`get_price_reference`** — answers "roughly what would this cost"
+  with REAL numbers instead of a guess or a punt. There is no per-hotel/
+  per-night pricing table anywhere in this file (`QB_HOTELS` only has
+  `name`+`tier`, no dollar amounts) — so a literal computed quote was
+  never an honest thing to build. What DOES exist is real per-person
+  pricing on every actual bookable `KT_LIVE_ITINERARIES`/
+  `PERSONAL_ITINERARIES` entry, already partially surfaced by
+  `find_matching_itinerary` when there's a good match. This tool answers
+  the pricing-shaped question directly, reusing the exact same
+  `scoreItinerariesByCities` scoring `find_matching_itinerary` already
+  uses (so the two tools can never disagree about which itineraries
+  count as similar), explicitly framed in both the tool description and
+  its own output as REFERENCE pricing from real comparable trips, never
+  a computed total for the specific request. When nothing shares real
+  city overlap, falls back to day-count proximity across every priced
+  itinerary — honestly disclosed as "not comparable by destination" —
+  rather than returning nothing at all.
+- All three are wired the same way the existing tools are: added to
+  `TA_TOOLS`, `TA_ROUND_LABELS` (so the "thinking" status names what's
+  actually happening — "Looking up their file…", "Double-checking
+  that's a real option…", "Pulling real comparable pricing…"), the
+  client-tool-use filter list, and the dispatch chain — each with its
+  own explicit `if (tu.name === ...)` branch rather than falling through
+  to the `search_guide` default, which would have silently misrouted
+  them.
+- Verified with a real Node execution-harness test
+  (`test_brain_tools.js`, 30+ checks) against the actual extracted Trip
+  Assistant source, loaded alongside this file's OWN real
+  `QB_HOTELS`/`QB_RESTAURANTS`/`QB_TOURS`/`KT_LIVE_ITINERARIES` data
+  (extracted verbatim from the guide's own top-level data script, not a
+  synthetic stand-in) — so `verify_recommendation`/`get_price_reference`
+  were checked against the DE's actual Madrid/Barcelona hotel and
+  restaurant names and real itinerary prices, not invented test
+  fixtures. Covers: fuzzy client-name matching, every profile field
+  rendering correctly including the resolved itinerary title, the latest
+  note only (not the full log), and — the specific thing that mattered
+  most to get right — confirming passport number/DOB/traveler-passport
+  values never appear anywhere in the tool's output while the
+  "on file" fact still does; a real hotel and a real restaurant name
+  both verifying, a genuinely invented name correctly flagged, case-
+  insensitive matching, multiple names in one call each getting their
+  own verdict, an unknown city, an empty names array, and a model
+  sending a bare string instead of an array (tolerated via the existing
+  `normalizeCitiesInput` reuse); a real city+day match returning a real
+  on-file price with the "not a computed quote" framing present, the
+  day-count-only fallback firing and honestly disclosing itself, a
+  multi-city match, and the fully-empty-input case; and a direct check
+  that all three tools are actually wired into `TA_TOOLS`/the filter
+  list/the dispatch chain/`TA_ROUND_LABELS`/the system prompt, not just
+  defined and orphaned. Full pre-existing regression suite re-run with
+  zero failures caused by this change (the same two known-baseline
+  artifacts are unchanged and unrelated). All 17 `<script>` blocks
+  parse; tag balance held exactly (pure logic change, no new markup).
+- **Deliberately not built**: an automatic post-hoc scanner that parses
+  a finished reply for proper nouns and checks all of them — considered
+  and rejected as unreliable (no clean way to tell "a recommended hotel"
+  from "a hotel mentioned in passing" from free text without a lot of
+  false positives/negatives). The opt-in, model-initiated
+  `verify_recommendation` tool is the more honest, buildable version of
+  the same goal — asking the model to check itself is coachable via the
+  system prompt; getting a regex/heuristic scanner's precision right on
+  arbitrary prose is a much bigger and shakier project.
+- **Unverified live, and this is the first thing to actually check**:
+  whether the model reliably calls `verify_recommendation` when it
+  should (the system prompt instructs it to, but nothing forces it — a
+  model that's confident-but-wrong could still just not call it), and
+  whether it correctly uses `get_client_profile` instead of guessing
+  from conversation history when asked a client-detail question. Test
+  next: ask about a client's stored dietary restrictions or budget by
+  name, ask for a hotel recommendation in a city and see whether
+  verification fires for anything not pulled from `get_city_data`, and
+  ask "roughly what would a week in Seville and Granada cost" and check
+  that the answer cites real comparable itinerary prices rather than a
+  made-up number.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

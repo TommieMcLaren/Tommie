@@ -12211,7 +12211,7 @@ ${resultsBody}
   const TA_SYSTEM_PROMPT = `You are the Trip Assistant embedded inside Kensington Tours' internal Spain Destination Certification guide, helping a Kensington Destination Expert (DE) plan client trips and draft client-ready copy.
 
 Ground rules:
-- Never invent hotel names, prices, tour details, or facts. Use only what get_city_data/find_matching_itinerary/search_guide return from this guide, or what web_search returns from the live web.
+- Never invent hotel names, prices, tour details, or facts. Use only what get_city_data/find_matching_itinerary/search_guide return from this guide, or what web_search returns from the live web. If you're about to name a specific hotel, restaurant, or tour that did NOT come directly from a get_city_data call earlier in this same turn (e.g. one you recall from general knowledge), call verify_recommendation on it first rather than presenting it as confirmed.
 - The only three real Kensington hotel tiers are Discovery, Premier, and Luxe — never use any other tier label (e.g. "Deluxe" is not a real KT tier, even though it sounds plausible).
 - Your tools (get_city_data, find_matching_itinerary, search_guide) always return a real text result, even when nothing matches — there is no scenario where one of them is genuinely "unavailable" or "unresponsive." If you're tempted to say a tool didn't respond, that means you haven't actually called it yet — call it, or say plainly that you chose not to, never suggest a technical failure that isn't real.
 - If the DE doesn't name specific cities, propose reasonable candidates yourself based on what they described, and immediately call find_matching_itinerary and get_city_data with those candidates before answering — don't just narrate a routing without checking it against real data. If that exact routing finds no match, try a close variant (e.g. dropping one city that isn't on any official product) before concluding "fully custom" — a near-miss on official KT anchoring is a better answer than giving up on anchoring at the first empty result.
@@ -12231,7 +12231,9 @@ Ground rules:
 - propose_todo_update drafts a change to one client's Client Tracker record (status, lead category, next follow-up, or a note) when the DE asks to mark something done, reschedule, or update a client from conversation. It NEVER applies anything by itself — the app shows the DE a Confirm/Cancel card, and only their tap actually changes data. After calling it, just confirm in plain language what you've prepared; don't claim the change is already made.
 - get_daily_tasks reads the DE's Daily Tasks checklist — their fixed daily/end-of-day routine, today's Client Tracker follow-ups due, and any ad-hoc tasks they've added, each with done/not-done state. Use it whenever asked what's on today's checklist or what's left to do today.
 - complete_daily_task checks off one item on that checklist (a routine item, an ad-hoc task, or a follow-up due today), matched by a short description. Unlike propose_todo_update this applies directly and immediately, with no confirm step — it's the DE's own personal checklist, not a client record, so there's nothing at stake if it's ever wrong beyond re-checking a box. Use it when the DE says they've done something on their list.
-- add_daily_task adds a new ad-hoc item to today's checklist. Use it when asked to add something to today's list or be reminded of something today.`;
+- add_daily_task adds a new ad-hoc item to today's checklist. Use it when asked to add something to today's list or be reminded of something today.
+- get_client_profile reads a client's FULL Client Tracker record — trip vision, budget, hotel/dining/transfer prefs, dietary restrictions, tags, whether passport info is on file, their most recent note. Use it whenever asked something specific about what a client wants or has said before, instead of guessing from this conversation's own history — get_todo_list's summary doesn't carry these details. It never returns actual passport numbers or dates of birth, only whether they're on file — if asked for the actual number/DOB, say that's only viewable in the Client Tracker profile itself.
+- get_price_reference returns REAL per-person pricing from actual bookable KT itineraries similar to what's being discussed — use it whenever asked about price, budget, or roughly what a trip would cost. This guide has no way to compute an exact quote (no per-hotel nightly rate table exists), so always present its result as a ballpark grounded in real comparable trips, never as a computed total for the client's specific combination — and never invent a dollar figure of your own when it comes back approximate or empty.`;
 
   const TA_TOOLS = [
     { type: 'web_search_20260209', name: 'web_search' },
@@ -12269,6 +12271,28 @@ Ground rules:
         },
         required: ['clientName']
       }
+    },
+    {
+      name: 'get_client_profile',
+      description: "Look up the FULL Client Tracker record for one client — trip vision, budget, hotel/dining/transfer preferences, dietary restrictions, tags, whether passport info is on file, and their most recent note. get_todo_list only ever returns a to-do-shaped summary (name/status/next follow-up) — use THIS tool whenever asked something specific about what a client wants or has told the DE before (e.g. \"what were Amanda's hotel preferences,\" \"does she have any dietary restrictions,\" \"what's her budget\"), rather than guessing from conversation history alone. Never returns actual passport numbers or dates of birth — only whether passport info exists on file.",
+      input_schema: { type: 'object', properties: { clientName: { type: 'string', description: "The client's name, matched against the Client Tracker (case-insensitive, partial match is fine)" } }, required: ['clientName'] }
+    },
+    {
+      name: 'verify_recommendation',
+      description: "Verify that specific hotel/restaurant/tour names are REAL options in this guide's own data for a city, before stating them to the DE as confirmed recommendations. Call this for any specific name you're about to recommend that you did NOT just get directly from a get_city_data call earlier in this same turn — e.g. a name you recall from general knowledge rather than one this guide's own data just handed you. If a name comes back unverified, say plainly that it's not confirmed in this guide's data rather than presenting it as real.",
+      input_schema: {
+        type: 'object',
+        properties: {
+          city: { type: 'string', description: 'The single city these names belong to, e.g. "Barcelona"' },
+          names: { type: 'array', items: { type: 'string' }, description: 'The specific hotel, restaurant, or tour names to verify' }
+        },
+        required: ['city', 'names']
+      }
+    },
+    {
+      name: 'get_price_reference',
+      description: "Get REAL per-person pricing from actual bookable Kensington itineraries that are similar (by city overlap, then by day count) to a requested trip — use this whenever asked about price, budget, or roughly what a trip would cost. This guide has no per-hotel/per-night pricing table to compute an exact quote from, so this always returns REFERENCE pricing from real comparable products, never a made-up total — present it to the DE as a ballpark range grounded in real trips, and point to the Quote Builder or TMT for an actual quote. Never invent a dollar figure yourself when this tool comes back empty or approximate — say so plainly instead.",
+      input_schema: { type: 'object', properties: { cities: { type: 'array', items: { type: 'string' }, description: 'Cities the client wants' }, days: { type: 'number', description: 'Approximate total day count, if known' } }, required: ['cities'] }
     },
     {
       name: 'get_daily_tasks',
@@ -12442,6 +12466,159 @@ Ground rules:
     };
   }
 
+  // Resolves a Client Tracker itineraryId to its real title — KT_LIVE_
+  // ITINERARIES/PERSONAL_ITINERARIES are true globals reachable directly
+  // from this script (same as runFindMatchingItineraryTool already
+  // does), so no cross-panel export is needed for this lookup.
+  function taFindItineraryTitle(id) {
+    if (!id) return null;
+    const list = [
+      ...(typeof KT_LIVE_ITINERARIES !== 'undefined' ? KT_LIVE_ITINERARIES : []),
+      ...(typeof PERSONAL_ITINERARIES !== 'undefined' ? PERSONAL_ITINERARIES : []),
+    ];
+    const found = list.find(it => it.id === id);
+    return found ? found.title : null;
+  }
+
+  // get_client_profile (Sep 2026) — direct gap named in a "what's the
+  // assistant's brain missing" conversation: every other client-facing
+  // tool here (get_todo_list, propose_todo_update) only ever sees a
+  // TODO-shaped summary (name/status/next follow-up) — there was no way
+  // for the model to actually answer "what were Amanda's hotel
+  // preferences" grounded in the real Client Tracker record, only guess
+  // from whatever happened to already be said in this conversation.
+  // Reuses window.__ctFindClientByName (already exported, already
+  // returns the FULL client object) rather than adding a second Client
+  // Tracker export for the same lookup.
+  //
+  // Deliberately EXCLUDES passport numbers, DOB, nationality, and every
+  // additional traveler's own passport details — this tool only ever
+  // reports whether passport info is on file (and how many travelers),
+  // never the actual sensitive values. There's no legitimate reason for
+  // the model to need a real passport number in its context window (it
+  // can't do anything useful with it, and repeating it back in a chat
+  // reply or a drafted email would be a real exposure), so it's kept out
+  // entirely rather than trusted to the system prompt alone.
+  function runGetClientProfileTool(input) {
+    const name = input && input.clientName;
+    if (!window.__ctFindClientByName) return "Client Tracker data isn't available right now — the panel script may not have loaded.";
+    const c = window.__ctFindClientByName(name);
+    if (!c) return `Couldn't find a client matching "${name || '(no name given)'}" in the Client Tracker.`;
+    const rows = [];
+    const row = (label, value) => { if (value && String(value).trim()) rows.push(`${label}: ${value}`); };
+    row('Status', c.status);
+    row('Lead category', c.leadTemp);
+    row('Tags', Array.isArray(c.tags) && c.tags.length ? c.tags.join(', ') : '');
+    row('Destination', c.destination);
+    row('Linked itinerary', taFindItineraryTitle(c.itineraryId));
+    row('Phone', c.phone);
+    row('Email', c.email);
+    row('Last contact', c.lastContact);
+    row('Next follow-up', c.nextFollowUp);
+    row('Traveler ages', c.travelerAges);
+    row('Travel dates', c.travelDates);
+    row('Flexible on dates', c.flexibleDates);
+    row('Budget', c.budget);
+    row('Special occasion', c.specialOccasion);
+    row('Home state/province', c.homeState);
+    row('Trip vision', c.tripVision);
+    row('Pace', c.pace);
+    row('Past trips here', c.pastTrips);
+    row('Hotel style', c.hotelStyle);
+    row('Hotel view', c.hotelView);
+    row('Hotel location', c.hotelLocation);
+    row('Elevator proximity', c.elevatorProximity);
+    row('Floor preference', c.floorPreference);
+    row('Bedding', c.bedding);
+    row('Room category', c.roomCategory);
+    row('Allergies', c.allergies);
+    row('Loyalty number', c.loyaltyNumber);
+    row('Private transfer wanted', c.privateTransfer);
+    row('Train', c.train);
+    row('Rental car', c.rentalCar);
+    row('Cuisine preferences', c.cuisinePreferences);
+    row('Dress code comfort', c.dressCode);
+    row('Special reservations wanted', c.specialReservations);
+    row('Dietary restrictions', c.dietaryRestrictions);
+    row('Travel insurance', c.travelInsurance);
+    row('Mobility/accessibility needs', c.mobilityNeeds);
+    const hasPrimaryPassport = !!(c.passportNumber || c.passportName);
+    const travelerCount = Array.isArray(c.travelers) ? c.travelers.length : 0;
+    if (hasPrimaryPassport || travelerCount) {
+      rows.push(`Passport info on file: ${hasPrimaryPassport ? 'yes, primary traveler' : 'no primary'}${travelerCount ? ` + ${travelerCount} additional traveler${travelerCount === 1 ? '' : 's'}` : ''} (numbers/DOBs withheld from this tool for privacy — direct the DE to the Client Tracker profile for those)`);
+    }
+    const latestNote = (c.notes || '').split('\n').find(l => l.trim());
+    if (latestNote) rows.push(`Most recent note: ${latestNote}`);
+    if (!rows.length) return `${c.name} is in the Client Tracker but has no details filled in beyond their name yet.`;
+    return `### ${c.name}\n${rows.join('\n')}`;
+  }
+
+  // verify_recommendation (Sep 2026) — the "brain" gap this closes: the
+  // existing hallucination safety net (looksLikeHallucinatedToolCall)
+  // only catches the model narrating a FAKE tool call as text — it does
+  // nothing for a hotel/restaurant/tour name that's hallucinated INSIDE
+  // an otherwise-real, successful response (recalled from general
+  // training data instead of pulled from this guide's own
+  // QB_HOTELS/QB_RESTAURANTS/QB_TOURS). This tool lets the model
+  // self-check a specific name against the real data before stating it
+  // as a confirmed option, rather than trusting the system prompt's
+  // "never invent hotel names" instruction to hold with no way to
+  // verify it actually did. Matching is deliberately tolerant
+  // (case-insensitive, substring either direction) so a minor wording
+  // difference doesn't false-flag a real match — the point is catching a
+  // genuinely invented name, not penalizing an imperfect paraphrase.
+  function runVerifyRecommendationTool(input) {
+    const city = input && input.city;
+    const names = normalizeCitiesInput(input && input.names); // same "tolerate a bare string" normalizer — not city-specific despite the name
+    if (!city || typeof QB_HOTELS === 'undefined') return 'Verification data is not available right now.';
+    if (!names.length) return 'No names were given to verify.';
+    const pools = [
+      ['hotel', (QB_HOTELS[city] || []).map(h => h.name)],
+      ['restaurant', (QB_RESTAURANTS[city] || []).map(r => r.name)],
+      ['tour/experience', (QB_TOURS[city] || []).map(t => t.name)],
+    ];
+    const results = names.map(name => {
+      const n = String(name).trim().toLowerCase();
+      for (const [kind, list] of pools) {
+        const match = list.find(real => real.toLowerCase() === n || real.toLowerCase().includes(n) || n.includes(real.toLowerCase()));
+        if (match) return `✓ "${name}" — real ${kind} in ${city}'s data${match.toLowerCase() !== n ? ` (on file as "${match}")` : ''}`;
+      }
+      return `✗ "${name}" — NOT found in ${city}'s hotels, restaurants, or tours. Do not present this as a real, confirmed option — say you don't have it confirmed in this guide's data, or drop it.`;
+    });
+    return results.join('\n');
+  }
+
+  // get_price_reference (Sep 2026) — the third "brain" gap: this file
+  // has no per-hotel/per-night pricing table anywhere (QB_HOTELS only
+  // has name+tier, no dollar amounts), so a literal computed quote isn't
+  // something this tool — or the model — can honestly produce. What DOES
+  // exist is real per-person pricing on every actual bookable
+  // KT_LIVE_ITINERARIES/PERSONAL_ITINERARIES entry (already surfaced by
+  // find_matching_itinerary when there's a good city/day match). This
+  // tool answers the pricing-shaped question directly and explicitly as
+  // a REFERENCE RANGE from real comparable products, never a computed
+  // total — reuses the exact same scoreItinerariesByCities scoring
+  // find_matching_itinerary already uses, so the two can never disagree
+  // about which itineraries count as "similar." When nothing scores a
+  // real city overlap, falls back to day-count proximity across every
+  // real itinerary so there's still a grounded number to anchor a rough
+  // ballpark on, rather than nothing at all.
+  function runGetPriceReferenceTool(cities, days) {
+    if (typeof KT_LIVE_ITINERARIES === 'undefined') return 'Pricing reference data is not available right now.';
+    const reqCities = normalizeCitiesInput(cities).map(c => String(c).toLowerCase());
+    const allItins = [...KT_LIVE_ITINERARIES, ...(typeof PERSONAL_ITINERARIES !== 'undefined' ? PERSONAL_ITINERARIES : [])].filter(it => it.price);
+    let top = scoreItinerariesByCities(allItins, reqCities, days);
+    let note = '';
+    if (!top.length) {
+      const withDays = allItins.map(it => ({ it, dayDiff: days ? Math.abs(parseInt(((it.duration || '').match(/\d+/) || [])[0] || '0', 10) - days) : 0 }))
+        .sort((a, b) => a.dayDiff - b.dayDiff).slice(0, 3);
+      top = withDays.map(w => ({ it: w.it }));
+      note = 'No real KT itinerary shares cities with this request, so these are just similar-LENGTH real trips for a rough sense of scale — not comparable by destination. ';
+    }
+    const lines = top.map(s => `- ${s.it.title} (${s.it.route}, ${s.it.duration}): ${s.it.price}`);
+    return `${note}Real prices from actual bookable Kensington products, for reference only — NOT a computed quote for this specific request:\n${lines.join('\n')}\n\nPresent this to the DE as a ballpark range grounded in real comparable trips, never as an exact total for their client's specific combination. For a real quote, use the offline Quote Builder or confirm current rates in TMT.`;
+  }
+
   // Daily Tasks tools (Sep 2026) — reads/writes go through window.__dt*
   // (a separate script/IIFE, same cross-panel export pattern as
   // window.__ct*). Unlike propose_todo_update above, complete_daily_task/
@@ -12504,6 +12681,9 @@ Ground rules:
     find_matching_itinerary: 'Checking real Kensington itineraries…',
     get_todo_list: 'Checking your to-do list…',
     propose_todo_update: 'Preparing that update…',
+    get_client_profile: 'Looking up their file…',
+    verify_recommendation: 'Double-checking that\'s a real option…',
+    get_price_reference: 'Pulling real comparable pricing…',
     get_daily_tasks: 'Checking your daily tasks…',
     complete_daily_task: 'Checking that off…',
     add_daily_task: 'Adding that to your list…'
@@ -12819,7 +12999,7 @@ Ground rules:
         if (!data.content) {
           return { text: '', error: "The AI layer didn't return a usable response — try again." };
         }
-        clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary' || b.name === 'get_todo_list' || b.name === 'propose_todo_update' || b.name === 'get_daily_tasks' || b.name === 'complete_daily_task' || b.name === 'add_daily_task'));
+        clientToolUses = data.content.filter(b => b.type === 'tool_use' && (b.name === 'search_guide' || b.name === 'get_city_data' || b.name === 'find_matching_itinerary' || b.name === 'get_todo_list' || b.name === 'propose_todo_update' || b.name === 'get_daily_tasks' || b.name === 'complete_daily_task' || b.name === 'add_daily_task' || b.name === 'get_client_profile' || b.name === 'verify_recommendation' || b.name === 'get_price_reference'));
         textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
       } catch (e) {
         if (e && e.name === 'ClientTimeout') {
@@ -12859,6 +13039,9 @@ Ground rules:
           }
           if (tu.name === 'get_daily_tasks') return { type: 'tool_result', tool_use_id: tu.id, content: runGetDailyTasksTool() };
           if (tu.name === 'complete_daily_task') return { type: 'tool_result', tool_use_id: tu.id, content: runCompleteDailyTaskTool(tu.input || {}) };
+          if (tu.name === 'get_client_profile') return { type: 'tool_result', tool_use_id: tu.id, content: runGetClientProfileTool(tu.input || {}) };
+          if (tu.name === 'verify_recommendation') return { type: 'tool_result', tool_use_id: tu.id, content: runVerifyRecommendationTool(tu.input || {}) };
+          if (tu.name === 'get_price_reference') return { type: 'tool_result', tool_use_id: tu.id, content: runGetPriceReferenceTool(tu.input && tu.input.cities, tu.input && tu.input.days) };
           if (tu.name === 'add_daily_task') return { type: 'tool_result', tool_use_id: tu.id, content: runAddDailyTaskTool(tu.input || {}) };
           return { type: 'tool_result', tool_use_id: tu.id, content: runSearchGuideTool(tu.input && tu.input.query) };
         });
