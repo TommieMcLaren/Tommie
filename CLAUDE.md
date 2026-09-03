@@ -4399,6 +4399,131 @@ and ask if its a new request or continuing on with a previous request?"
   also check what it feels like on a totally fresh browser profile with
   no prior conversation at all.
 
+## Auto-open on page refresh + today's Daily Tasks folded into the Daily Brief (Sep 2026, unverified live)
+
+Direct follow-up to the per-open greeting above: "can we give the
+assistant the ability to open when the page refreshes and ask how it can
+help. Look at todays task, heres the follow ups for today, any helpful
+information."
+
+- **The panel now opens itself on every page load, no ✨ click needed.**
+  `openTripAssistant()` itself is completely unchanged — the only new
+  code is a `document.addEventListener('DOMContentLoaded', () =>
+  openTripAssistant())` call right after the button's own click wiring.
+  Reusing the exact same function a manual tap already calls means
+  there is exactly one "what happens when this panel opens" code path,
+  not a second parallel one to keep in sync — the "ask how it can help"
+  half of the request is just `maybeGreetOnOpen()` (built in the
+  previous session entry) firing on page load instead of on a click.
+- **Deferred to `DOMContentLoaded`, not fired at script-eval time, for a
+  real reason, not just caution.** This file is one long HTML document
+  with 17 inline `<script>` tags executing in document order as the
+  parser reaches them. The Trip Assistant's own script tag comes FIRST,
+  well before the Client Tracker and Daily Tasks script tags further
+  down — but `openTripAssistant()` → `maybeSurfaceDailyBrief()` reads
+  `window.__ctGetTodoSummary`/`window.__dtGetSummary`, both exported by
+  those LATER scripts. Calling `openTripAssistant()` directly at the
+  point this script itself evaluates would run before either export
+  exists — `maybeSurfaceDailyBrief()` already no-ops gracefully when an
+  export is missing, so this wouldn't crash, it would just silently show
+  an empty/greeting-only open on every single page load, which is
+  exactly the "looks fine in the simple case, quietly wrong in the real
+  one" failure shape this file's own history keeps warning about (see
+  the itinerary-modal DOM-lookup bug and the Draft-button reload bug
+  elsewhere in this file). `DOMContentLoaded` is guaranteed to fire only
+  once the ENTIRE document — every inline script included — has run,
+  regardless of where in the file the listener was registered, so by the
+  time this fires both exports are guaranteed to already exist.
+- **"Look at todays task" — the real gap this closed**: the Daily Brief
+  already covered Client Tracker follow-ups (overdue/due-this-week/hot
+  leads) but had zero awareness of the separate Daily Tasks checklist
+  (Check emails, Check leads in TMT, etc. — see "Daily Tasks" above) even
+  though that panel already existed. `maybeSurfaceDailyBrief()` now also
+  builds a `☑️ N on today's checklist` line from
+  `window.__dtGetSummary()` — the fixed routine items plus any ad-hoc
+  custom task, both filtered to `!done` — using the same `listLine()`
+  helper (and the same 5-name-then-"+N more" truncation) the existing
+  overdue/due-soon/hot-lead lines already use, so it reads as one more
+  line in the same format, not a bolted-on second block. Independently
+  gated on `window.__dtGetSummary` existing (try/caught separately from
+  the top-level `window.__ctGetTodoSummary` gate) so a Daily Tasks
+  script that hasn't loaded degrades this one line, not the whole brief.
+- **Deliberately does NOT re-list today's follow-ups a second time under
+  the checklist heading**, even though Daily Tasks' own panel already
+  has its own "Follow-ups Due Today" section
+  (`dtGetDueFollowUps()` — overdue + due-exactly-today). That bucket
+  overlaps with (is a subset of) the Daily Brief's existing overdue/
+  due-this-week lines; re-listing the same names under a second heading
+  in the same message would just be the same information twice, not new
+  information. "Here's the follow-ups for today" is already answered by
+  the lines that were already there.
+- **The "clean day, stay silent" rule now genuinely considers the
+  checklist too, not just follow-ups** — the early return moved to after
+  the checklist line is built and folded into the same `lines` array, so
+  a day with zero flagged clients but real open checklist items still
+  shows the brief (this is now the common case on most days, since the
+  checklist resets every morning), and a day where literally everything
+  — follow-ups AND the whole checklist — is clear correctly stays
+  silent, unchanged from before.
+- **"Any helpful information"** is handled by the brief's existing
+  closing line, lightly reworded to mention the new capability: "Just
+  ask, and I can draft a message, pull up anyone's details, or check
+  something off your list" — not a new data source, since the brief
+  already surfaces everything this file currently has ambient data for
+  (follow-ups, hot leads, and now the daily checklist); anything beyond
+  that is already reachable by just asking, which is the whole point of
+  this panel being conversational.
+- Verified with a real Node execution-harness test
+  (`test_autoopen_refresh.js`, loading the actual extracted Trip
+  Assistant, Client Tracker, AND Daily Tasks `<script>` blocks together,
+  in real file order, with a working `document.addEventListener`/manual
+  `DOMContentLoaded` fire — the earlier reload tests' `addEventListener`
+  stub was a true no-op, which doesn't exercise this feature at all, so
+  this test file upgrades that piece specifically) across 15 checks: the
+  panel is confirmed still CLOSED immediately after script evaluation
+  and only opens once `DOMContentLoaded` is actually fired (proving the
+  defer is real, not a no-op); both the greeting and the daily brief
+  post with no simulated click at all; the brief shows up on an
+  otherwise-clean follow-up day purely because of open checklist items,
+  and names a real checklist item; checking off every fixed item AND
+  having no custom tasks correctly goes silent again; an ad-hoc custom
+  task added earlier still surfaces by name; Daily Tasks' script being
+  entirely absent doesn't throw and the rest of the brief (a real
+  overdue follow-up) still renders correctly with no checklist line;
+  and an XSS probe through a custom task's text comes back fully
+  escaped. Re-ran the full pre-existing test suite (all-clients-view,
+  form-unstick, followups, scan-import, tabs-visibility, daily-tasks,
+  five-upgrades, draft-reload, readaloud-reload, draft-button, and the
+  per-open-greeting test from the previous entry) with zero regressions
+  caused by this change — the same two pre-existing test-harness
+  artifacts already documented above (`test_tabs_visibility.js`'s two
+  known non-bugs, `test_draft_button.js`'s one known async-timing
+  assertion) are unchanged and unrelated. All 17 `<script>` blocks
+  parse; tag balance unchanged from the previous entry (no new markup —
+  this was pure JS logic plus one wording tweak in an existing template
+  string).
+- **Deliberately not built**: any way to opt out of the auto-open (a
+  "don't do this again" setting, or only auto-opening once per day
+  instead of every refresh) — not asked for, and adding a toggle for
+  behavior that was requested outright would be solving a problem that
+  hasn't actually been reported yet.
+- **Unverified live, and this is a real behavioral change worth watching
+  closely**: whether auto-opening a full panel over the guide on every
+  single page load feels right in practice, especially during normal
+  browsing/reloading that has nothing to do with the assistant, versus
+  feeling intrusive; whether the checklist line reading "☑️ 8 on today's
+  checklist: Check emails, Check leads in TMT, ..." every single morning
+  (since the checklist starts fully unchecked each day) becomes visual
+  noise once the novelty wears off; and whether DOMContentLoaded
+  reliably fires the auto-open cleanly in a real browser against the
+  real 14,000-line file's real load order — none of this has been seen
+  outside this environment. Test next: do a genuine hard refresh of the
+  page and confirm the panel opens on its own, greets appropriately, and
+  the brief correctly reflects both today's follow-ups and today's
+  checklist; also worth deliberately checking off a few checklist items,
+  refreshing again, and confirming the brief's checklist line shrinks to
+  match.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

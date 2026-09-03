@@ -11913,6 +11913,33 @@ ${resultsBody}
   btn.addEventListener('click', toggleTripAssistant);
   closeBtn.addEventListener('click', closeTripAssistant);
 
+  // Auto-open on page load (Sep 2026) — direct request: "give the
+  // assistant the ability to open when the page refreshes and ask how it
+  // can help. Look at todays task, heres the follow ups for today, any
+  // helpful information." Deferred to DOMContentLoaded rather than fired
+  // immediately at script-eval time for the same reason the itinerary/
+  // draft modal wiring below already is: this file is one long HTML
+  // document with 17 script tags executing in order as the parser reaches
+  // them, and openTripAssistant() → maybeSurfaceDailyBrief() reads
+  // window.__ctGetTodoSummary/__dtGetSummary — both exported by script
+  // blocks that sit PHYSICALLY LATER in the file (Client Tracker, Daily
+  // Tasks). Calling openTripAssistant() here directly, at this point in
+  // parsing, would run before those exports exist and silently skip the
+  // whole brief (maybeSurfaceDailyBrief already no-ops when the export
+  // isn't there yet) — exactly the kind of "works for the fresh case,
+  // silently degrades for the real one" bug this file's own history
+  // warns about. DOMContentLoaded is guaranteed to fire only once the
+  // entire document — every inline script included — has run, so by the
+  // time this fires every cross-panel export this needs is guaranteed to
+  // already be registered. Reuses openTripAssistant() as-is rather than a
+  // separate auto-open path — same panel-open animation, same
+  // maybeGreetOnOpen()/maybeSurfaceDailyBrief() calls a manual ✨ tap
+  // already triggers, so there's exactly one "what happens when this
+  // panel opens" code path to keep correct, not two.
+  document.addEventListener('DOMContentLoaded', () => {
+    openTripAssistant();
+  });
+
   // ---------- BYOK settings panel ----------
   const settingsBtn = document.getElementById('ta-settings');
   const settingsPanel = document.getElementById('ta-settings-panel');
@@ -14488,10 +14515,34 @@ ${bodyHtml}
       const more = names.length > 5 ? `, +${names.length - 5} more` : '';
       return `${label}: ${shown}${more}`;
     };
+    // Today's Daily Tasks checklist (Sep 2026) — direct request: "Look at
+    // todays task, heres the follow ups for today, any helpful
+    // information" as part of the new auto-open-on-refresh flow (see
+    // openTripAssistant's DOMContentLoaded listener above). Independently
+    // gated on window.__dtGetSummary rather than folded into the
+    // __ctGetTodoSummary check above, so a Daily Tasks script that hasn't
+    // loaded yet degrades this ONE line, not the whole brief. Only the
+    // fixed routine checklist + any ad-hoc custom tasks are listed here —
+    // deliberately NOT today's follow-ups a second time under a new
+    // heading, since dtGetDueFollowUps' "due today" bucket overlaps with
+    // (is a subset of) the overdue/due-this-week lines already built
+    // above; re-listing the same names here would just be noise.
+    let checklistLine = null;
+    if (window.__dtGetSummary) {
+      try {
+        const dtSummary = window.__dtGetSummary();
+        const openItems = [
+          ...(dtSummary.checklist || []).filter(i => !i.done).map(i => i.label),
+          ...(dtSummary.custom || []).filter(i => !i.done).map(i => i.text),
+        ];
+        checklistLine = listLine(`☑️ ${openItems.length} on today's checklist`, openItems);
+      } catch (e) { /* Daily Tasks data unavailable — just skip this one line */ }
+    }
     const lines = [
       listLine(`⚑ ${overdueNames.length} overdue follow-up${overdueNames.length === 1 ? '' : 's'}`, overdueNames),
       listLine(`📅 ${dueSoonNames.length} due this week`, dueSoonNames),
-      listLine(`🔥 ${flaggedHot.length} hot lead${flaggedHot.length === 1 ? '' : 's'} worth a look`, flaggedHot)
+      listLine(`🔥 ${flaggedHot.length} hot lead${flaggedHot.length === 1 ? '' : 's'} worth a look`, flaggedHot),
+      checklistLine
     ].filter(Boolean);
     if (!lines.length) return; // clean day — stay silent, same as every ambient check in this file
     // Quick actions: every flagged client (overdue, due-soon, or hot for
@@ -14526,7 +14577,7 @@ ${bodyHtml}
     // second, nested "jump to profile" button sitting right next to the
     // Draft button, which is redundant at best and fragile DOM nesting
     // (a <button> inside a <span> right beside another button) at worst.
-    const html = `<b>Hello — here's your day at a glance:</b><br><span class="ta-brief-lines">${lines.map(l => escapeHtml(l)).join('<br>')}</span>${actionsHtml}<br>Just ask, and I can draft a message or pull up anyone's details.`;
+    const html = `<b>Hello — here's your day at a glance:</b><br><span class="ta-brief-lines">${lines.map(l => escapeHtml(l)).join('<br>')}</span>${actionsHtml}<br>Just ask, and I can draft a message, pull up anyone's details, or check something off your list.`;
     const div = addMsg('bot', html, true);
     const linesEl = div.querySelector('.ta-brief-lines');
     if (linesEl) wireClientProfileLinks(linesEl);
