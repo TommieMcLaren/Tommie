@@ -871,6 +871,15 @@
     font-size: 11.5px; font-weight: 700; cursor: pointer; flex-shrink: 0; font-family: 'Lato', sans-serif;
   }
   .ta-brief-draft-btn:hover { background: var(--gold-text); }
+  .ta-greet-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .ta-greet-continue, .ta-greet-new {
+    border: none; border-radius: 20px; padding: 7px 14px; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; font-family: 'Lato', sans-serif; transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .ta-greet-continue { background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker)); color: #fff; }
+  .ta-greet-new { background: #fff; border: 1px solid rgba(0,0,0,0.12); color: #3a382e; }
+  .ta-greet-continue:hover:not(:disabled), .ta-greet-new:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
+  .ta-greet-continue:disabled, .ta-greet-new:disabled { cursor: default; opacity: 0.6; }
   #ta-itinerary-modal-body table { width: 100%; border-collapse: collapse; margin: 0 0 14px; font-size: 13px; }
   #ta-itinerary-modal-body th, #ta-itinerary-modal-body td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(0,0,0,0.08); }
   #ta-itinerary-modal-body th { background: #faf6ee; font-weight: 700; color: var(--sage-darker); }
@@ -11890,6 +11899,7 @@ ${resultsBody}
     panel.classList.add('open');
     requestAnimationFrame(() => panel.classList.add('shown'));
     input.focus();
+    maybeGreetOnOpen();
     maybeSurfaceDailyBrief();
   }
   function closeTripAssistant() {
@@ -14389,6 +14399,57 @@ ${bodyHtml}
   // so it can't be missed just because of which button got tapped first.
   // Same once-a-day, stay-silent-on-a-clean-day discipline as everything
   // else ambient in this file.
+  // Per-open greeting (Sep 2026) — direct request: "open the assitant.
+  // Can it greet me with a nice message and ask if its a new request or
+  // continuing on with a previous request?" Deliberately a separate
+  // concern from maybeSurfaceDailyBrief() below: that one is a once-a-day
+  // work summary keyed off Client Tracker data (overdue/due-soon/hot
+  // leads), this one is a lightweight conversational orientation keyed
+  // off THIS panel's own persisted convoHistory/taState — "are we still
+  // talking about the same thing?" Fires once per PAGE LOAD (a plain
+  // in-memory flag, not a localStorage date key like the Daily Brief) —
+  // opening/closing the panel repeatedly in one sitting shouldn't repeat
+  // the question, but a fresh page load should always ask again, since
+  // that's exactly the moment it's genuinely ambiguous whether the DE is
+  // picking up a thread or starting something else.
+  let taGreetedThisLoad = false;
+  function wireGreetingButtons(container) {
+    container.querySelectorAll('.ta-greet-actions').forEach(actionsEl => {
+      const continueBtn = actionsEl.querySelector('[data-greet="continue"]');
+      const newBtn = actionsEl.querySelector('[data-greet="new"]');
+      if (continueBtn) continueBtn.addEventListener('click', () => {
+        continueBtn.disabled = true;
+        if (newBtn) newBtn.disabled = true;
+        addMsg('bot', 'Great — go ahead, I remember where we left off.', false);
+      });
+      if (newBtn) newBtn.addEventListener('click', () => {
+        newBtn.disabled = true;
+        if (continueBtn) continueBtn.disabled = true;
+        resetClientContext();
+        addMsg('bot', 'Starting fresh — who are we planning for?', false);
+      });
+    });
+  }
+  function maybeGreetOnOpen() {
+    if (taGreetedThisLoad) return;
+    taGreetedThisLoad = true;
+    const hour = new Date().getHours();
+    const timeGreeting = hour < 12 ? 'Good morning!' : (hour < 18 ? 'Good afternoon!' : 'Good evening!');
+    const hasContext = convoHistory.length > 0;
+    let html;
+    if (hasContext) {
+      const name = taState.clientName || '';
+      const whoHtml = name ? ` with <b>${escapeHtml(name)}</b>` : '';
+      const continueLabel = name ? `↩️ Continue with ${escapeHtml(name)}` : '↩️ Continue where we left off';
+      html = `${escapeHtml(timeGreeting)} Are we picking up where we left off${whoHtml}, or is this something new?` +
+        `<div class="ta-greet-actions"><button type="button" class="ta-greet-continue" data-greet="continue">${continueLabel}</button><button type="button" class="ta-greet-new" data-greet="new">🆕 Start something new</button></div>`;
+    } else {
+      html = `${escapeHtml(timeGreeting)} What can I help with today?`;
+    }
+    const div = addMsg('bot', html, true);
+    wireGreetingButtons(div);
+  }
+
   const TA_DAILY_BRIEF_KEY = 'kt-trip-assistant:last-daily-brief';
   const TA_HOTLEAD_STALE_DAYS = 5;
   function maybeSurfaceDailyBrief() {
@@ -14707,6 +14768,14 @@ ${bodyHtml}
         // querySelectorAll finding nothing).
         wireBriefDraftButtons(msgsEl);
         wireClientLinkClicks(msgsEl);
+        // Same fix, extended again (Sep 2026): the per-open greeting's
+        // own Continue/Start-something-new buttons (maybeGreetOnOpen)
+        // have the identical restore-bug shape — re-wired here across
+        // the whole restored list for the same reason as the two calls
+        // above. A stale greeting bubble from a PREVIOUS page load is
+        // still safe to click (worst case: an already-stale "continue"
+        // acknowledgement, or a reset that's harmless to trigger twice).
+        wireGreetingButtons(msgsEl);
         // Same fix, extended (Sep 2026): the "🔊 Read aloud"/"📋 View full
         // details" buttons on a normal AI reply have the identical bug —
         // flagged as a known gap when the Draft-button fix above shipped,

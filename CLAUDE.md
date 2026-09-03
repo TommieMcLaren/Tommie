@@ -4291,6 +4291,114 @@ tested, and shipped together in the order proposed.
   clients and bulk-change their status, and open the new 📊 pipeline
   snapshot button.
 
+## A real per-open greeting: "continuing, or something new?" (Sep 2026, unverified live)
+
+Direct request: "open the assitant. Can it greet me with a nice message
+and ask if its a new request or continuing on with a previous request?"
+
+- **Deliberately a separate concern from `maybeSurfaceDailyBrief()`**,
+  not a merge into it. The Daily Brief is a once-a-day WORK SUMMARY keyed
+  off Client Tracker data (overdue/due-soon/hot leads) — it answers "what
+  needs my attention today." This is a lightweight CONVERSATIONAL
+  orientation keyed off the Trip Assistant panel's own persisted
+  `convoHistory`/`taState` — it answers "are we still talking about the
+  same thing?" Different question, different data source, so a second
+  small function (`maybeGreetOnOpen()`) rather than reshaping the
+  already-tested Daily Brief to do double duty.
+- **Fires once per PAGE LOAD, not once per day.** A plain in-memory flag
+  (`taGreetedThisLoad`), not a `localStorage` date key like the Daily
+  Brief — opening and closing the panel repeatedly in one sitting
+  (the ✨ button is a real open/close toggle, see the entry above) would
+  make a "continuing or new?" question feel like a broken record if it
+  re-asked every time; but a genuine page reload is exactly the moment
+  it's honestly ambiguous whether the DE is picking up a thread or about
+  to start something else, so a fresh load always asks again.
+- **Time-of-day-aware, and the fork only appears when there's something
+  to fork.** `new Date().getHours()` picks "Good morning!"/"Good
+  afternoon!"/"Good evening!". Whether the greeting continues into the
+  continue-or-new question is gated on `convoHistory.length > 0` — a
+  genuinely fresh session (nothing said yet, matching the static welcome
+  bubble already baked into the page) gets a plain "What can I help with
+  today?" with no buttons, since asking someone to choose between "new"
+  and "continue" when there's nothing to continue is just friction. When
+  there IS prior conversation, the message names the active client if
+  one's known (`taState.clientName`) and falls back to generic wording
+  ("Continue where we left off") when a conversation happened but no name
+  was ever extracted from it.
+- **Two real buttons, not just a suggestion to type "new" or
+  "continue."** "↩️ Continue [with Name]" simply posts a short
+  acknowledgement ("Great — go ahead, I remember where we left off.") —
+  no state change needed, since the persisted context is already active;
+  it exists purely to close the loop the question opened. "🆕 Start
+  something new" calls the exact same `resetClientContext()` the
+  existing "Start new client" link in the context bar already uses (not
+  a second copy of that reset logic) and confirms with "Starting fresh —
+  who are we planning for?" Both buttons disable each other on click
+  (matching `addPendingActionCard`'s existing Confirm/Cancel pattern),
+  so a bubble can't be actioned twice in two different directions.
+- **Restore-safe by construction, applying the lesson this file's own
+  history already paid for.** The Daily Brief's Draft button and the
+  client-name links were both found live-broken after a page reload
+  because `persistState()` saves a bubble's rendered HTML but click
+  listeners are JS-side attachments that don't travel with markup — the
+  fix pattern (split "build the markup" from "wire the listeners," call
+  the wiring half again across the whole restored list) is documented
+  above and reused here verbatim: `wireGreetingButtons(container)` finds
+  every `.ta-greet-actions` block in whatever container it's given and
+  attaches listeners without touching the DOM, safe to call at creation
+  time (one bubble) or from `restoreState()` (the whole restored list,
+  including bubbles with neither kind of button — a no-op via
+  `querySelectorAll` finding nothing). A stale greeting bubble surviving
+  from a PREVIOUS page load is still genuinely clickable after a reload,
+  not a dead leftover — clicking it is harmless even if stale (worst
+  case: a redundant acknowledgement, or a context reset that's harmless
+  to trigger twice).
+- Verified with a real Node execution-harness test (`test_open_greeting.js`,
+  loading the actual extracted Trip Assistant `<script>` block, not a
+  paraphrase) across seven scenarios: a brand-new session gets the plain
+  no-fork greeting with zero `.ta-greet-actions` rendered; opening the
+  panel three times in one page load greets exactly once; a session
+  restored with real prior `convoHistory` and a known client name asks
+  the fork question, names the client, and clicking Continue disables
+  both buttons and posts the acknowledgement; a session with prior
+  `convoHistory` but no extracted client name still forks with the
+  generic "Continue where we left off" wording; clicking Start Something
+  New actually calls the real `resetClientContext()` (confirmed via the
+  context bar losing its `shown` class, not by checking now-irrelevant
+  stale text under a hidden element — `updateContextBar()`'s own
+  pre-existing behavior only ever WRITES the context text when there's
+  something to show, a real detail caught while writing this test, not a
+  bug it introduced); an XSS probe (a `<script>` tag as the stored client
+  name) renders fully escaped with no live tag reaching the DOM; and the
+  restore-safety scenario itself — a real two-session simulated reload
+  (matching this file's own established pattern for this exact bug
+  class) confirming a persisted greeting bubble's Continue button still
+  fires correctly after a reload, AND that the new page load still
+  greets fresh on its own separate `__taOpenPanel()` call. Also re-ran
+  every pre-existing Trip Assistant/Client Tracker Node harness test in
+  the suite with zero regressions caused by this change. All 17
+  `<script>` blocks parse; div-tag balance held (+1, matching the new
+  `.ta-greet-actions` wrapper), button balance moved +2/+2 (the two new
+  buttons), matching the established gaps exactly with no new imbalance.
+- **Deliberately not built**: merging this into the Daily Brief's own
+  opening line to avoid two "hello"-shaped bubbles appearing back to
+  back on the first open of the day (this greeting, then separately the
+  Daily Brief's own "Hello — here's your day at a glance") — that
+  coupling would mean touching the Daily Brief's already-tested logic
+  for a style nit rather than what was actually asked, and it's not
+  fully clear yet whether that reads as redundant or just as two
+  distinct, useful things being said in sequence.
+- **Unverified live**: whether seeing two greeting-shaped bubbles in a
+  row (this one, then the Daily Brief) on the first open of the day
+  feels natural or repetitive, whether the time-of-day wording lands
+  right, and whether the Continue/Start-something-new buttons read
+  clearly at a glance next to each other — none of this has been seen in
+  a real browser from this environment. Test next: reload the page after
+  a real conversation with a named client, open the assistant, and
+  confirm it asks the right question and both buttons do what they say;
+  also check what it feels like on a totally fresh browser profile with
+  no prior conversation at all.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
