@@ -784,15 +784,15 @@
      display:none (nothing to animate from) or safely display:none it
      before its own fade-out finishes playing. */
   #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
-  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay {
+  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay {
     opacity: 0; transition: opacity .18s ease;
   }
   #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
-  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown {
+  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown, #ct-stats-overlay.shown {
     opacity: 1;
   }
   #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
-  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal {
+  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal, #ct-stats-modal {
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
@@ -800,7 +800,7 @@
   #quote-builder-overlay.shown #quote-builder-modal, #dashboard-overlay.shown #dashboard-modal,
   #stale-overlay.shown #stale-modal, #tmm-overlay.shown #tmm-modal,
   #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal, #dt-overlay.shown #dt-modal,
-  #ct-scan-overlay.shown #ct-scan-modal {
+  #ct-scan-overlay.shown #ct-scan-modal, #ct-stats-overlay.shown #ct-stats-modal {
     transform: translateY(0) scale(1);
   }
 
@@ -1617,7 +1617,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -15112,6 +15112,34 @@ ${bodyHtml}
   }
   .ct-view-tab:hover { color: var(--dark); }
   .ct-view-tab.active { background: #fff; color: var(--sage-darker); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+  /* Bulk select (Sep 2026) — "All Clients" view only, JS toggles hidden.
+     Sits inline next to #ct-view-toggle (same margin-top) rather than on
+     its own row, since it's a peer mode toggle, not a new toolbar area. */
+  #ct-bulk-toggle {
+    display: inline-block; margin: 14px 0 0 8px; vertical-align: top;
+    background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft);
+    font-family: 'Lato', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    border-radius: 20px; padding: 9px 15px; transition: background .12s ease, border-color .12s ease;
+  }
+  #ct-bulk-toggle:hover { border-color: #3d5470; color: #3d5470; }
+  #ct-bulk-toggle.active { background: #3d5470; border-color: #3d5470; color: #fff; }
+  .ct-bulk-check { margin-right: 6px; flex-shrink: 0; }
+  #ct-bulk-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: #E4E9F0; border: 1px solid #c3cee0; border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; color: #3d5470; font-weight: 700;
+  }
+  #ct-bulk-bar select {
+    font: inherit; font-size: 12.5px; padding: 5px 8px; border: 1px solid #c3cee0; border-radius: 6px;
+    background: #fff; color: var(--dark);
+  }
+  #ct-bulk-bar button {
+    font-family: 'Lato', sans-serif; font-size: 12px; font-weight: 700; padding: 6px 13px; border-radius: 6px;
+    cursor: pointer; border: none;
+  }
+  #ct-bulk-apply { background: #3d5470; color: #fff; }
+  #ct-bulk-apply:hover { background: #2d3f56; }
+  #ct-bulk-clear-btn { background: #fff; border: 1px solid #c3cee0; color: #3d5470; }
   /* Tighter top padding than the view-toggle above it (14px vs. 8px) —
      the two now read as one connected toolbar area (mode switch, then
      its filters) instead of two independently-floating rows of pills. */
@@ -15352,6 +15380,13 @@ ${bodyHtml}
     padding: 8px 0 8px 12px; border-left: 2px solid var(--ct-line); font-size: 13.5px; color: var(--dark);
   }
   .ct-followup-row.next { border-left-color: var(--gold); }
+  /* Done (Sep 2026) — distinct from Delete: completing a follow-up is
+     worth keeping on record, so this dims/strikes it rather than
+     removing it. Sorted after open entries (see ctFollowUpsFor), so a
+     done row reads as "history," not something competing for attention
+     with what's actually still open. */
+  .ct-followup-row.done { border-left-color: var(--ct-closed); opacity: 0.6; }
+  .ct-followup-row.done .ct-followup-date, .ct-followup-row.done .ct-followup-note { text-decoration: line-through; }
   .ct-followup-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .ct-followup-next-badge {
     align-self: flex-start; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
@@ -15364,6 +15399,12 @@ ${bodyHtml}
     border-radius: 5px; line-height: 1; opacity: 0.55; transition: opacity .12s ease, background .12s ease;
   }
   .ct-followup-edit-btn:hover { opacity: 1; background: var(--ct-gold-soft); }
+  .ct-followup-done-btn {
+    flex-shrink: 0; background: none; border: none; font-size: 13px; cursor: pointer; padding: 2px 4px;
+    border-radius: 5px; line-height: 1; opacity: 0.55; transition: opacity .12s ease, background .12s ease;
+    color: var(--sage-darker);
+  }
+  .ct-followup-done-btn:hover { opacity: 1; background: #eef4ea; }
   .ct-followup-row.editing { flex-direction: column; align-items: stretch; border-left-color: var(--gold); }
   .ct-followup-edit-date, .ct-followup-edit-note {
     width: 100%; box-sizing: border-box; padding: 7px 9px; margin-bottom: 6px;
@@ -15464,8 +15505,19 @@ ${bodyHtml}
   .ct-scan-row:last-child { border-bottom: none; }
   .ct-scan-row input[type="checkbox"] { margin-top: 4px; flex-shrink: 0; }
   .ct-scan-row-main { flex: 1; min-width: 0; }
-  .ct-scan-row-task { font-size: 13.5px; color: var(--dark); }
-  .ct-scan-row-meta { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 2px; }
+  /* Task text and date are real editable inputs (Sep 2026, "let me
+     correct a slightly-off read") — .ct-followup-edit-note already
+     styles the task text input (reused verbatim, same class as the
+     new-client-name field below it); the date gets its own narrower
+     input since a full-width date picker would look odd. */
+  .ct-scan-row-task-input { margin-bottom: 6px; }
+  .ct-scan-row-datemeta { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .ct-scan-row-date-input {
+    flex-shrink: 0; font-family: 'Lato', sans-serif; font-size: 12.5px; padding: 6px 8px;
+    border: 1px solid var(--ct-line); border-radius: 6px; color: var(--dark); background: #fffdf9;
+  }
+  .ct-scan-row-date-input:focus { outline: 2px solid var(--ct-gold-soft); border-color: var(--gold); }
+  .ct-scan-row-meta { font-size: 11.5px; color: var(--ct-ink-soft); }
   .ct-scan-row-select {
     flex-shrink: 0; width: 210px; font: inherit; font-size: 12.5px; padding: 5px 8px;
     border: 1px solid var(--ct-line); border-radius: 6px; background: #fff; color: var(--dark);
@@ -15482,6 +15534,39 @@ ${bodyHtml}
   }
   #ct-scan-apply:hover { background: #30435a; }
   #ct-scan-apply:disabled { opacity: 0.6; cursor: default; }
+
+  /* Pipeline snapshot (Sep 2026) — same overlay/modal pop-out pattern as
+     #ct-scan-overlay, its own gold accent (rather than the scan feature's
+     blue) so the two "opened from the header icons" modals read as
+     distinct tools, not variants of one another. */
+  #ct-stats-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-stats-overlay.open { display: flex; }
+  #ct-stats-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 640px; width: 100%; max-height: 88vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid var(--gold); position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-stats-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-stats-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-stats-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-stats-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-stats-close:hover { color: var(--sage-darker); }
+  #ct-stats-body { padding: 4px 30px 26px; overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-stats-total { font-size: 13px; color: var(--ct-ink-soft); margin-bottom: 16px; }
+  .ct-stats-total b { color: var(--dark); font-size: 15px; }
+  .ct-stats-section-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ct-ink-soft);
+    font-weight: 700; margin: 0 0 8px;
+  }
+  .ct-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .ct-stats-tile { background: var(--ct-gold-soft, #f3ead9); border-radius: 10px; padding: 12px 14px; }
+  .ct-stats-tile-count { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sage-darker); line-height: 1.1; }
+  .ct-stats-tile-label { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 2px; }
+  .ct-stats-tile.hot { background: #F7DFD3; }
+  .ct-stats-tile.warm { background: var(--ct-gold-soft); }
+  .ct-stats-tile.checkback { background: #E4E9F0; }
+  .ct-stats-tile.cold { background: #E7ECEF; }
+  .ct-stats-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
 
   @media (max-width: 700px) {
     #ct-overlay { padding: 0; }
@@ -15503,6 +15588,7 @@ ${bodyHtml}
     <div><b>Client Tracker</b><span id="ct-head-subtitle">Every active client, sorted by who needs you next</span></div>
     <div id="ct-head-actions">
       <button type="button" id="ct-notify-btn" class="ct-head-group" title="Browser reminders when a follow-up is due">🔕</button>
+      <button type="button" id="ct-stats-btn" class="ct-head-group" title="Pipeline snapshot — counts by status and lead temperature">📊</button>
       <span class="ct-head-divider"></span>
       <button type="button" id="ct-export-btn" class="ct-head-group" title="Download a backup of every client">📥</button>
       <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file">📤</button>
@@ -15535,6 +15621,7 @@ ${bodyHtml}
     <button type="button" class="ct-view-tab active" data-view="urgency">📅 Follow-up</button>
     <button type="button" class="ct-view-tab" data-view="all">📇 All Clients</button>
   </div>
+  <button type="button" id="ct-bulk-toggle" hidden>☑️ Select</button>
   <div id="ct-tabs">
     <button type="button" class="ct-tab active" data-temp="">All<span class="ct-tab-count"></span></button>
     <button type="button" class="ct-tab" data-temp="Hot Lead">🔥 Hot Lead<span class="ct-tab-count"></span></button>
@@ -15770,6 +15857,17 @@ ${bodyHtml}
       <button type="button" id="ct-scan-cancel">Cancel</button>
       <button type="button" id="ct-scan-apply" disabled>Apply</button>
     </div>
+  </div>
+</div>
+
+<div id="ct-stats-overlay">
+  <div id="ct-stats-modal">
+    <button type="button" id="ct-stats-close" aria-label="Close">✕</button>
+    <div id="ct-stats-head">
+      <h3>📊 Pipeline Snapshot</h3>
+      <p>A quick read on the whole book — not a substitute for the actual list, just a health check.</p>
+    </div>
+    <div id="ct-stats-body"></div>
   </div>
 </div>
 
@@ -16184,18 +16282,21 @@ ${bodyHtml}
     return null;
   }
 
+  // Only the "matched/mentioned" status now — the date used to be baked
+  // in here as plain text, but it's a real editable input now (see
+  // ctRenderScanRows), so this only needs to report the one thing that
+  // still isn't independently editable per row: whether a client match
+  // was found.
   function ctScanRowMeta(row) {
-    const bits = [];
-    bits.push(row.date ? ctFormatDate(row.date) : 'no date detected');
-    if (row.matchedId) bits.push(`✓ matches existing client — will update their file`);
-    else if (row.client) bits.push(`mentioned: ${row.client}`);
-    return bits.join(' · ');
+    if (row.matchedId) return '✓ matches existing client — will update their file';
+    if (row.client) return `mentioned: ${row.client}`;
+    return '';
   }
 
   function ctRenderScanRows(rows) {
     if (!rows.length) return '<div class="ct-scan-error">Didn\'t find any client or follow-up information in that image — try a clearer screenshot.</div>';
     const matchedCount = rows.filter(r => r.matchedId).length;
-    const summary = `<div class="ct-scan-summary">${rows.length} row${rows.length === 1 ? '' : 's'} found — ${matchedCount} matched to an existing client. Review each one below, then Apply.</div>`;
+    const summary = `<div class="ct-scan-summary">${rows.length} row${rows.length === 1 ? '' : 's'} found — ${matchedCount} matched to an existing client. Review (and correct, if the read is a little off) each one below, then Apply.</div>`;
     const optionsFor = (row, defaultIsNew) => {
       const opts = [`<option value="skip">— Skip —</option>`];
       opts.push(`<option value="new"${defaultIsNew ? ' selected' : ''}>+ New client${row.client ? ': ' + ctEscapeHtml(row.client) : ''}</option>`);
@@ -16207,13 +16308,17 @@ ${bodyHtml}
     const rowsHtml = rows.map((row, i) => {
       const defaultChecked = !!(row.matchedId || row.client);
       const defaultIsNew = !row.matchedId && !!row.client;
+      const metaText = ctScanRowMeta(row);
       return `
       <div class="ct-scan-row${row.matchedId ? ' matched' : ''}" data-row="${i}">
         <input type="checkbox" data-row-check="${i}"${defaultChecked ? ' checked' : ''}>
         <div class="ct-scan-row-main">
-          <div class="ct-scan-row-task">${ctEscapeHtml(row.task || '(no task text)')}</div>
-          <div class="ct-scan-row-meta">${ctEscapeHtml(ctScanRowMeta(row))}</div>
-          <input type="text" class="ct-followup-edit-note ct-scan-row-newname" data-row-newname="${i}" placeholder="New client's name" value="${ctEscapeHtml(row.client || '')}" ${defaultIsNew ? '' : 'hidden'} style="margin-top:6px;">
+          <input type="text" class="ct-followup-edit-note ct-scan-row-task-input" data-row-task="${i}" value="${ctEscapeHtml(row.task || '')}" placeholder="Task description">
+          <div class="ct-scan-row-datemeta">
+            <input type="date" class="ct-scan-row-date-input" data-row-date="${i}" value="${ctEscapeHtml(row.date || '')}">
+            ${metaText ? `<span class="ct-scan-row-meta">${ctEscapeHtml(metaText)}</span>` : ''}
+          </div>
+          <input type="text" class="ct-followup-edit-note ct-scan-row-newname" data-row-newname="${i}" placeholder="New client's name" value="${ctEscapeHtml(row.client || '')}" ${defaultIsNew ? '' : 'hidden'}>
         </div>
         <select class="ct-scan-row-select" data-row-select="${i}">${optionsFor(row, defaultIsNew)}</select>
       </div>`;
@@ -16332,6 +16437,15 @@ text. If you genuinely can't find any client or task information at all, respond
       const value = select.value;
       const row = ctScanCurrentRows[Number(i)];
       if (!row || value === 'skip') { skipped++; return; }
+      // Read task/date from the row's own inputs, not the original
+      // extracted row object — both are now editable in place (a direct
+      // request: let the DE correct a slightly-off vision read before
+      // Apply, rather than being stuck with whatever was first
+      // extracted).
+      const taskInput = document.querySelector(`[data-row-task="${i}"]`);
+      const dateInput = document.querySelector(`[data-row-date="${i}"]`);
+      const task = taskInput ? taskInput.value.trim() : (row.task || '');
+      const date = dateInput && dateInput.value ? dateInput.value : null;
       let clientId = null, clientName = null;
       if (value === 'new') {
         const nameInput = document.querySelector(`[data-row-newname="${i}"]`);
@@ -16353,8 +16467,8 @@ text. If you genuinely can't find any client or task information at all, respond
         clientName = existing ? existing.name : null;
       }
       if (!clientId) { skipped++; return; }
-      if (row.date) {
-        ctAddFollowUp(clientId, row.date, row.task);
+      if (date) {
+        ctAddFollowUp(clientId, date, task);
         followUpsAdded++;
       } else {
         skipped++;
@@ -16368,8 +16482,8 @@ text. If you genuinely can't find any client or task information at all, respond
       // may not have loaded (a different script/IIFE) — best-effort,
       // same "never block on it" spirit as the rest of this file's
       // cross-panel exports.
-      if (row.task && window.__dtAddTask) {
-        const label = clientName ? `${clientName}: ${row.task}` : row.task;
+      if (task && window.__dtAddTask) {
+        const label = clientName ? `${clientName}: ${task}` : task;
         if (window.__dtAddTask(label)) dailyTasksAdded++;
       }
     });
@@ -16876,10 +16990,18 @@ text. If you genuinely can't find any client or task information at all, respond
     const statusMarkup = (opts && opts.statusSelect)
       ? `<select class="ct-inline-status ${ctStatusClass(c.status)}" data-status-select="${c.id}" title="Change status">${CT_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.status ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select>`
       : `<span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>`;
+    // Bulk select (Sep 2026) — "All Clients" view only, and only once
+    // Select mode is toggled on (opts.bulkSelect). Same stopPropagation
+    // discipline as the inline status dropdown: without it, clicking the
+    // checkbox also counts as a click on the card underneath it.
+    const bulkCheckbox = (opts && opts.bulkSelect)
+      ? `<input type="checkbox" class="ct-bulk-check" data-bulk-check="${c.id}"${ctBulkSelected.has(c.id) ? ' checked' : ''} title="Select for bulk status change">`
+      : '';
 
     return `
       <div class="ct-card ${isOverdue ? 'overdue' : ''} ${c.status === 'Closed' ? 'closed' : ''}" data-open="${c.id}">
         <div class="ct-name-row">
+          ${bulkCheckbox}
           <span class="ct-client-name">${ctEscapeHtml(c.name)}</span>
           ${statusMarkup}
           ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
@@ -16919,20 +17041,33 @@ text. If you genuinely can't find any client or task information at all, respond
   // on the fly for DISPLAY, with no write — the array is only actually
   // created (via ctMaterializeFollowUps) the first time the DE adds,
   // edits, or deletes a follow-up through the new UI.
+  // Sorted OPEN entries first (soonest first — this is what "Next" keys
+  // off), then DONE ones after (also soonest-first within that group) —
+  // so completing a follow-up doesn't just vanish it (that's what Delete
+  // is for) but does stop it competing with what's actually still open.
   function ctFollowUpsFor(client) {
+    let list;
     if (Array.isArray(client.followUps) && client.followUps.length) {
-      return client.followUps.slice().sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+      list = client.followUps.slice();
+    } else {
+      list = client.nextFollowUp ? [{ id: 'legacy', date: client.nextFollowUp, note: '', done: false }] : [];
     }
-    return client.nextFollowUp ? [{ id: 'legacy', date: client.nextFollowUp, note: '' }] : [];
+    return list.sort((a, b) => {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+      return (a.date || '9999').localeCompare(b.date || '9999');
+    });
   }
   function ctMaterializeFollowUps(client) {
     if (!Array.isArray(client.followUps)) {
-      client.followUps = client.nextFollowUp ? [{ id: 'legacy', date: client.nextFollowUp, note: '' }] : [];
+      client.followUps = client.nextFollowUp ? [{ id: 'legacy', date: client.nextFollowUp, note: '', done: false }] : [];
     }
     return client.followUps;
   }
+  // A DONE follow-up no longer counts toward "what's next" — otherwise
+  // marking one done wouldn't change anything urgency-grouping/Daily
+  // Tasks-wise, defeating the point of marking it done at all.
   function ctSyncNextFollowUp(client) {
-    const dates = (client.followUps || []).map(f => f.date).filter(Boolean).sort();
+    const dates = (client.followUps || []).filter(f => !f.done).map(f => f.date).filter(Boolean).sort();
     client.nextFollowUp = dates.length ? dates[0] : '';
   }
   function ctAddFollowUp(clientId, date, note) {
@@ -16941,8 +17076,25 @@ text. If you genuinely can't find any client or task information at all, respond
     if (idx === -1) return;
     const client = { ...ctClients[idx] };
     const list = ctMaterializeFollowUps(client).slice();
-    list.push({ id: ctUid(), date, note: (note || '').trim() });
+    list.push({ id: ctUid(), date, note: (note || '').trim(), done: false });
     client.followUps = list;
+    ctSyncNextFollowUp(client);
+    ctClients[idx] = client;
+    ctSaveData();
+    ctRender();
+    if (ctDetailId === clientId) ctRenderDetail();
+  }
+  // Distinct from Delete on purpose — completing a follow-up (the call
+  // happened, the email went out) is worth keeping on record, unlike
+  // deleting one, which is for "this was scheduled by mistake." Toggle
+  // rather than one-way so a DE can undo an accidental tap.
+  function ctToggleFollowUpDone(clientId, followUpId) {
+    const idx = ctClients.findIndex(c => c.id === clientId);
+    if (idx === -1) return;
+    const client = { ...ctClients[idx] };
+    client.followUps = ctMaterializeFollowUps(client).map(f =>
+      f.id === followUpId ? { ...f, done: !f.done } : f
+    );
     ctSyncNextFollowUp(client);
     ctClients[idx] = client;
     ctSaveData();
@@ -16975,18 +17127,20 @@ text. If you genuinely can't find any client or task information at all, respond
     if (ctDetailId === clientId) ctRenderDetail();
   }
 
-  // The sidebar's Follow-ups section: the full list (soonest first, the
+  // The sidebar's Follow-ups section: the full list (open entries first,
   // soonest badged "Next" since that's the one the card/urgency-grouping/
-  // Daily Tasks actually key off), each row's own ✏️ opening an inline
-  // editor in place, plus the same "+ Add" toggle pattern the Notes
-  // section already established (ctDetailFollowUpOpen mirrors
-  // ctDetailNoteOpen). Also the render target for a click on the task
-  // callout above it — see ctBuildTaskCallout's data-followup-open, wired
-  // through the same [data-followup-open] handler in ctRenderDetail.
+  // Daily Tasks actually key off, done entries after — see
+  // ctToggleFollowUpDone), each row's own ✏️ opening an inline editor in
+  // place, plus the same "+ Add" toggle pattern the Notes section already
+  // established (ctDetailFollowUpOpen mirrors ctDetailNoteOpen). Also the
+  // render target for a click on the task callout above it — see
+  // ctBuildTaskCallout's data-followup-open, wired through the same
+  // [data-followup-open] handler in ctRenderDetail.
   function ctRenderFollowUpsSection(c) {
     const list = ctFollowUpsFor(c);
     const addOpen = ctDetailFollowUpOpen === 'new';
-    const rows = list.map((f, i) => {
+    const firstOpenId = (list.find(f => !f.done) || {}).id;
+    const rows = list.map((f) => {
       if (ctDetailFollowUpOpen === f.id) {
         return `
         <div class="ct-followup-row editing" data-followup-row="${ctEscapeHtml(f.id)}">
@@ -17004,12 +17158,13 @@ text. If you genuinely can't find any client or task information at all, respond
         : d === 0 ? `${ctFormatDate(f.date)} — due today`
         : `${ctFormatDate(f.date)} — in ${d} day${d === 1 ? '' : 's'}`;
       return `
-        <div class="ct-followup-row${i === 0 ? ' next' : ''}" data-followup-row="${ctEscapeHtml(f.id)}">
+        <div class="ct-followup-row${f.id === firstOpenId ? ' next' : ''}${f.done ? ' done' : ''}" data-followup-row="${ctEscapeHtml(f.id)}">
           <div class="ct-followup-row-main">
-            ${i === 0 ? '<span class="ct-followup-next-badge">Next</span>' : ''}
+            ${f.id === firstOpenId ? '<span class="ct-followup-next-badge">Next</span>' : ''}
             <span class="ct-followup-date">${ctEscapeHtml(label)}</span>
             ${f.note ? `<span class="ct-followup-note">${ctEscapeHtml(f.note)}</span>` : ''}
           </div>
+          <button type="button" class="ct-followup-done-btn" data-followup-toggle-done="${ctEscapeHtml(f.id)}" title="${f.done ? 'Reopen this follow-up' : 'Mark this follow-up done'}">${f.done ? '↺' : '✓'}</button>
           <button type="button" class="ct-followup-edit-btn" data-followup-open="${ctEscapeHtml(f.id)}" title="Edit this follow-up">✏️</button>
         </div>`;
     }).join('');
@@ -17308,6 +17463,9 @@ text. If you genuinely can't find any client or task information at all, respond
     document.querySelectorAll('[data-followup-cancel]').forEach(btn => {
       btn.addEventListener('click', () => { ctDetailFollowUpOpen = null; ctRenderDetail(); });
     });
+    document.querySelectorAll('[data-followup-toggle-done]').forEach(btn => {
+      btn.addEventListener('click', () => ctToggleFollowUpDone(c.id, btn.dataset.followupToggleDone));
+    });
   }
 
   let ctDetailId = null;
@@ -17351,6 +17509,14 @@ text. If you genuinely can't find any client or task information at all, respond
   // list by STATUS instead, so the whole roster is browsable by pipeline
   // stage — a different, complementary organization, not a replacement.
   let ctListView = 'urgency';
+  // Bulk status change (Sep 2026) — "All Clients" view only. A Set (not
+  // an array) so add/remove/has are all O(1) regardless of roster size;
+  // deliberately persists across re-renders (search, a status filter
+  // change, switching tabs) rather than being cleared on every ctRender,
+  // so narrowing the list down to find one more person to add doesn't
+  // lose who's already selected.
+  let ctBulkMode = false;
+  let ctBulkSelected = new Set();
 
   // Small fade so a re-render (switching views, typing a search, changing
   // a status, anything that calls ctRender) reads as new content replacing
@@ -17370,12 +17536,20 @@ text. If you genuinely can't find any client or task information at all, respond
     const statusFilter = document.getElementById('ct-status-filter').value;
 
     let preTempFiltered = ctClients.filter(c => {
+      // Phone/email were already searched here; TMT link and the linked
+      // itinerary's own title weren't — a real gap for a link the DE
+      // might paste in and then want to find again by pasting or typing
+      // a fragment of it, or a client they only remember by which
+      // itinerary they're on.
+      const itinerary = c.itineraryId ? ctFindItinerary(c.itineraryId) : null;
       const matchesSearch = !search
         || c.name.toLowerCase().includes(search)
         || (c.notes || '').toLowerCase().includes(search)
         || (c.destination || '').toLowerCase().includes(search)
         || (c.phone || '').toLowerCase().includes(search)
-        || (c.email || '').toLowerCase().includes(search);
+        || (c.email || '').toLowerCase().includes(search)
+        || (c.tmtLink || '').toLowerCase().includes(search)
+        || (itinerary ? itinerary.title.toLowerCase().includes(search) : false);
       const matchesStatus = !statusFilter || c.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -17417,7 +17591,7 @@ text. If you genuinely can't find any client or task information at all, respond
       const statusGroups = ctGroupByStatus(filtered);
       sections = CT_STATUSES.map(s => [s, s, statusGroups[s]]);
       if (statusGroups['Other'].length) sections.push(['Other', 'Other', statusGroups['Other']]);
-      cardOpts = { statusSelect: true };
+      cardOpts = { statusSelect: true, bulkSelect: ctBulkMode };
     } else {
       const groups = ctGroupClients(filtered);
       sections = [
@@ -17430,6 +17604,23 @@ text. If you genuinely can't find any client or task information at all, respond
       cardOpts = undefined;
     }
 
+    // Bulk-action bar (Sep 2026) — only in "All Clients" view, and only
+    // once at least one client is actually selected (an empty bar with
+    // nothing to apply to would just be clutter). Rendered as part of
+    // the list's own HTML (re-wired on every ctRender, same as
+    // everything else here) rather than a separate persistent element,
+    // for consistency with how this whole panel already works.
+    let bulkBarHtml = '';
+    if (ctListView === 'all' && ctBulkMode && ctBulkSelected.size > 0) {
+      bulkBarHtml = `
+      <div id="ct-bulk-bar">
+        <span>${ctBulkSelected.size} selected</span>
+        <select id="ct-bulk-status">${CT_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}">${ctEscapeHtml(s)}</option>`).join('')}</select>
+        <button type="button" id="ct-bulk-apply">Apply to ${ctBulkSelected.size}</button>
+        <button type="button" id="ct-bulk-clear-btn">Clear</button>
+      </div>`;
+    }
+
     let html = '';
     sections.forEach(([key, label, items]) => {
       if (items.length === 0) return;
@@ -17438,11 +17629,26 @@ text. If you genuinely can't find any client or task information at all, respond
         <div class="ct-group-cards">${items.map(c => ctCardHTML(c, cardOpts)).join('')}</div>
       </div>`;
     });
-    ctSetListHtml(list, html);
+    ctSetListHtml(list, bulkBarHtml + html);
 
     list.querySelectorAll('[data-open]').forEach(el => {
       el.addEventListener('click', () => ctOpenDetail(el.dataset.open));
     });
+
+    list.querySelectorAll('[data-bulk-check]').forEach(cb => {
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', () => {
+        const id = cb.dataset.bulkCheck;
+        if (cb.checked) ctBulkSelected.add(id); else ctBulkSelected.delete(id);
+        ctRender();
+      });
+    });
+    const bulkApplyBtn = document.getElementById('ct-bulk-apply');
+    if (bulkApplyBtn) bulkApplyBtn.addEventListener('click', () => {
+      ctApplyBulkStatus(document.getElementById('ct-bulk-status').value);
+    });
+    const bulkClearBtn = document.getElementById('ct-bulk-clear-btn');
+    if (bulkClearBtn) bulkClearBtn.addEventListener('click', () => { ctBulkSelected.clear(); ctRender(); });
 
     // Inline status dropdown (Sep 2026, "All Clients" view only) —
     // stopPropagation on the click too, not just change: without it,
@@ -17509,6 +17715,92 @@ text. If you genuinely can't find any client or task information at all, respond
         ctRender();
       });
     });
+  }
+
+  // Bulk status change (Sep 2026) — direct request, "select multiple
+  // clients... apply one status at a time" once a roster grows past a
+  // dozen or so. Applies the new status to every selected client in one
+  // pass, one save/render at the end rather than N — same "don't call
+  // ctSaveData/ctRender in a loop" discipline as the TMT-import Apply
+  // logic already uses for the same reason.
+  function ctApplyBulkStatus(status) {
+    if (!ctBulkSelected.size) return;
+    const ids = ctBulkSelected;
+    let updated = 0;
+    ctClients = ctClients.map(c => {
+      if (!ids.has(c.id)) return c;
+      updated++;
+      return { ...c, status };
+    });
+    ctBulkSelected = new Set();
+    ctSaveData();
+    ctRender();
+    ctSetStatus(`Updated ${updated} client${updated === 1 ? '' : 's'} to ${status}.`);
+  }
+
+  // Pipeline snapshot (Sep 2026) — a lightweight "health of the whole
+  // book" view, direct request. Deliberately just counts, not another
+  // way to browse/act on individual clients (that's what the list views
+  // are for) — reuses ctGroupClients (same overdue/due-this-week rules
+  // the urgency view itself groups by) rather than re-deriving those
+  // dates a second way.
+  function ctBuildStatsHtml() {
+    const total = ctClients.length;
+    if (!total) return '<p class="ct-stats-empty">No clients tracked yet.</p>';
+    const statusCounts = {};
+    CT_STATUSES.forEach(s => { statusCounts[s] = 0; });
+    ctClients.forEach(c => { if (statusCounts[c.status] !== undefined) statusCounts[c.status]++; });
+
+    const tempDefs = [
+      ['Hot Lead', 'hot', '🔥'],
+      ['Warm Lead', 'warm', '🌤️'],
+      ['Check Back Later', 'checkback', '🕐'],
+      ['Cold Lead', 'cold', '❄️'],
+    ];
+    const tempCounts = {};
+    tempDefs.forEach(([t]) => { tempCounts[t] = 0; });
+    let noTemp = 0;
+    ctClients.forEach(c => {
+      if (c.leadTemp && tempCounts[c.leadTemp] !== undefined) tempCounts[c.leadTemp]++;
+      else if (!c.leadTemp) noTemp++;
+    });
+
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const contactedThisWeek = ctClients.filter(c => c.lastContact && new Date(c.lastContact + 'T00:00:00') >= weekAgo).length;
+    const groups = ctGroupClients(ctClients);
+
+    const statusTiles = CT_STATUSES.map(s => `
+      <div class="ct-stats-tile"><div class="ct-stats-tile-count">${statusCounts[s]}</div><div class="ct-stats-tile-label">${ctEscapeHtml(s)}</div></div>
+    `).join('');
+    const tempTiles = tempDefs.map(([t, cls, emoji]) => `
+      <div class="ct-stats-tile ${cls}"><div class="ct-stats-tile-count">${tempCounts[t]}</div><div class="ct-stats-tile-label">${emoji} ${ctEscapeHtml(t)}</div></div>
+    `).join('') + (noTemp ? `<div class="ct-stats-tile"><div class="ct-stats-tile-count">${noTemp}</div><div class="ct-stats-tile-label">Not set</div></div>` : '');
+
+    return `
+      <div class="ct-stats-total"><b>${total}</b> client${total === 1 ? '' : 's'} tracked</div>
+      <p class="ct-stats-section-title">By Status</p>
+      <div class="ct-stats-grid">${statusTiles}</div>
+      <p class="ct-stats-section-title">By Lead Temperature</p>
+      <div class="ct-stats-grid">${tempTiles}</div>
+      <p class="ct-stats-section-title">This Week</p>
+      <div class="ct-stats-grid">
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${groups.overdue.length}</div><div class="ct-stats-tile-label">⚑ Overdue follow-ups</div></div>
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${groups.soon.length}</div><div class="ct-stats-tile-label">📅 Due this week</div></div>
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${contactedThisWeek}</div><div class="ct-stats-tile-label">✓ Contacted this week</div></div>
+      </div>
+    `;
+  }
+  function ctOpenStats() {
+    document.getElementById('ct-stats-body').innerHTML = ctBuildStatsHtml();
+    const overlay = document.getElementById('ct-stats-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseStats() {
+    const overlay = document.getElementById('ct-stats-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
   // Browser desktop-notification reminders for due/overdue follow-ups.
@@ -17611,6 +17903,11 @@ text. If you genuinely can't find any client or task information at all, respond
   });
   document.getElementById('ct-add-btn').addEventListener('click', () => ctOpenForm(null));
   document.getElementById('ct-call-btn').addEventListener('click', ctOpenQualifyingCall);
+  document.getElementById('ct-stats-btn').addEventListener('click', ctOpenStats);
+  document.getElementById('ct-stats-close').addEventListener('click', ctCloseStats);
+  document.getElementById('ct-stats-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-stats-overlay') ctCloseStats();
+  });
   document.getElementById('ct-export-btn').addEventListener('click', ctExportBackup);
   const ctImportFileInput = document.getElementById('ct-import-file');
   document.getElementById('ct-import-btn').addEventListener('click', () => ctImportFileInput.click());
@@ -17730,13 +18027,30 @@ text. If you genuinely can't find any client or task information at all, respond
       ctRender();
     });
   });
+  const ctBulkToggleBtn = document.getElementById('ct-bulk-toggle');
+  function ctSyncBulkToggleUI() {
+    ctBulkToggleBtn.hidden = ctListView !== 'all';
+    ctBulkToggleBtn.classList.toggle('active', ctBulkMode);
+    ctBulkToggleBtn.textContent = ctBulkMode ? '✕ Cancel select' : '☑️ Select';
+  }
   document.querySelectorAll('.ct-view-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       ctCloseForm();
       ctListView = btn.dataset.view;
       document.querySelectorAll('.ct-view-tab').forEach(b => b.classList.toggle('active', b === btn));
+      // Bulk select only makes sense in the "All Clients" view — leaving
+      // it drops both the mode and whatever was selected, rather than
+      // letting a stale selection silently carry over to a later visit.
+      if (ctListView !== 'all') { ctBulkMode = false; ctBulkSelected = new Set(); }
+      ctSyncBulkToggleUI();
       ctRender();
     });
+  });
+  ctBulkToggleBtn.addEventListener('click', () => {
+    ctBulkMode = !ctBulkMode;
+    ctBulkSelected = new Set();
+    ctSyncBulkToggleUI();
+    ctRender();
   });
   document.getElementById('ct-f-name').addEventListener('input', () => {
     document.getElementById('ct-err-name').style.display = 'none';
@@ -17827,12 +18141,16 @@ text. If you genuinely can't find any client or task information at all, respond
     if (fields.nextFollowUp !== undefined) {
       const client = { ...ctClients[idx] };
       const list = ctMaterializeFollowUps(client).slice().sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+      // Only OPEN entries are "the soonest" for this purpose — a done
+      // one shouldn't be silently reopened/rescheduled by an AI patch
+      // just because it happens to sort earliest by date.
+      const soonestOpenIdx = list.findIndex(f => !f.done);
       if (!fields.nextFollowUp) {
-        if (list.length) list.shift();
-      } else if (list.length) {
-        list[0] = { ...list[0], date: fields.nextFollowUp };
+        if (soonestOpenIdx > -1) list.splice(soonestOpenIdx, 1);
+      } else if (soonestOpenIdx > -1) {
+        list[soonestOpenIdx] = { ...list[soonestOpenIdx], date: fields.nextFollowUp };
       } else {
-        list.push({ id: ctUid(), date: fields.nextFollowUp, note: '' });
+        list.push({ id: ctUid(), date: fields.nextFollowUp, note: '', done: false });
       }
       client.followUps = list;
       ctSyncNextFollowUp(client);

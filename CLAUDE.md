@@ -4151,6 +4151,146 @@ error), both addressed here.
   unaffected, but worth a quick check since the same listener was
   touched).
 
+## Three upgrades + two new features: editable scan rows, wider search, follow-up done state, bulk status, pipeline stats (Sep 2026, unverified live)
+
+Direct follow-up to "can you give me a list of 3 upgrades to exsisting
+functions and a 2 new features that would be great," then "okay great,
+can you action all of that in appropriate order" — all five built,
+tested, and shipped together in the order proposed.
+
+- **1. Editable TMT scan-review rows.** The scan-import review modal
+  (see the TMT-screenshot-import entries above) used to show each
+  extracted row's task/date as plain static text — if the model read a
+  task description or a date slightly wrong, there was no way to fix it
+  short of cancelling the whole import and re-typing it manually later.
+  `ctRenderScanRows()` now renders the task as a real text input
+  (`data-row-task`) and the date as a real `<input type="date">`
+  (`data-row-date`), both pre-filled from what the model extracted, both
+  freely editable before Apply. `ctScanRowMeta()` no longer needs to
+  describe the date in prose ("no date detected," etc.) since the date
+  is now a real editable field, not narrated text — it only reports
+  match status now ("✓ matches existing client — will update their
+  file" / "mentioned: X"). `ctApplyScanReview()` reads the (possibly
+  corrected) values straight from these inputs at Apply time instead of
+  the original, unedited extraction — a malformed/non-ISO date the
+  model got wrong now just renders as an empty date field the DE can
+  fill in correctly, rather than silently carrying a bad date through
+  to a real follow-up.
+- **2. Follow-up "done" state, separate from delete.** Every follow-up
+  entry (see the multi-follow-up feature above) previously had exactly
+  one way to leave the list: delete it — meaning "I called them, we're
+  done" and "I made a mistake entering this" were the same action, with
+  no record either way. Each `client.followUps` entry gained a `done`
+  boolean; a small ✓/↺ toggle button next to each entry's existing ✏️
+  edit button (`ctToggleFollowUpDone`) flips it without removing the
+  entry — a done entry shows struck-through and sorts to the bottom
+  (`ctFollowUpsFor`'s sort now puts open entries first, then by date),
+  so the list still reads "what's actually still open" at a glance
+  without losing the history of what was scheduled and completed.
+  `ctSyncNextFollowUp()` (the function that keeps the derived
+  `client.nextFollowUp` field in sync — see the multi-follow-up entry
+  above for why that field has to stay correct for the card/urgency
+  grouping/Daily Brief/Daily Tasks to keep working) now only considers
+  OPEN entries when picking the soonest date, so marking the current
+  soonest follow-up done correctly promotes whichever open entry is
+  next, exactly like deleting used to, without actually removing
+  anything. `window.__ctApplyPatch` (the `propose_todo_update` AI tool's
+  write path) was updated the same way — it now only ever touches the
+  soonest OPEN entry when patching `nextFollowUp`, so the AI tool can't
+  silently un-complete a follow-up the DE already marked done just by
+  proposing a new date.
+- **3. Client Tracker search widened.** The search box already matched
+  name/notes/destination/phone/email; now also matches the TMT link
+  field and the linked itinerary's title (when one is set) — a DE
+  typing part of a TMT URL or an itinerary name they remember now finds
+  the right client instead of coming up empty.
+- **4. Bulk status change (new).** The "All Clients" view (grouped by
+  pipeline status — see that entry above) gained a "☑️ Select" toggle,
+  visible only in that view (hidden and reset the moment the DE
+  switches back to the default follow-up-urgency view, since bulk
+  selection is a roster-shaped operation with no clear meaning against
+  an urgency grouping). Turning it on adds a checkbox to every card
+  (`ctCardHTML`'s existing `opts` param gained a second flag,
+  `bulkSelect`, alongside the pre-existing `statusSelect`); checking any
+  card reveals a small floating bar (`#ct-bulk-bar`) showing the
+  selected count, a status dropdown, and an "Apply to N" button.
+  `ctApplyBulkStatus()` writes the new status to every selected client
+  in one pass, saves once, and re-renders — same single-save-then-
+  rerender shape as every other batch operation in this file (the TMT
+  import's own Apply, for instance), not N separate saves. Selection
+  resets on Apply, on switching away from "All Clients," and on
+  toggling bulk mode off — never silently carries over into a state
+  where it doesn't make sense.
+- **5. Pipeline snapshot / stats view (new).** A new "📊" button in
+  `#ct-head` opens a small read-only modal (`#ct-stats-overlay`) — total
+  clients tracked, a tile grid of counts by pipeline status
+  (`CT_STATUSES`), a tile grid of counts by lead temperature (Hot/Warm/
+  Check Back Later/Cold, plus a "Not set" tile for anyone without one),
+  and three "This Week" numbers reusing data this file already computes
+  elsewhere rather than inventing new logic: overdue follow-ups and due-
+  this-week follow-ups (via the same `ctGroupClients()` bucketing the
+  default list view already uses) and a new "contacted this week" count
+  (clients whose `lastContact` falls within the last 7 days). Read-only
+  by design — a health-check glance at the whole book, not an editable
+  view; clicking a tile does nothing, matching the request's own framing
+  ("a lightweight pipeline/stats snapshot view," not a second way to
+  filter). Added to the shared modal open/close fade-transition CSS
+  list and the `@media print` hide-list, same as every other "opened
+  from within" pop-out in this file.
+- Verified with a real Node execution-harness test
+  (`test_five_upgrades.js`, 40+ checks) against the actual extracted
+  Client Tracker source, covering all five features together: editable
+  scan-row task/date correction actually changing what gets applied,
+  a corrected/cleared date correctly skipping the follow-up rather than
+  applying a bad one; the widened search matching on TMT link and
+  itinerary title (plus a regression check that email search still
+  works, and that an empty search still shows everyone); the follow-up
+  done toggle (marking done re-sorts and re-syncs `nextFollowUp` to the
+  next open entry, reopening reverses it, the "Next" badge only ever
+  lands on the first OPEN entry not just the first entry, and
+  `__ctApplyPatch` correctly leaves a done entry alone rather than
+  reopening it via a stale AI-proposed date); bulk status change (the
+  Select toggle's visibility gated to the All Clients view, checkboxes
+  rendering only in bulk mode, the bulk bar appearing/showing the right
+  count, Apply updating only the selected clients and leaving everyone
+  else untouched, and selection/mode resetting on a view switch); the
+  pipeline stats modal's counts across a multi-status/multi-temp
+  synthetic roster, the empty-roster message, and open/close; and an
+  XSS probe across the new editable scan-row inputs (a `<script>` in a
+  corrected task description, an `onerror=` payload in a corrected date
+  field) coming back fully inert. Also re-ran every pre-existing Client
+  Tracker Node harness test (TMT import — including the "malformed date"
+  case updated to check the new editable date input comes back empty
+  rather than the old prose message, which no longer exists — All-
+  Clients-view, stuck-in-the-form, multi-follow-up, Daily Tasks, and the
+  tabs-visibility check) with zero regressions caused by today's
+  changes. All 17 `<script>` blocks parse; div-tag balance held exactly
+  at 1724/1724, with span/button/select/label unchanged from their
+  established baselines (the permanent 1-off span gap and 2-off button
+  gap are both pre-existing prose false positives documented earlier in
+  this file, not something today's work touched).
+- **Deliberately not built**: a completion timestamp or "who marked this
+  done" on a follow-up (this file doesn't track DE identity anywhere
+  else either, so that would be new scope beyond what was asked); bulk
+  operations beyond status (bulk delete, bulk lead-temp change) — not
+  requested, and status was the one explicitly named; and any drill-
+  down/filtering from the stats tiles themselves — it's a snapshot, not
+  a second navigation surface, matching how the request itself framed
+  it ("a lightweight... snapshot view").
+- **Unverified live**: whether the editable scan-row inputs are obvious
+  enough to actually notice and use mid-review (versus just accepting
+  whatever the model extracted, the old default behavior), whether the
+  done/reopen toggle's icon and strikethrough styling reads clearly at
+  a glance next to the existing edit button, whether bulk-selecting and
+  applying a status change to several clients at once feels smooth in a
+  real browser, and how the pipeline stats tiles actually look/scan at
+  a glance — none of this has been tried in a real browser from this
+  environment. Test next: open a TMT scan review and correct a task/date
+  before applying, mark a follow-up done and confirm the client's
+  urgency grouping updates, switch to "All Clients," select a few
+  clients and bulk-change their status, and open the new 📊 pipeline
+  snapshot button.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
