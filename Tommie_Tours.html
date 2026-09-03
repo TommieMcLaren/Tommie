@@ -15338,6 +15338,30 @@ ${bodyHtml}
   .ct-form-grid textarea { resize: vertical; min-height: 60px; }
   .ct-form-grid textarea[readonly] { background: var(--ct-closed-soft, #f1efe7); color: var(--ct-ink-soft); cursor: default; }
   .ct-form-grid-sub { margin-top: 10px; }
+  #ct-travelers-form-wrap { margin-top: 14px; }
+  #ct-travelers-form-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px; color: var(--ct-ink-soft); font-weight: 600; margin-bottom: 8px;
+  }
+  #ct-add-traveler-btn {
+    background: none; border: 1px solid var(--gold); color: var(--gold-text);
+    border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; cursor: pointer;
+    font-family: 'Lato', sans-serif; transition: background .12s ease;
+  }
+  #ct-add-traveler-btn:hover { background: var(--ct-gold-soft); }
+  .ct-traveler-form-row {
+    position: relative; border: 1px solid var(--ct-line); border-radius: 9px;
+    background: #fffdf9; padding: 12px 34px 12px 12px; margin-bottom: 10px;
+  }
+  .ct-traveler-form-row:last-child { margin-bottom: 0; }
+  .ct-traveler-form-row .ct-form-grid { gap: 10px 12px; }
+  .ct-traveler-remove-btn {
+    position: absolute; top: 8px; right: 8px; background: none; border: none;
+    color: var(--ct-ink-soft); font-size: 13px; cursor: pointer; padding: 3px 6px;
+    border-radius: 6px; line-height: 1; transition: background .12s ease, color .12s ease;
+  }
+  .ct-traveler-remove-btn:hover { background: #f6e8e4; color: #a4462c; }
+  .ct-travelers-form-empty { font-size: 12px; color: var(--ct-ink-soft); font-style: italic; }
 
   .ct-form-section {
     border: 1px solid var(--ct-line); border-radius: 10px; margin-top: 12px; padding: 0 14px;
@@ -15579,6 +15603,9 @@ ${bodyHtml}
   .ct-profile-row:last-child { border-bottom: none; }
   .ct-profile-row a { color: var(--sage-darker); font-weight: 700; text-decoration: none; }
   .ct-profile-row a:hover { text-decoration: underline; }
+  .ct-traveler-block { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--ct-line); }
+  .ct-traveler-block:first-of-type { margin-top: 16px; }
+  .ct-traveler-name { font-size: 12.5px; font-weight: 700; color: var(--sage-darker); margin-bottom: 2px; }
   .ct-notes-log { display: flex; flex-direction: column; gap: 10px; }
   .ct-note-entry { padding: 8px 0 8px 12px; border-left: 2px solid var(--ct-line); font-size: 13.5px; line-height: 1.55; color: var(--dark); }
   .ct-note-date { display: block; font-size: 11px; font-weight: 700; color: var(--gold-text); margin-bottom: 2px; }
@@ -15851,6 +15878,24 @@ ${bodyHtml}
       </div>
     </details>
 
+    <details class="ct-form-section" id="ct-sec-passport">
+      <summary>🛂 Passport &amp; Travelers <span class="ct-section-badge"></span></summary>
+      <div class="ct-form-grid ct-form-grid-sub">
+        <div><label for="ct-f-passport-name">Name on passport</label><input type="text" id="ct-f-passport-name" placeholder="As it appears on the passport"></div>
+        <div><label for="ct-f-passport-dob">Date of birth</label><input type="date" id="ct-f-passport-dob"></div>
+        <div><label for="ct-f-passport-nationality">Nationality</label><input type="text" id="ct-f-passport-nationality" placeholder="Canadian, American..."></div>
+        <div><label for="ct-f-passport-number">Passport number</label><input type="text" id="ct-f-passport-number" placeholder="Passport #"></div>
+        <div><label for="ct-f-passport-expiry">Passport expiry</label><input type="date" id="ct-f-passport-expiry"></div>
+      </div>
+      <div id="ct-travelers-form-wrap">
+        <div id="ct-travelers-form-head">
+          <span>Additional travelers</span>
+          <button type="button" id="ct-add-traveler-btn">+ Add Additional Traveler</button>
+        </div>
+        <div id="ct-travelers-form-list"></div>
+      </div>
+    </details>
+
     <details class="ct-form-section" id="ct-sec-vision">
       <summary>Trip Vision <span class="ct-section-badge"></span></summary>
       <div class="ct-form-grid ct-form-grid-sub">
@@ -16026,6 +16071,12 @@ ${bodyHtml}
   // used only to decide where to land the DE after Save (see
   // ctHandleSave below); has no effect on what actually gets saved.
   let ctIsQualifyingCall = false;
+  // The additional-travelers list for whichever client the Add/Edit form
+  // currently has open — seeded from client.travelers in ctOpenForm, then
+  // treated as the live editing buffer for the rest of the form session
+  // (see ctSyncTravelersFromDom/ctRenderTravelerFormRows below). Not
+  // persisted itself; ctHandleSave reads it into the saved client record.
+  let ctFormTravelers = [];
 
   function ctUid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -16714,6 +16765,65 @@ text. If you genuinely can't find any client or task information at all, respond
     if (msg) ctStatusTimer = setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2500);
   }
 
+  // Additional-traveler rows in the Add/Edit form (Sep 2026) — "+ Add
+  // Additional Traveler" appends a blank row, each with its own name/DOB/
+  // nationality/passport-number/expiry, so a couple or family booking on
+  // one client record can each have their own passport info on file, not
+  // just the primary client. ctFormTravelers is the live editing buffer;
+  // the DOM inputs are the actual source of truth while the form is open
+  // (the DE is typing directly into them), so any action that RE-RENDERS
+  // the list (adding or removing a row) has to read whatever's currently
+  // in the inputs back into ctFormTravelers FIRST via
+  // ctSyncTravelersFromDom — otherwise a re-render would silently revert
+  // every other row to whatever it held the last time the list was built,
+  // discarding anything typed since.
+  function ctTravelerFieldId(id, field) { return `ct-trav-${id}-${field}`; }
+  function ctSyncTravelersFromDom() {
+    ctFormTravelers = ctFormTravelers.map(t => {
+      const val = field => { const el = document.getElementById(ctTravelerFieldId(t.id, field)); return el ? el.value : (t[field] || ''); };
+      return {
+        id: t.id,
+        name: val('name'),
+        dob: val('dob'),
+        nationality: val('nationality'),
+        passportNumber: val('passportnumber'),
+        passportExpiry: val('passportexpiry'),
+      };
+    });
+  }
+  function ctRenderTravelerFormRows() {
+    const wrap = document.getElementById('ct-travelers-form-list');
+    if (!wrap) return;
+    wrap.innerHTML = ctFormTravelers.length ? ctFormTravelers.map((t, i) => `
+      <div class="ct-traveler-form-row" data-traveler-row="${ctEscapeHtml(t.id)}">
+        <button type="button" class="ct-traveler-remove-btn" data-traveler-remove="${ctEscapeHtml(t.id)}" title="Remove this traveler">✕</button>
+        <div class="ct-form-grid">
+          <div class="ct-field-full"><label for="${ctTravelerFieldId(t.id, 'name')}">Traveler ${i + 2} — name on passport</label><input type="text" id="${ctTravelerFieldId(t.id, 'name')}" value="${ctEscapeHtml(t.name || '')}" placeholder="As it appears on the passport"></div>
+          <div><label for="${ctTravelerFieldId(t.id, 'dob')}">Date of birth</label><input type="date" id="${ctTravelerFieldId(t.id, 'dob')}" value="${ctEscapeHtml(t.dob || '')}"></div>
+          <div><label for="${ctTravelerFieldId(t.id, 'nationality')}">Nationality</label><input type="text" id="${ctTravelerFieldId(t.id, 'nationality')}" value="${ctEscapeHtml(t.nationality || '')}" placeholder="Canadian, American..."></div>
+          <div><label for="${ctTravelerFieldId(t.id, 'passportnumber')}">Passport number</label><input type="text" id="${ctTravelerFieldId(t.id, 'passportnumber')}" value="${ctEscapeHtml(t.passportNumber || '')}" placeholder="Passport #"></div>
+          <div><label for="${ctTravelerFieldId(t.id, 'passportexpiry')}">Passport expiry</label><input type="date" id="${ctTravelerFieldId(t.id, 'passportexpiry')}" value="${ctEscapeHtml(t.passportExpiry || '')}"></div>
+        </div>
+      </div>
+    `).join('') : '<p class="ct-travelers-form-empty">No additional travelers yet.</p>';
+    wrap.querySelectorAll('[data-traveler-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        ctSyncTravelersFromDom();
+        ctFormTravelers = ctFormTravelers.filter(t => t.id !== btn.dataset.travelerRemove);
+        ctRenderTravelerFormRows();
+      });
+    });
+  }
+  const ctAddTravelerBtn = document.getElementById('ct-add-traveler-btn');
+  if (ctAddTravelerBtn) ctAddTravelerBtn.addEventListener('click', () => {
+    ctSyncTravelersFromDom();
+    const newTraveler = { id: ctUid(), name: '', dob: '', nationality: '', passportNumber: '', passportExpiry: '' };
+    ctFormTravelers.push(newTraveler);
+    ctRenderTravelerFormRows();
+    const nameInput = document.getElementById(ctTravelerFieldId(newTraveler.id, 'name'));
+    if (nameInput) nameInput.focus();
+  });
+
   function ctOpenForm(client) {
     ctEditingId = client ? client.id : null;
     document.getElementById('ct-form-title').textContent = client ? 'Edit client' : 'Add client';
@@ -16738,6 +16848,13 @@ text. If you genuinely can't find any client or task information at all, respond
     document.getElementById('ct-f-notes-history-wrap').hidden = !(client && client.notes);
     // Client-intake fields — same "questions I ask new clients" script
     // the DE actually uses, ported in verbatim rather than reworded.
+    document.getElementById('ct-f-passport-name').value = client ? (client.passportName || '') : '';
+    document.getElementById('ct-f-passport-dob').value = client ? (client.passportDob || '') : '';
+    document.getElementById('ct-f-passport-nationality').value = client ? (client.passportNationality || '') : '';
+    document.getElementById('ct-f-passport-number').value = client ? (client.passportNumber || '') : '';
+    document.getElementById('ct-f-passport-expiry').value = client ? (client.passportExpiry || '') : '';
+    ctFormTravelers = (client && Array.isArray(client.travelers)) ? client.travelers.map(t => ({ ...t })) : [];
+    ctRenderTravelerFormRows();
     document.getElementById('ct-f-travelerages').value = client ? (client.travelerAges || '') : '';
     document.getElementById('ct-f-traveldates').value = client ? (client.travelDates || '') : '';
     document.getElementById('ct-f-flexibledates').value = client ? (client.flexibleDates || '') : '';
@@ -16804,6 +16921,20 @@ text. If you genuinely can't find any client or task information at all, respond
       const count = client ? fields.filter(f => client[f] && String(client[f]).trim()).length : 0;
       badge.textContent = count ? `${count} filled` : '';
     });
+    // Passport & Travelers gets its own badge computation — it has two
+    // different kinds of "filled" (the primary client's own passport
+    // fields, and how many additional traveler records exist), which
+    // doesn't fit the flat field-count reducer above.
+    const passportBadge = document.querySelector('#ct-sec-passport .ct-section-badge');
+    if (passportBadge) {
+      const passportFields = ['passportName', 'passportDob', 'passportNationality', 'passportNumber', 'passportExpiry'];
+      const filledCount = client ? passportFields.filter(f => client[f] && String(client[f]).trim()).length : 0;
+      const travelerCount = (client && Array.isArray(client.travelers)) ? client.travelers.length : 0;
+      const bits = [];
+      if (filledCount) bits.push(`${filledCount} filled`);
+      if (travelerCount) bits.push(`${travelerCount} traveler${travelerCount === 1 ? '' : 's'}`);
+      passportBadge.textContent = bits.join(' · ');
+    }
   }
 
   // Reuses the exact same Add-client form/fields/save path as ctOpenForm —
@@ -16875,6 +17006,15 @@ text. If you genuinely can't find any client or task information at all, respond
     const notes = newNote
       ? (ctTimestampedNote(newNote) + (existingNotes ? '\n' + existingNotes : ''))
       : existingNotes;
+    // Additional travelers — read the live DOM state (the buffer synced
+    // on every add/remove might be one keystroke stale for whichever row
+    // the DE was just typing in), then drop any row that's entirely
+    // blank (an accidental "+ Add" click nobody filled in) rather than
+    // saving empty traveler records.
+    ctSyncTravelersFromDom();
+    const travelers = ctFormTravelers.filter(t =>
+      (t.name || '').trim() || (t.dob || '').trim() || (t.nationality || '').trim() || (t.passportNumber || '').trim() || (t.passportExpiry || '').trim()
+    );
     const data = {
       name,
       status: document.getElementById('ct-f-status').value,
@@ -16888,6 +17028,12 @@ text. If you genuinely can't find any client or task information at all, respond
       lastContact: document.getElementById('ct-f-last').value,
       nextFollowUp: document.getElementById('ct-f-next').value,
       notes,
+      passportName: document.getElementById('ct-f-passport-name').value.trim(),
+      passportDob: document.getElementById('ct-f-passport-dob').value,
+      passportNationality: document.getElementById('ct-f-passport-nationality').value.trim(),
+      passportNumber: document.getElementById('ct-f-passport-number').value.trim(),
+      passportExpiry: document.getElementById('ct-f-passport-expiry').value,
+      travelers,
       travelerAges: document.getElementById('ct-f-travelerages').value.trim(),
       travelDates: document.getElementById('ct-f-traveldates').value.trim(),
       flexibleDates: document.getElementById('ct-f-flexibledates').value,
@@ -17384,6 +17530,29 @@ text. If you genuinely can't find any client or task information at all, respond
       ctRow('Home state/province', c.homeState)
     ].join('');
 
+    // Passport & Travelers (Sep 2026) — the primary client's own passport
+    // info, plus a sub-block per additional traveler (see ctFormTravelers/
+    // ctRenderTravelerFormRows in the form). Each traveler block only
+    // renders the fields that are actually filled in, same discipline as
+    // ctRow/ctSection everywhere else in this profile.
+    const passportRows = [
+      ctRow('Name on passport', c.passportName),
+      ctRow('Date of birth', c.passportDob ? ctFormatDate(c.passportDob) : ''),
+      ctRow('Nationality', c.passportNationality),
+      ctRow('Passport number', c.passportNumber),
+      ctRow('Passport expiry', c.passportExpiry ? ctFormatDate(c.passportExpiry) : '')
+    ].join('');
+    const travelersHtml = (c.travelers || []).map((t, i) => {
+      const rows = [
+        ctRow('Date of birth', t.dob ? ctFormatDate(t.dob) : ''),
+        ctRow('Nationality', t.nationality),
+        ctRow('Passport number', t.passportNumber),
+        ctRow('Passport expiry', t.passportExpiry ? ctFormatDate(t.passportExpiry) : '')
+      ].join('');
+      return `<div class="ct-traveler-block"><div class="ct-traveler-name">${ctEscapeHtml(t.name || `Traveler ${i + 2}`)}</div>${rows}</div>`;
+    }).join('');
+    const passportSectionHtml = ctSection('Passport & Travelers', passportRows + travelersHtml);
+
     const visionRows = [
       ctRow('Hoping to do/experience', c.tripVision),
       ctRow('Pace', c.pace),
@@ -17475,6 +17644,7 @@ text. If you genuinely can't find any client or task information at all, respond
             <div class="ct-profile-row">Last contact: ${lastText}</div>
           </div>
           ${ctSection('Client Details', clientDetailsRows)}
+          ${passportSectionHtml}
           ${ctSection('Trip Vision', visionRows)}
           ${ctSection('Hotel Preferences', hotelRows)}
           ${ctSection('Transfers', transferRows)}
@@ -18105,7 +18275,7 @@ text. If you genuinely can't find any client or task information at all, respond
   // behavior at all before this). Deliberately does NOT hijack Enter
   // inside a textarea (that has to stay a literal newline) or a readonly
   // field (the notes history box). Skips anything inside a still-
-  // collapsed <details> section automatically, since a hidden field's
+  // collapsed details/summary section automatically, since a hidden field's
   // offsetParent is null — so in the normal Add/Edit form Enter walks
   // through the visible top-level fields and stops at the one open
   // section, while in Qualifying Call mode (everything force-open) it

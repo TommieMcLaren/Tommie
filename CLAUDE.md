@@ -4524,6 +4524,128 @@ information."
   refreshing again, and confirming the brief's checklist line shrinks to
   match.
 
+## Client Tracker: passport info + additional travelers (Sep 2026, unverified live)
+
+Direct request: "Can you add in a spot in a client profile to add their
+passport information and a + 'Add Additional Traveler' so I can add all
+their information as well."
+
+- **Primary client's own passport fields are direct fields on the client
+  record** (`passportName`, `passportDob`, `passportNationality`,
+  `passportNumber`, `passportExpiry`) — same convention as phone/email/
+  destination elsewhere on the record, not a nested object. Lives in a
+  new collapsible `<details class="ct-form-section" id="ct-sec-passport">`
+  (🛂 Passport & Travelers) in the Add/Edit form, placed right after
+  Client Details — same `.ct-form-section`/`.ct-section-badge` pattern
+  every other intake section already uses, so it inherits Qualifying
+  Call mode's force-open behavior and the normal open/collapse reset in
+  `ctCloseForm()` for free, no special-casing needed.
+- **`client.travelers`** — an array of `{id, name, dob, nationality,
+  passportNumber, passportExpiry}` for everyone ELSE on the booking
+  (spouse, kids, whoever). Kept as a genuinely separate array rather than
+  folding the primary client in as "traveler #1" — the primary client's
+  own fields already have a stable home (direct fields, matching every
+  other single-value field on the record), and a client record always
+  represents one primary contact either way; travelers are the "also
+  booking with them" list.
+- **"+ Add Additional Traveler" appends a blank row** (name/DOB/
+  nationality/passport number/expiry, plus a ✕ remove button), rendered
+  by `ctRenderTravelerFormRows()` from a new `ctFormTravelers` buffer —
+  seeded from `client.travelers` when the form opens, read back into the
+  saved record on Save. **The one real correctness risk this design had
+  to account for, and did**: re-rendering the traveler list (on add or
+  remove) rebuilds the DOM from `ctFormTravelers`, which would silently
+  revert every OTHER row to stale data if the DE had just typed into one
+  without that row's edits being captured first. `ctSyncTravelersFromDom()`
+  reads the live `.value` of every existing row's inputs back into the
+  buffer immediately before any add/remove-triggered re-render — verified
+  directly in testing (see below), not just reasoned about.
+- **A blank row added by accident (clicked "+ Add," never filled in) is
+  dropped on Save**, not persisted as a junk traveler record — `ctHandleSave()`
+  filters `ctFormTravelers` to rows where at least one field has real
+  content, matching this file's standing "don't save what's empty"
+  discipline (the same rule the intake questionnaire's optional fields
+  already follow).
+- **Profile view**: the primary client's passport rows render via the
+  existing `ctRow()`/`ctSection()` helpers (only filled fields show, the
+  whole section vanishes if there's nothing at all — for either the
+  primary client or every traveler); each additional traveler gets its
+  own `.ct-traveler-block` sub-heading (the traveler's name, or a
+  numbered "Traveler N" fallback if the name was left blank) with its
+  own filtered rows underneath. Dates render through the same
+  `ctFormatDate()` every other date field in this profile already uses,
+  not the raw ISO string.
+- **Section badge is a special case, not the generic field-count
+  reducer** the other intake sections use — Passport & Travelers has two
+  different kinds of "filled" (the primary client's own fields, and how
+  many traveler records exist), so `ctUpdateSectionBadges()` computes it
+  separately: "5 filled · 2 travelers" rather than trying to force both
+  numbers through one counter.
+- Verified with a real Node execution-harness test
+  (`test_passport_travelers.js`, 33 checks) against the actual extracted
+  Client Tracker source: opening an existing client with saved passport
+  info and one traveler correctly populates every field, including the
+  dynamically-rendered traveler row's inputs (this required upgrading
+  the test's own `getElementById` stub to search the real rendered tree
+  rather than a flat registry — a flat-registry stub can't find elements
+  created via `innerHTML`, which is exactly how the traveler rows
+  render, and would have silently masked a real bug behind a fake
+  "element not found" reading); adding a second traveler after editing
+  the first one's DOB proves the sync-before-rerender fix actually works
+  (the edit survives); removing a blank third row leaves the other two
+  intact; Save persists the primary passport fields and every real
+  traveler correctly, including an edited value; a blank accidental
+  traveler row is dropped on Save while a genuine new client with real
+  data still saves correctly; a client with zero passport/traveler data
+  opens cleanly with an empty badge and an explicit "No additional
+  travelers yet" state; the profile view renders both the primary
+  client's passport rows and each traveler's own block, including the
+  "Traveler N" fallback heading for a traveler saved with no name; and
+  an XSS probe across the primary passport nationality field AND a
+  traveler's own name/nationality fields (`<script>`, an `onerror=`
+  payload) comes back fully inert in the rendered profile, with the
+  form correctly still round-tripping the raw stored value back into a
+  real `.value` (not re-injected as HTML) when reopened for editing.
+  Full pre-existing regression suite re-run with zero failures caused by
+  this change. All 17 `<script>` blocks parse; div/span/button/select/
+  label tag balance moved by exactly the new static + templated markup
+  added, each maintaining its previously-established gap (span's
+  permanent 1-off, button's permanent 2-off) with no NEW imbalance.
+  Along the way, added a `details`/`summary` tag-balance check to this
+  project's own health-check routine for the first time (this session
+  added a new `<details>` section, worth verifying) — it surfaced one
+  pre-existing false positive (a code comment mentioning "a `<details>`
+  section" in prose, the same false-positive shape already documented
+  for `<span>`/`<button>` elsewhere in this file's history), reworded
+  away rather than left as new noise for a future health check to
+  re-discover.
+- **Deliberately not built**: any validation on passport number format
+  or expiry-date warnings (e.g. "expires within 6 months of travel") —
+  not asked for, and this file has no authoritative source for what a
+  valid passport number looks like across the nationalities a KT client
+  might hold; a wrong validation rule would be worse than none. Also not
+  built: exporting passport/traveler info into the itinerary document or
+  Outlook deep links — those already have their own established field
+  sets (see the itinerary-document-export and Outlook-deep-link entries
+  above) and weren't part of what was asked here.
+- **A note on sensitivity, not a blocker**: passport numbers and DOBs
+  are meaningfully more sensitive than the phone/email/notes this file
+  already stores, but they land in the exact same place — this browser's
+  `localStorage`, unencrypted, same as everything else in the Client
+  Tracker (see the existing backup/restore feature's own plain-JSON
+  export for the same fact stated about the whole record). Nothing new
+  about this file's security posture was introduced; worth knowing
+  before typing in a real passport number, not a reason to have built
+  this differently without being asked to.
+- **Unverified live**: the collapsible section's field layout, the
+  traveler row's remove-button placement, and — most worth checking —
+  the actual add/remove-then-retype interaction feel in a real browser
+  (the sync-before-rerender fix is logic-tested thoroughly above, but
+  hasn't been felt out by an actual DE clicking through it) haven't been
+  seen outside this environment. Test next: open a client, add two
+  additional travelers, fill in real passport info for each, remove one,
+  and confirm the remaining one's data is intact before and after Save.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
