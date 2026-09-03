@@ -4929,6 +4929,191 @@ gaps, all read-only (or reference-only), no new write paths.
   that the answer cites real comparable itinerary prices rather than a
   made-up number.
 
+## Seven Trip Assistant UX upgrades: chips, copy, undo, a step trace, history, help, dark mode (Sep 2026, unverified live)
+
+Direct follow-up to "Lets start a list of how the assistant can be more
+helpful from a user experience" (a collaborative brainstorm, not
+implemented yet at that point) then "yeah go ahead and action all of
+this" — all 7 items from that list, built together. Mid-build, a
+screenshot of the plain "Good evening! What can I help with today?"
+greeting (zero buttons) came with a direct refinement: **"can it give
+some clickable ideas when asking? Maybe stuff that hasn't been looked at
+or actioned"** — this reshaped item #1 specifically (see below) before
+any of it was implemented, not after.
+
+- **1. Suggestion chips — real, unaddressed work first, generic prompts
+  only to fill remaining slots.** `taBuildSuggestionChips()` checks
+  `window.__ctGetTodoSummary()` for an overdue-or-hot-lead client to
+  draft outreach for, then `window.__dtGetSummary()` for an unchecked
+  Daily Task, before ever reaching for a handful of generic
+  capability-discovery prompts (match an itinerary, get a price
+  reference, "what's on my plate today") — so a chip is never just a
+  canned suggestion when there's something real to point at instead, and
+  never blank on a clean day either. Each chip is `{label, prompt}`;
+  clicking one (`wireChipButtons`) disables every chip in that bubble and
+  calls a new `taSendPrompt(text)` helper (`input.value = text; send();`)
+  — reuses the entire existing send pipeline, so a chip can never do
+  anything a typed message couldn't. Rendered via a shared
+  `taBuildChipsHtml()` in exactly two places: under every AI answer
+  (`addAiAnswerMsg`) and — the literal ask from the screenshot — under
+  the plain no-fork greeting (`maybeGreetOnOpen`'s "nothing to continue"
+  branch). Deliberately NOT added to the fork branch (real prior
+  conversation, "continue or start something new?") — that bubble's own
+  two buttons are already the action being asked for; a third row of
+  suggestions there would compete with, not support, the actual question.
+- **2. Copy-to-clipboard on every reply.** A drafted email already had
+  its own Copy button in its pop-out; a plain chat answer (a
+  recommendation, a piece of guide info) never did. `addAiAnswerMsg` now
+  always renders a 📋 Copy button alongside Read-aloud/View-full-details,
+  wired in `wireAiAnswerButtons` via `navigator.clipboard.writeText`
+  against the same `data-full` attribute those two buttons already read
+  from — a flash-to-confirm label ("✓ Copied") the same pattern the
+  draft modal's own Copy button already established, falling back to a
+  plain "Copy not supported here" message if the Clipboard API isn't
+  available rather than failing silently.
+- **3. A real Undo on context reset, matching the existing
+  confirm-before-delete precedent.** Deleting a Client Tracker record
+  already asks first; resetting an entire conversation's context ("Start
+  something new" on the greeting fork, or the context bar's own "Start
+  new client") used to happen instantly with no way back.
+  `taContextSnapshot` is a plain in-memory variable (deliberately NOT
+  persisted to `localStorage` — the existing session archive only ever
+  stored DISPLAY text, not real Claude-API-shaped history, so there's no
+  faithful way to resurrect a snapshot across an actual page reload; see
+  "Restore-safe by construction" below for why that's the honest choice,
+  not a gap). `resetClientContextWithUndo()` snapshots `taState`/
+  `convoHistory`/`pendingResume`/`lastDraftContext` immediately before
+  calling the real `resetClientContext()`; `undoContextReset()` restores
+  all four and consumes the snapshot (a second undo attempt correctly
+  reports nothing left to restore, not a silent double-restore). Both
+  reset call sites now post a bubble with a "↺ Undo" button instead of a
+  plain confirmation, wired via `wireUndoButtons`.
+- **4. A visible step trace instead of one overwritten status line.**
+  `updateTypingStatus(div, text)` used to replace a single
+  `.ta-typing-status` line every tool-call round — a multi-tool answer
+  read as one long, unexplained wait with no record of what already
+  happened. Now appends a growing `.ta-trace-line` to a new
+  `.ta-typing-trace` container each round, marking the PREVIOUS line done
+  (✓ prefix, spinner removed) before adding the next one — reuses the
+  `.ta-spinner` CSS class already established earlier this session for
+  every other loading state in this file, rather than inventing a new
+  one. A final call with no text (the round-cap forced-synthesis path)
+  just marks the last line done without adding a new one.
+- **5. A browsable Recent Conversations list**, not just the existing
+  pull-based `searchArchive`/`presentHistorySearch` ("what did I discuss
+  with X before" — still there, unchanged). New 🕘 header button
+  (`taOpenHistoryList`) opens a pop-out reading the exact same
+  `TA_ARCHIVE_KEY` data `archiveCurrentSession()` already writes — no new
+  storage — newest-first, each row opening a read-only transcript
+  (`taOpenHistoryDetail`) with a "← Back to list" button.
+  **Deliberately view-only, not resumable** — the archive only ever
+  stored display text (`{role, text}` pairs), never the real
+  Claude-API-shaped `convoHistory` a genuine "resume this" action would
+  need, so building a Resume button here would have meant either
+  silently doing nothing useful or quietly misleading the DE about what
+  it actually restores. An empty archive shows a clear "saved here
+  automatically" message instead of a blank pop-out.
+- **6. A first-use help reference.** New ❓ header button (`taOpenHelp`/
+  `taCloseHelp`) opens a static pop-out with six short sections (About a
+  client, Itineraries & pricing, Drafting, Daily Tasks, Voice & photos,
+  Shortcuts) — plain reference content, no new logic, matching the "what
+  can I ask" framing directly.
+- **7. Dark mode — deliberately scoped to the Trip Assistant panel and
+  its own pop-outs only, stated explicitly rather than silently
+  narrowed.** New 🌙/☀️ header toggle (`applyDarkMode`), persisted via
+  `kt-trip-assistant:dark-mode:v1` and applied automatically on load.
+  Implemented as a `body.ta-dark-mode` class — the panel and its modals
+  are DOM siblings, not nested inside one shared container, so the
+  toggle state needs to live on a real ancestor of all of them — with
+  every dark-mode CSS rule scoped via a `body.ta-dark-mode #specific-id`
+  descendant selector, so the class on `<body>` can never leak an effect
+  onto anything outside those specific ids. Covers `#ta-panel` itself,
+  its message bubbles/input/settings, and its four pop-out modals
+  (itinerary, draft, the two new ones — history, help). **Explicitly NOT
+  the Client Tracker, NOT Daily Tasks, and NOT the guide's own 14,000+
+  lines of fixed light-theme content** — a genuinely complete dark
+  reskin of the whole file was judged too large a scope to guarantee
+  correctness on on top of the other six items in the same pass; this is
+  real, additive progress, not a full answer to "dark mode" as a
+  file-wide feature.
+- **Restore-safe by construction, same discipline as every other
+  interactive bubble this session's own history keeps re-learning the
+  hard way.** Two of the seven items — chips and the Undo button — add
+  new clickable markup to a chat bubble, and `persistState()` only ever
+  saves a bubble's rendered `innerHTML`; a click listener is a JS-side
+  attachment that doesn't travel with it. Both got the same
+  "build-markup vs. wire-listeners" split already established for the
+  Daily Brief's Draft button, client-name links, and the Read-aloud/
+  View-full-details pair — `wireChipButtons`/`wireUndoButtons` are both
+  safe to call at creation time OR across the whole restored `#ta-msgs`
+  list, and both got added to `restoreState()`'s existing chain right
+  alongside those four. This is also exactly why the Undo snapshot is
+  deliberately in-memory-only (see item #3) — a restored Undo button
+  after a REAL reload correctly and honestly reports nothing left to
+  restore, rather than either silently failing or (worse) resurrecting
+  stale data from a previous browser session that has nothing to do with
+  whatever's on screen now.
+- Verified with a real Node execution-harness test (`test_ux_batch.js`,
+  67 checks) against the actual extracted Trip Assistant source (not a
+  paraphrase), using the same `__expose`-injection pattern
+  `test_brain_tools.js` established for reaching closure-private
+  functions: real-data-first chip ordering (a mocked overdue Hot Lead
+  client and an unchecked Daily Task both appear before any generic
+  chip), the clean-day all-discovery fallback, an XSS probe through a
+  malicious client name reaching a chip label, real click wiring
+  (a chip click sends a message and disables itself, input clears), the
+  fresh-session greeting carrying chips and the fork-branch greeting
+  deliberately NOT carrying them; the Copy button sending the full
+  (not summary) text to the clipboard and flashing a confirmation; the
+  full undo lifecycle (reset → snapshot captured → undo restores
+  taState/convoHistory → snapshot consumed → a second undo honestly
+  reports nothing to restore), the real button click path including the
+  "not available" message, and a simulated-reload session confirming a
+  restored Undo button never resurrects stale data; the step trace
+  across three rounds (first line marked done when the second starts,
+  a final null call closing out the last line without adding a new one);
+  Recent Conversations (list rendering newest-first, an XSS probe across
+  both a malicious client name and a malicious message body coming back
+  fully inert, detail view + Back button, the close animation's two-stage
+  class removal, and the empty-archive state); the Help modal's open/
+  close animation; dark mode (default-light, the toggle function, icon
+  swap, a stored preference applying automatically on load, and the real
+  header button's click-and-persist round trip); and — the concrete
+  proof the restore-safety claim above actually holds — a simulated
+  reload with a persisted bubble containing both a chip and an Undo
+  button, confirming both are still genuinely clickable (not silently
+  dead) afterward, with the restored Undo correctly reporting nothing to
+  restore. Also re-ran the full pre-existing regression suite (14 other
+  test files) with zero regressions caused by this batch — the same two
+  known pre-existing baseline artifacts (`test_tabs_visibility.js`'s two
+  non-bugs, `test_draft_button.js`'s one no-API-key-configured check)
+  are unchanged and unrelated. All 17 `<script>` blocks parse; tag
+  balance held at the same established baseline (div 1789/1789 clean;
+  span/button carry their pre-existing, previously-documented 1-off/
+  2-off false-positive gaps from prose comments elsewhere in the file,
+  unchanged by this batch).
+- **Deliberately not built**: a true "resume" action for a past
+  conversation (see item #5 — the data this would need was never
+  captured), a second, file-wide dark theme covering the Client Tracker/
+  Daily Tasks/the guide itself (see item #7), and multi-level undo (only
+  the single most recent context reset is recoverable, matching the
+  scope of what was actually asked — "a real Undo," not an undo stack).
+- **Unverified live, and this is a genuinely large batch landing
+  together**: whether the suggestion chips read as helpful or as visual
+  clutter under every single reply once the novelty wears off, whether
+  the step trace's growing list feels informative or just busier than
+  the single status line it replaced on a fast answer, how the dark-mode
+  palette actually looks against real content (especially the itinerary/
+  draft pop-out tables, which carry their own light-theme-oriented
+  border/background colors), and whether Recent Conversations' read-only
+  framing is clear enough that a DE doesn't expect a "resume" action that
+  isn't there — none of this has been seen in a real browser from this
+  environment. Test next: open the panel fresh and confirm the greeting
+  shows real chips, tap through a full multi-tool question and watch the
+  step trace build, reset context and hit Undo, browse Recent
+  Conversations end to end, open Help, and toggle dark mode against a
+  real itinerary answer.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
