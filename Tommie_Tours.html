@@ -784,15 +784,18 @@
      display:none (nothing to animate from) or safely display:none it
      before its own fade-out finishes playing. */
   #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
-  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay {
+  #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay,
+  #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay {
     opacity: 0; transition: opacity .18s ease;
   }
   #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
-  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown, #ct-stats-overlay.shown {
+  #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown, #ct-stats-overlay.shown,
+  #ct-trash-overlay.shown, #ct-timeline-overlay.shown, #ct-quickjump-overlay.shown {
     opacity: 1;
   }
   #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
-  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal, #ct-stats-modal {
+  #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal, #ct-stats-modal,
+  #ct-trash-modal, #ct-timeline-modal, #ct-quickjump-modal {
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
@@ -800,7 +803,9 @@
   #quote-builder-overlay.shown #quote-builder-modal, #dashboard-overlay.shown #dashboard-modal,
   #stale-overlay.shown #stale-modal, #tmm-overlay.shown #tmm-modal,
   #quiz-overlay.shown #quiz-modal, #tip-modal-overlay.shown #tip-modal, #dt-overlay.shown #dt-modal,
-  #ct-scan-overlay.shown #ct-scan-modal, #ct-stats-overlay.shown #ct-stats-modal {
+  #ct-scan-overlay.shown #ct-scan-modal, #ct-stats-overlay.shown #ct-stats-modal,
+  #ct-trash-overlay.shown #ct-trash-modal, #ct-timeline-overlay.shown #ct-timeline-modal,
+  #ct-quickjump-overlay.shown #ct-quickjump-modal {
     transform: translateY(0) scale(1);
   }
 
@@ -1626,7 +1631,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay, #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -15715,6 +15720,128 @@ ${bodyHtml}
   .ct-stats-tile.cold { background: #E7ECEF; }
   .ct-stats-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
 
+  /* Recently Deleted / trash (Sep 2026) — same overlay/modal pop-out
+     pattern as #ct-stats-overlay, its own red-toned accent since this is
+     the "undo a mistake" tool, not a neutral snapshot. */
+  #ct-trash-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-trash-overlay.open { display: flex; }
+  #ct-trash-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 640px; width: 100%; max-height: 88vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid #a4462c; position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-trash-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-trash-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-trash-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-trash-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-trash-close:hover { color: var(--sage-darker); }
+  #ct-trash-body { padding: 4px 30px 26px; overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-trash-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: #fff; border: 1px solid var(--ct-line); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;
+  }
+  .ct-trash-row-name { font-weight: 700; color: var(--dark); font-size: 13.5px; }
+  .ct-trash-row-meta { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 2px; }
+  .ct-trash-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .ct-trash-restore-btn, .ct-trash-purge-btn {
+    font-size: 11.5px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    font-family: 'Lato', sans-serif; border: none;
+  }
+  .ct-trash-restore-btn { background: var(--sage-dark); color: #fff; }
+  .ct-trash-restore-btn:hover { background: var(--sage-darker); }
+  .ct-trash-purge-btn { background: #fff; border: 1px solid #d9c9c2; color: #a4462c; }
+  .ct-trash-purge-btn:hover { background: #f6e8e4; }
+  .ct-trash-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
+
+  /* Backup reminder banner — matches #ct-call-banner's "persistent
+     colored strip at the top of the panel" shape, gold rather than call
+     mode's accent so it reads as a nudge, not an active-call indicator. */
+  #ct-backup-nudge {
+    display: none; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--ct-gold-soft, #f3ead9); border: 1px solid var(--gold); border-radius: 10px;
+    padding: 10px 16px; margin: 0 26px 12px; font-size: 12.5px; color: var(--dark);
+  }
+  #ct-backup-nudge.shown { display: flex; }
+  #ct-backup-nudge-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+  #ct-backup-nudge-btn {
+    background: var(--gold); color: #fff; border: none; border-radius: 8px; padding: 6px 12px;
+    font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: 'Lato', sans-serif;
+  }
+  #ct-backup-nudge-btn:hover { background: var(--gold-text); }
+  #ct-backup-nudge-dismiss {
+    background: none; border: none; color: var(--ct-ink-soft); font-size: 15px; cursor: pointer; line-height: 1; padding: 4px;
+  }
+
+  /* Activity timeline (Sep 2026) — a read-only chronological merge of
+     notes/follow-ups/drafts/status changes for one client, same overlay/
+     modal pattern, its own sage accent. */
+  #ct-timeline-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-timeline-overlay.open { display: flex; }
+  #ct-timeline-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 620px; width: 100%; max-height: 88vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid var(--sage-dark); position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-timeline-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-timeline-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-timeline-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-timeline-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-timeline-close:hover { color: var(--sage-darker); }
+  #ct-timeline-body { padding: 4px 30px 26px; overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-timeline-entry { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ct-line); }
+  .ct-timeline-entry:last-child { border-bottom: none; }
+  .ct-timeline-icon { flex-shrink: 0; font-size: 15px; width: 22px; text-align: center; }
+  .ct-timeline-main { flex: 1; min-width: 0; }
+  .ct-timeline-text { font-size: 13px; color: var(--dark); }
+  .ct-timeline-date { font-size: 11px; color: var(--ct-ink-soft); margin-top: 2px; }
+  .ct-timeline-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
+
+  /* Global quick-switcher (Ctrl+Shift+K) — jump to any client's profile
+     from anywhere in the app, not just from inside an already-open
+     Client Tracker. Highest z-index of any Client Tracker modal (10600)
+     since it can be triggered while ANY other overlay/panel is open
+     (including the Trip Assistant's own 9999-z-index panel) and always
+     needs to sit on top regardless. */
+  #ct-quickjump-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.75); display: none; align-items: flex-start; justify-content: center; z-index: 10600; padding: 90px 24px 24px; }
+  #ct-quickjump-overlay.open { display: flex; }
+  #ct-quickjump-modal {
+    background: #fffdf9; border-radius: 14px; max-width: 460px; width: 100%; max-height: 70vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.45);
+    font-family: 'Lato', sans-serif; overflow: hidden;
+  }
+  #ct-quickjump-input {
+    border: none; border-bottom: 1px solid var(--ct-line); padding: 16px 20px; font-size: 15px;
+    font-family: 'Lato', sans-serif; color: var(--dark); background: transparent; width: 100%; box-sizing: border-box;
+  }
+  #ct-quickjump-input:focus { outline: none; background: #faf6ee; }
+  #ct-quickjump-results { overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-quickjump-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 11px 20px; cursor: pointer; font-size: 13.5px; color: var(--dark); border-bottom: 1px solid var(--ct-line);
+  }
+  .ct-quickjump-row:last-child { border-bottom: none; }
+  .ct-quickjump-row:hover, .ct-quickjump-row.active { background: var(--ct-gold-soft, #f3ead9); }
+  .ct-quickjump-row-status { font-size: 10.5px; color: var(--ct-ink-soft); flex-shrink: 0; }
+  .ct-quickjump-empty { padding: 16px 20px; font-size: 12.5px; color: var(--ct-ink-soft); font-style: italic; }
+  .ct-quickjump-hint { padding: 9px 20px; font-size: 11px; color: var(--ct-ink-soft); border-top: 1px solid var(--ct-line); }
+
+  /* Recently viewed row + tag pills + keyboard-nav highlight */
+  #ct-recent-row { display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: 12px; color: var(--ct-ink-soft); }
+  #ct-recent-row.shown { display: flex; }
+  #ct-recent-row b { font-weight: 700; color: var(--ct-ink-soft); flex-shrink: 0; }
+  .ct-recent-chip {
+    background: #fff; border: 1px solid var(--ct-line); border-radius: 20px; padding: 4px 12px;
+    font-size: 12px; color: var(--dark); cursor: pointer; font-family: 'Lato', sans-serif;
+  }
+  .ct-recent-chip:hover { border-color: var(--gold); background: var(--ct-gold-soft, #f3ead9); }
+  .ct-tag-pill {
+    display: inline-block; background: #E4E9F0; color: #3d5470; border-radius: 12px;
+    padding: 2px 9px; font-size: 10.5px; font-weight: 700; margin-right: 4px;
+  }
+  .ct-card-tags { margin: 4px 0 0; }
+  .ct-profile-head .ct-tag-pill { vertical-align: middle; }
+  .ct-card.ct-kbd-focus { outline: 2px solid var(--gold); outline-offset: 2px; }
+
   @media (max-width: 700px) {
     #ct-overlay { padding: 0; }
     #ct-panel { border-radius: 0; }
@@ -15740,6 +15867,7 @@ ${bodyHtml}
       <button type="button" id="ct-export-btn" class="ct-head-group" title="Download a backup of every client">📥</button>
       <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file">📤</button>
       <input type="file" id="ct-import-file" accept="application/json,.json" hidden>
+      <button type="button" id="ct-trash-btn" class="ct-head-group" title="Recently deleted — restore a client within 30 days">🗑️</button>
       <span class="ct-head-divider"></span>
       <button type="button" id="ct-close" aria-label="Close">✕</button>
     </div>
@@ -15762,6 +15890,14 @@ ${bodyHtml}
       <input type="file" id="ct-scan-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
     </div>
   </div>
+  <div id="ct-backup-nudge">
+    <span id="ct-backup-nudge-text"></span>
+    <div id="ct-backup-nudge-actions">
+      <button type="button" id="ct-backup-nudge-btn">📥 Back up now</button>
+      <button type="button" id="ct-backup-nudge-dismiss" title="Dismiss for now">✕</button>
+    </div>
+  </div>
+  <div id="ct-recent-row"><b>Recently viewed:</b></div>
   <div id="ct-dropzone-overlay">📷 Drop a TMT screenshot here to import follow-ups</div>
   <div id="ct-scan-hint">📋 Tip: paste (Ctrl+V) a TMT screenshot anywhere in here to import it</div>
   <div id="ct-view-toggle">
@@ -15810,6 +15946,10 @@ ${bodyHtml}
       <div>
         <label for="ct-f-destination">Destination / trip</label>
         <input type="text" id="ct-f-destination" placeholder="Spain — Madrid, Barcelona">
+      </div>
+      <div>
+        <label for="ct-f-tags">Tags</label>
+        <input type="text" id="ct-f-tags" placeholder="referral, repeat client, VIP...">
       </div>
       <div class="ct-field-full">
         <label for="ct-f-itinerary">Itinerary <button type="button" id="ct-match-btn">🎯 Match Itinerary</button></label>
@@ -15999,6 +16139,7 @@ ${bodyHtml}
     <div id="ct-detail-head">
       <button type="button" id="ct-detail-back">← Back to list</button>
       <div id="ct-detail-head-actions">
+        <button type="button" id="ct-detail-timeline-btn">📜 Activity</button>
         <button type="button" id="ct-detail-edit-btn">✏️ Edit</button>
         <button type="button" id="ct-detail-delete-btn">🗑️ Delete</button>
       </div>
@@ -16036,6 +16177,36 @@ ${bodyHtml}
   </div>
 </div>
 
+<div id="ct-trash-overlay">
+  <div id="ct-trash-modal">
+    <button type="button" id="ct-trash-close" aria-label="Close">✕</button>
+    <div id="ct-trash-head">
+      <h3>🗑️ Recently Deleted</h3>
+      <p>Deleted clients stay here for 30 days before they're gone for good.</p>
+    </div>
+    <div id="ct-trash-body"></div>
+  </div>
+</div>
+
+<div id="ct-timeline-overlay">
+  <div id="ct-timeline-modal">
+    <button type="button" id="ct-timeline-close" aria-label="Close">✕</button>
+    <div id="ct-timeline-head">
+      <h3 id="ct-timeline-title">📜 Activity</h3>
+      <p>Everything logged for this client, newest first.</p>
+    </div>
+    <div id="ct-timeline-body"></div>
+  </div>
+</div>
+
+<div id="ct-quickjump-overlay">
+  <div id="ct-quickjump-modal">
+    <input type="text" id="ct-quickjump-input" placeholder="Jump to a client...">
+    <div id="ct-quickjump-results"></div>
+    <div class="ct-quickjump-hint">↑↓ to move · Enter to open · Esc to close</div>
+  </div>
+</div>
+
 <script>
 (function () {
   // Same localStorage-based persistence pattern as the rest of this file
@@ -16051,6 +16222,29 @@ ${bodyHtml}
   // and converting them isn't needed for what this constant is actually
   // for.
   const CT_STATUSES = ['Inquiry', 'Quote sent', 'Booked', 'Traveling', 'Follow-up needed', 'Closed'];
+  // Trash/undo (Sep 2026) — a separate storage key, not a "deleted: true"
+  // flag on the same record. Keeps ctClients itself (and therefore every
+  // existing consumer — search, grouping, the AI tools) exactly as clean
+  // as it always was, with zero risk of a filter forgetting to exclude a
+  // soft-deleted record. CT_TRASH_PURGE_DAYS is how long a deleted client
+  // survives before ctPurgeOldTrash() removes it for good.
+  const CT_TRASH_KEY = 'kt-client-tracker:trash:v1';
+  const CT_TRASH_PURGE_DAYS = 30;
+  let ctTrash = [];
+  // Backup-reminder dedup (Sep 2026) — CT_LAST_BACKUP_KEY is a plain ISO
+  // date stamped by ctExportBackup() itself; CT_BACKUP_NUDGE_KEY is the
+  // once-a-day "already asked today" gate, same shape as this file's
+  // other once-a-day ambient checks (TA_DAILY_BRIEF_KEY, etc.).
+  const CT_LAST_BACKUP_KEY = 'kt-client-tracker:last-backup:v1';
+  const CT_BACKUP_NUDGE_KEY = 'kt-client-tracker:last-backup-nudge:v1';
+  const CT_BACKUP_NUDGE_DAYS = 14;
+  // Recently-viewed clients (Sep 2026) — a short, most-recent-first list
+  // of ids for the quick-jump row above the list. Capped at 5; ids for a
+  // client that's since been deleted are just filtered out at render
+  // time rather than cleaned up eagerly.
+  const CT_RECENT_KEY = 'kt-client-tracker:recent:v1';
+  const CT_RECENT_MAX = 5;
+  let ctRecentIds = [];
   let ctClients = [];
   let ctEditingId = null;
   // Which card (by id) currently has its inline "quick note" panel open —
@@ -16336,6 +16530,8 @@ ${bodyHtml}
       const raw = localStorage.getItem(CT_STORAGE_KEY);
       ctClients = raw ? JSON.parse(raw) : [];
     } catch (e) { ctClients = []; }
+    ctLoadTrash();
+    ctLoadRecent();
     ctRender();
   }
 
@@ -16347,6 +16543,52 @@ ${bodyHtml}
       ctSetStatus('Could not save — try again');
     }
     ctMirrorRemindersToIndexedDb();
+  }
+
+  // ---------- Trash / undo (Sep 2026) — see CT_TRASH_KEY above for why
+  // this is a separate storage key rather than a flag on the client
+  // record itself. ctPurgeOldTrash() runs a real, silent purge (nothing
+  // to confirm — the whole point of the 30-day window is that it already
+  // happened without anyone needing to act), not just a display filter,
+  // so an entry past the window is actually gone from localStorage, not
+  // just hidden.
+  function ctLoadTrash() {
+    try {
+      const raw = localStorage.getItem(CT_TRASH_KEY);
+      ctTrash = raw ? JSON.parse(raw) : [];
+    } catch (e) { ctTrash = []; }
+    ctPurgeOldTrash();
+  }
+  function ctSaveTrash() {
+    try { localStorage.setItem(CT_TRASH_KEY, JSON.stringify(ctTrash)); } catch (e) { /* best effort, same as ctSaveData */ }
+  }
+  function ctPurgeOldTrash() {
+    if (!Array.isArray(ctTrash) || !ctTrash.length) return;
+    const cutoff = Date.now() - CT_TRASH_PURGE_DAYS * 86400000;
+    const before = ctTrash.length;
+    ctTrash = ctTrash.filter(c => {
+      const deletedAt = c && c.deletedAt ? new Date(c.deletedAt).getTime() : 0;
+      return deletedAt && deletedAt >= cutoff;
+    });
+    if (ctTrash.length !== before) ctSaveTrash();
+  }
+
+  // ---------- Recently viewed (Sep 2026) — most-recent-first list of
+  // client ids for the quick-jump row above the list, capped at
+  // CT_RECENT_MAX. A stale id (the client was since deleted) is just
+  // skipped wherever this list is actually rendered, not cleaned up here
+  // — cheaper, and the array self-heals the next time ctTrackRecentlyViewed
+  // runs anyway.
+  function ctLoadRecent() {
+    try {
+      const raw = localStorage.getItem(CT_RECENT_KEY);
+      ctRecentIds = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(ctRecentIds)) ctRecentIds = [];
+    } catch (e) { ctRecentIds = []; }
+  }
+  function ctTrackRecentlyViewed(id) {
+    ctRecentIds = [id, ...ctRecentIds.filter(x => x !== id)].slice(0, CT_RECENT_MAX);
+    try { localStorage.setItem(CT_RECENT_KEY, JSON.stringify(ctRecentIds)); } catch (e) { /* best effort */ }
   }
 
   // ---------- Backup / restore (Sep 2026, unverified live) — every
@@ -16371,7 +16613,49 @@ ${bodyHtml}
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     ctSetStatus(`Downloaded a backup of ${ctClients.length} client${ctClients.length === 1 ? '' : 's'}.`);
+    // Stamps "you have a real, current export" — the one signal the
+    // backup-reminder nudge below actually checks. Only export counts as
+    // a fresh backup, not import (importing a file doesn't create a new
+    // export of TODAY's data, so it shouldn't reset this clock).
+    try { localStorage.setItem(CT_LAST_BACKUP_KEY, ctTodayISO()); } catch (e) { /* best effort */ }
+    ctRefreshBackupNudgeUI();
   }
+
+  // ---------- Backup reminder (Sep 2026) — a gentle nudge rather than a
+  // blocking dialog: never backed up at all, or more than
+  // CT_BACKUP_NUDGE_DAYS days since the last export, and nothing to back
+  // up ever skips the nudge (an empty roster has nothing at risk).
+  // Same once-a-day dedup shape as this file's other ambient checks —
+  // dismissing just hides it for the rest of today's session, it doesn't
+  // push the next real nudge further out.
+  function ctMaybeNudgeBackup() {
+    if (!ctClients.length) { ctHideBackupNudge(); return; }
+    let today;
+    try {
+      today = ctTodayISO();
+      if (localStorage.getItem(CT_BACKUP_NUDGE_KEY) === today) return;
+    } catch (e) { return; }
+    const lastBackup = (() => { try { return localStorage.getItem(CT_LAST_BACKUP_KEY); } catch (e) { return null; } })();
+    const daysSince = lastBackup ? Math.floor((new Date(today) - new Date(lastBackup)) / 86400000) : Infinity;
+    if (daysSince < CT_BACKUP_NUDGE_DAYS) return;
+    try { localStorage.setItem(CT_BACKUP_NUDGE_KEY, today); } catch (e) { /* best effort */ }
+    const textEl = document.getElementById('ct-backup-nudge-text');
+    const banner = document.getElementById('ct-backup-nudge');
+    if (!textEl || !banner) return;
+    textEl.textContent = lastBackup
+      ? `It's been ${daysSince} days since your last backup — ${ctClients.length} client${ctClients.length === 1 ? '' : 's'} on file right now.`
+      : `You haven't backed up yet — ${ctClients.length} client${ctClients.length === 1 ? '' : 's'} on file, only saved in this browser.`;
+    banner.classList.add('shown');
+  }
+  function ctHideBackupNudge() {
+    const banner = document.getElementById('ct-backup-nudge');
+    if (banner) banner.classList.remove('shown');
+  }
+  // Re-checks immediately after a fresh export — if the nudge happened to
+  // already be showing this session, backing up right then should visibly
+  // clear it rather than leaving a stale "you haven't backed up" message
+  // on screen right next to a backup that just succeeded.
+  function ctRefreshBackupNudgeUI() { ctHideBackupNudge(); }
 
   // Deliberately additive, never a wholesale replace — the DE could
   // otherwise lose everything with one wrong file picked by accident.
@@ -16830,6 +17114,7 @@ text. If you genuinely can't find any client or task information at all, respond
     document.getElementById('ct-f-name').value = client ? client.name : '';
     document.getElementById('ct-f-status').value = client ? client.status : 'Inquiry';
     document.getElementById('ct-f-leadtemp').value = client ? (client.leadTemp || '') : '';
+    document.getElementById('ct-f-tags').value = client && Array.isArray(client.tags) ? client.tags.join(', ') : '';
     document.getElementById('ct-f-destination').value = client ? (client.destination || '') : '';
     document.getElementById('ct-f-itinerary').value = client ? (client.itineraryId || '') : '';
     document.getElementById('ct-f-tmtlink').value = client ? (client.tmtLink || '') : '';
@@ -17015,10 +17300,27 @@ text. If you genuinely can't find any client or task information at all, respond
     const travelers = ctFormTravelers.filter(t =>
       (t.name || '').trim() || (t.dob || '').trim() || (t.nationality || '').trim() || (t.passportNumber || '').trim() || (t.passportExpiry || '').trim()
     );
+    // Tags (Sep 2026) — a plain comma-separated text input rather than a
+    // dedicated multi-select/pill-input widget, matching this file's own
+    // established "the simplest UI that stores the real shape" call
+    // elsewhere (the intake questionnaire's optional fields are all
+    // plain inputs too). Trimmed, deduped case-insensitively (so "VIP"
+    // and "vip" typed on two different calls collapse to one tag,
+    // keeping the FIRST casing seen), and empty entries (a stray comma)
+    // dropped.
+    const tagsRaw = document.getElementById('ct-f-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+    const seenTagsLower = new Set();
+    const tags = tagsRaw.filter(t => {
+      const lower = t.toLowerCase();
+      if (seenTagsLower.has(lower)) return false;
+      seenTagsLower.add(lower);
+      return true;
+    });
     const data = {
       name,
       status: document.getElementById('ct-f-status').value,
       leadTemp: document.getElementById('ct-f-leadtemp').value,
+      tags,
       destination: document.getElementById('ct-f-destination').value.trim(),
       itineraryId: document.getElementById('ct-f-itinerary').value,
       tmtLink: document.getElementById('ct-f-tmtlink').value.trim(),
@@ -17071,12 +17373,28 @@ text. If you genuinely can't find any client or task information at all, respond
     // that specific flow.
     const wasQualifyingCall = ctIsQualifyingCall && !ctEditingId;
     let newId = null;
+    const nowIso = new Date().toISOString();
     if (ctEditingId) {
       const idx = ctClients.findIndex(c => c.id === ctEditingId);
-      if (idx > -1) ctClients[idx] = { ...ctClients[idx], ...data };
+      if (idx > -1) {
+        const prev = ctClients[idx];
+        // Status-change history (Sep 2026) — the one thing this file
+        // never tracked at all before: a card only ever showed the
+        // CURRENT status, with no record of when it got there. Only
+        // appends when the status actually changed (not on every save —
+        // editing an unrelated field shouldn't log a fake "status
+        // change" to the same status it already was), and only seeds
+        // history from the client's OWN prior status the first time this
+        // runs on a pre-existing record with none yet, so a client that
+        // predates this feature doesn't retroactively gain a fabricated
+        // history entry for every save.
+        const statusHistory = Array.isArray(prev.statusHistory) ? prev.statusHistory.slice() : [];
+        if (data.status !== prev.status) statusHistory.push({ status: data.status, changedAt: nowIso });
+        ctClients[idx] = { ...prev, ...data, statusHistory };
+      }
     } else {
       newId = ctUid();
-      ctClients.push({ id: newId, ...data });
+      ctClients.push({ id: newId, createdAt: nowIso, statusHistory: [{ status: data.status, changedAt: nowIso }], ...data });
     }
     ctCloseForm();
     ctRender();
@@ -17085,11 +17403,89 @@ text. If you genuinely can't find any client or task information at all, respond
     if (wasQualifyingCall && newId) ctOpenDetail(newId);
   }
 
+  // Moves to trash instead of dropping the record outright — see
+  // CT_TRASH_KEY above. The confirm() dialog this is called behind still
+  // says "This can't be undone" (see the ct-detail-delete-btn wiring) —
+  // deliberately left as-is rather than softened to imply an easy undo,
+  // since a 30-day trash window is a safety NET for a mistake, not a
+  // feature to lean on; the DE should still treat Delete as final in the
+  // moment.
   function ctHandleDelete(id) {
+    const idx = ctClients.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    ctTrash.unshift({ ...ctClients[idx], deletedAt: new Date().toISOString() });
+    ctSaveTrash();
     ctClients = ctClients.filter(c => c.id !== id);
     if (ctDetailId === id) ctCloseDetail();
     ctRender();
     ctSaveData();
+  }
+
+  // Restoring re-adds the record to ctClients as-is (minus the trash-only
+  // deletedAt stamp) — if a client with that same id somehow already
+  // exists again (e.g. re-added by hand while the original sat in trash),
+  // the restored copy still gets added rather than silently dropped;
+  // duplicate ids aren't something this file guards against anywhere else
+  // either, so this doesn't introduce a new class of risk.
+  function ctRestoreFromTrash(id) {
+    const idx = ctTrash.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    const { deletedAt, ...restored } = ctTrash[idx];
+    ctClients.push(restored);
+    ctTrash.splice(idx, 1);
+    ctSaveTrash();
+    ctSaveData();
+    ctRender();
+    ctRenderTrash();
+  }
+  function ctPurgeTrashEntry(id) {
+    const entry = ctTrash.find(c => c.id === id);
+    if (!entry) return;
+    if (!confirm(`Permanently delete ${entry.name}? This removes it from the trash for good.`)) return;
+    ctTrash = ctTrash.filter(c => c.id !== id);
+    ctSaveTrash();
+    ctRenderTrash();
+  }
+  function ctBuildTrashHtml() {
+    if (!ctTrash.length) return '<p class="ct-trash-empty">Nothing in the trash right now.</p>';
+    return ctTrash.map(c => {
+      const deletedDaysAgo = Math.floor((Date.now() - new Date(c.deletedAt).getTime()) / 86400000);
+      const daysLeft = Math.max(0, CT_TRASH_PURGE_DAYS - deletedDaysAgo);
+      return `
+      <div class="ct-trash-row">
+        <div>
+          <div class="ct-trash-row-name">${ctEscapeHtml(c.name)}</div>
+          <div class="ct-trash-row-meta">Deleted ${deletedDaysAgo === 0 ? 'today' : deletedDaysAgo + ' day' + (deletedDaysAgo === 1 ? '' : 's') + ' ago'} · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left before it's gone for good</div>
+        </div>
+        <div class="ct-trash-row-actions">
+          <button type="button" class="ct-trash-restore-btn" data-trash-restore="${ctEscapeHtml(c.id)}">↺ Restore</button>
+          <button type="button" class="ct-trash-purge-btn" data-trash-purge="${ctEscapeHtml(c.id)}">Delete permanently</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  function ctRenderTrash() {
+    const body = document.getElementById('ct-trash-body');
+    if (!body) return;
+    body.innerHTML = ctBuildTrashHtml();
+    body.querySelectorAll('[data-trash-restore]').forEach(btn => {
+      btn.addEventListener('click', () => ctRestoreFromTrash(btn.dataset.trashRestore));
+    });
+    body.querySelectorAll('[data-trash-purge]').forEach(btn => {
+      btn.addEventListener('click', () => ctPurgeTrashEntry(btn.dataset.trashPurge));
+    });
+  }
+  function ctOpenTrash() {
+    ctPurgeOldTrash();
+    ctRenderTrash();
+    const overlay = document.getElementById('ct-trash-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseTrash() {
+    const overlay = document.getElementById('ct-trash-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
   function ctGroupClients(list) {
@@ -17275,6 +17671,7 @@ text. If you genuinely can't find any client or task information at all, respond
           <button type="button" class="ct-card-note-btn" data-quicknote-toggle="${c.id}" title="Add a quick note">📝</button>
         </div>
         <p class="ct-meta-line">${lastText} · ${followText}</p>
+        ${(c.tags && c.tags.length) ? `<p class="ct-card-tags">${c.tags.map(t => `<span class="ct-tag-pill">${ctEscapeHtml(t)}</span>`).join('')}</p>` : ''}
         ${quickNoteOpen ? `
         <div class="ct-card-quicknote" data-quicknote-panel="${c.id}">
           <textarea placeholder="Quick note..." data-quicknote-input="${c.id}"></textarea>
@@ -17449,6 +17846,80 @@ text. If you genuinely can't find any client or task information at all, respond
       ${!rows && !addOpen ? '<p class="ct-sidebar-notes-empty">No follow-ups scheduled.</p>' : ''}
       ${addForm}
     `;
+  }
+
+  // ---------- Activity timeline (Sep 2026) — a READ-ONLY chronological
+  // merge of everything logged for one client: status changes, drafts,
+  // notes, and follow-ups. Deliberately doesn't replace or touch the
+  // Notes/Follow-ups/Drafts sidebar sections — those are what the DE
+  // actually acts through (add a note, mark a follow-up done, reopen a
+  // draft); this is purely "show me everything, in order," reached via
+  // its own "📜 Activity" button so none of that already-tested
+  // interactive UI had to be rebuilt or risked.
+  //
+  // Real, disclosed limitation: follow-ups have no separate "added at"
+  // timestamp, only their own scheduled/target date — that date is used
+  // as the timeline position for a follow-up event, not a true creation
+  // time. Notes' timestamps come from ctTimestampedNote's toLocaleString()
+  // text (not a real ISO string), so they're re-parsed via new Date(label)
+  // to get something sortable — reliable in the real browsers this file
+  // targets, even though it isn't a spec-guaranteed round trip. Anything
+  // that fails to parse sorts to the very bottom rather than crashing or
+  // being silently dropped.
+  function ctBuildActivityTimeline(client) {
+    const events = [];
+    const parseTime = v => { const t = new Date(v).getTime(); return isNaN(t) ? -Infinity : t; };
+    const fullDate = d => isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    (client.statusHistory || []).forEach(h => {
+      if (!h || !h.changedAt) return;
+      events.push({ icon: '☑️', text: `Status set to ${h.status}`, displayDate: fullDate(new Date(h.changedAt)), sortTime: parseTime(h.changedAt) });
+    });
+    (client.drafts || []).forEach(d => {
+      events.push({ icon: '✉️', text: `Drafted: ${d.subject || '(no subject)'}`, displayDate: fullDate(new Date(d.createdAt)), sortTime: parseTime(d.createdAt) });
+    });
+    (client.notes || '').split('\n').filter(l => l.trim()).forEach(line => {
+      const m = line.match(/^\[([^\]]+)\]\s?(.*)$/);
+      const label = m ? m[1] : '';
+      const text = m ? m[2] : line;
+      events.push({ icon: '📝', text, displayDate: label, sortTime: label ? parseTime(label) : -Infinity });
+    });
+    (client.followUps || []).forEach(f => {
+      if (!f.date) return;
+      const dateLabel = new Date(f.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      events.push({
+        icon: '📅',
+        text: (f.done ? 'Follow-up completed — ' : 'Follow-up scheduled — ') + (f.note ? f.note : dateLabel),
+        displayDate: dateLabel,
+        sortTime: parseTime(f.date + 'T00:00:00'),
+      });
+    });
+    events.sort((a, b) => b.sortTime - a.sortTime);
+    return events;
+  }
+  function ctBuildTimelineHtml(client) {
+    const events = ctBuildActivityTimeline(client);
+    if (!events.length) return '<p class="ct-timeline-empty">Nothing logged for this client yet.</p>';
+    return events.map(e => `
+      <div class="ct-timeline-entry">
+        <span class="ct-timeline-icon">${e.icon}</span>
+        <div class="ct-timeline-main">
+          <div class="ct-timeline-text">${ctEscapeHtml(e.text)}</div>
+          <div class="ct-timeline-date">${ctEscapeHtml(e.displayDate || 'Date unknown')}</div>
+        </div>
+      </div>`).join('');
+  }
+  function ctOpenTimeline(client) {
+    const titleEl = document.getElementById('ct-timeline-title');
+    if (titleEl) titleEl.textContent = `📜 Activity — ${client.name}`;
+    document.getElementById('ct-timeline-body').innerHTML = ctBuildTimelineHtml(client);
+    const overlay = document.getElementById('ct-timeline-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseTimeline() {
+    const overlay = document.getElementById('ct-timeline-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
   // Direct response to feedback that the wide profile modal left half its
@@ -17634,6 +18105,7 @@ text. If you genuinely can't find any client or task information at all, respond
         <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
         ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
         ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
+        ${(c.tags && c.tags.length) ? c.tags.map(t => `<span class="ct-tag-pill">${ctEscapeHtml(t)}</span>`).join('') : ''}
       </div>
       <div class="ct-detail-columns">
         <div class="ct-detail-main">
@@ -17768,8 +18240,16 @@ text. If you genuinely can't find any client or task information at all, respond
     document.getElementById('ct-view-toggle').hidden = true;
     document.getElementById('ct-tabs').hidden = true;
     document.getElementById('ct-list').hidden = true;
+    // ct-recent-row's visibility is driven entirely by the .shown CLASS
+    // ctRenderRecentRow() itself manages (matching the CSS, which only
+    // reacts to that class) — removing it here, not setting .hidden,
+    // which this element doesn't actually use for layout at all.
+    const recentRow = document.getElementById('ct-recent-row');
+    if (recentRow) recentRow.classList.remove('shown');
+    ctHideBackupNudge();
     ctRenderDetail();
     document.getElementById('ct-detail').hidden = false;
+    ctTrackRecentlyViewed(id);
   }
 
   function ctCloseDetail() {
@@ -17781,6 +18261,35 @@ text. If you genuinely can't find any client or task information at all, respond
     document.getElementById('ct-view-toggle').hidden = false;
     document.getElementById('ct-tabs').hidden = false;
     document.getElementById('ct-list').hidden = false;
+    // Re-render (not just re-show) — this is the moment the just-viewed
+    // client actually needs to appear in the row, not merely whatever it
+    // last held.
+    ctRenderRecentRow();
+  }
+
+  // ---------- Recently viewed row (Sep 2026) — see CT_RECENT_KEY above.
+  // Rendered on demand (panel open, and any time the list itself
+  // re-renders after a name/status changes) rather than kept in sync
+  // incrementally, since it's cheap and the list of ids rarely changes
+  // mid-session. Gated on more than 3 clients existing — a tiny roster
+  // has no real need for a "recently viewed" shortcut when everything's
+  // already one glance away in the list itself.
+  function ctRenderRecentRow() {
+    const row = document.getElementById('ct-recent-row');
+    if (!row) return;
+    if (ctDetailId || ctClients.length <= 3 || !ctRecentIds.length) { row.classList.remove('shown'); return; }
+    const chips = ctRecentIds
+      .map(id => ctClients.find(c => c.id === id))
+      .filter(Boolean)
+      .slice(0, CT_RECENT_MAX)
+      .map(c => `<button type="button" class="ct-recent-chip" data-recent-open="${ctEscapeHtml(c.id)}">${ctEscapeHtml(c.name)}</button>`)
+      .join('');
+    if (!chips) { row.classList.remove('shown'); return; }
+    row.innerHTML = '<b>Recently viewed:</b>' + chips;
+    row.classList.add('shown');
+    row.querySelectorAll('[data-recent-open]').forEach(btn => {
+      btn.addEventListener('click', () => ctOpenDetail(btn.dataset.recentOpen));
+    });
   }
 
   // Lead-temperature tabs (All / Hot / Warm / Check Back Later / Cold) —
@@ -17839,6 +18348,7 @@ text. If you genuinely can't find any client or task information at all, respond
         || (c.phone || '').toLowerCase().includes(search)
         || (c.email || '').toLowerCase().includes(search)
         || (c.tmtLink || '').toLowerCase().includes(search)
+        || (Array.isArray(c.tags) && c.tags.some(t => t.toLowerCase().includes(search)))
         || (itinerary ? itinerary.title.toLowerCase().includes(search) : false);
       const matchesStatus = !statusFilter || c.status === statusFilter;
       return matchesSearch && matchesStatus;
@@ -18005,6 +18515,8 @@ text. If you genuinely can't find any client or task information at all, respond
         ctRender();
       });
     });
+
+    ctRenderRecentRow();
   }
 
   // Bulk status change (Sep 2026) — direct request, "select multiple
@@ -18179,6 +18691,8 @@ text. If you genuinely can't find any client or task information at all, respond
     // the Client Tracker. Whichever panel opens first "wins" the once-a-
     // day check; the message itself always lands in Trip Assistant's chat.
     if (window.__taMaybeSurfaceDailyBrief) window.__taMaybeSurfaceDailyBrief();
+    ctRenderRecentRow();
+    ctMaybeNudgeBackup();
   });
   document.getElementById('ct-close').addEventListener('click', ctCloseOverlay);
   ctOverlay.addEventListener('click', e => { if (e.target === ctOverlay) ctCloseOverlay(); });
@@ -18191,6 +18705,10 @@ text. If you genuinely can't find any client or task information at all, respond
     const c = ctClients.find(x => x.id === ctDetailId);
     if (c && confirm(`Delete ${c.name}? This can't be undone.`)) ctHandleDelete(c.id);
   });
+  document.getElementById('ct-detail-timeline-btn').addEventListener('click', () => {
+    const c = ctClients.find(x => x.id === ctDetailId);
+    if (c) ctOpenTimeline(c);
+  });
   document.getElementById('ct-add-btn').addEventListener('click', () => ctOpenForm(null));
   document.getElementById('ct-call-btn').addEventListener('click', ctOpenQualifyingCall);
   document.getElementById('ct-stats-btn').addEventListener('click', ctOpenStats);
@@ -18198,6 +18716,17 @@ text. If you genuinely can't find any client or task information at all, respond
   document.getElementById('ct-stats-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'ct-stats-overlay') ctCloseStats();
   });
+  document.getElementById('ct-trash-btn').addEventListener('click', ctOpenTrash);
+  document.getElementById('ct-trash-close').addEventListener('click', ctCloseTrash);
+  document.getElementById('ct-trash-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-trash-overlay') ctCloseTrash();
+  });
+  document.getElementById('ct-timeline-close').addEventListener('click', ctCloseTimeline);
+  document.getElementById('ct-timeline-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-timeline-overlay') ctCloseTimeline();
+  });
+  document.getElementById('ct-backup-nudge-btn').addEventListener('click', ctExportBackup);
+  document.getElementById('ct-backup-nudge-dismiss').addEventListener('click', ctHideBackupNudge);
   document.getElementById('ct-export-btn').addEventListener('click', ctExportBackup);
   const ctImportFileInput = document.getElementById('ct-import-file');
   document.getElementById('ct-import-btn').addEventListener('click', () => ctImportFileInput.click());
@@ -18205,6 +18734,133 @@ text. If you genuinely can't find any client or task information at all, respond
     const file = ctImportFileInput.files && ctImportFileInput.files[0];
     ctImportBackup(file);
     ctImportFileInput.value = ''; // so re-selecting the same file still fires 'change'
+  });
+
+  // ---------- Keyboard nav in the client list (Sep 2026) — arrow keys
+  // move a highlighted card, Enter opens it. Scoped tightly: only while
+  // the panel is open, only in list view (not the form/detail/quick-
+  // jump), and never while focus is actually inside a text input/select
+  // (so typing in the search box, or editing an inline status dropdown,
+  // is never hijacked). ctListFocusId is deliberately NOT reset when the
+  // filtered list changes — an id that's no longer in view just falls
+  // through to "not found," which the ArrowDown/Up branch already
+  // handles by starting fresh from the first/last visible card, so no
+  // separate reset logic is needed for that case.
+  let ctListFocusId = null;
+  function ctListVisibleCards() { return Array.from(document.querySelectorAll('#ct-list .ct-card')); }
+  function ctApplyListFocusHighlight() {
+    ctListVisibleCards().forEach(card => card.classList.toggle('ct-kbd-focus', card.dataset.open === ctListFocusId));
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!ctOverlay.classList.contains('open')) return;
+    if (ctDetailId || document.getElementById('ct-form-panel').classList.contains('open')) return;
+    if (document.getElementById('ct-quickjump-overlay').classList.contains('open')) return; // quick-jump owns the keyboard while it's up
+    const active = document.activeElement;
+    const isEditable = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT');
+    if (isEditable) return;
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
+    const cards = ctListVisibleCards();
+    if (!cards.length) return;
+    const ids = cards.map(c => c.dataset.open);
+    if (e.key === 'Enter') {
+      if (ctListFocusId && ids.includes(ctListFocusId)) { e.preventDefault(); ctOpenDetail(ctListFocusId); }
+      return;
+    }
+    e.preventDefault();
+    let idx = ids.indexOf(ctListFocusId);
+    if (idx === -1) idx = e.key === 'ArrowDown' ? 0 : ids.length - 1;
+    else idx = e.key === 'ArrowDown' ? Math.min(ids.length - 1, idx + 1) : Math.max(0, idx - 1);
+    ctListFocusId = ids[idx];
+    ctApplyListFocusHighlight();
+    cards[idx].scrollIntoView({ block: 'nearest' });
+  });
+
+  // ---------- Global quick-switcher (Sep 2026, Ctrl+Shift+K) — direct
+  // request: jump to any client from ANYWHERE in the app, not just from
+  // inside an already-open Client Tracker. Ctrl+K and j/k are already the
+  // guide's own full-text-search/section-nav bindings (see quickAccessSearchBtn's
+  // title elsewhere in this file), so this deliberately uses a different
+  // chord rather than fighting over an existing one. Reuses
+  // window.__ctOpenClientProfile (already built for the Trip Assistant's
+  // client-name links) to actually open the match — opens the panel and
+  // jumps straight to the profile in one call, same as every other
+  // "jump to this client" entry point in this file.
+  let ctQuickJumpActiveIndex = -1;
+  function ctQuickJumpMatches(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return ctClients.slice().sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+    const starts = [], contains = [];
+    ctClients.forEach(c => {
+      const nameLower = c.name.toLowerCase();
+      if (nameLower.startsWith(q)) starts.push(c);
+      else if (nameLower.includes(q)) contains.push(c);
+    });
+    return [...starts, ...contains].slice(0, 8);
+  }
+  function ctRenderQuickJumpResults() {
+    const input = document.getElementById('ct-quickjump-input');
+    const resultsEl = document.getElementById('ct-quickjump-results');
+    const matches = ctQuickJumpMatches(input.value);
+    ctQuickJumpActiveIndex = matches.length ? 0 : -1;
+    if (!matches.length) {
+      resultsEl.innerHTML = '<p class="ct-quickjump-empty">No matching clients.</p>';
+      return;
+    }
+    resultsEl.innerHTML = matches.map((c, i) => `
+      <div class="ct-quickjump-row${i === 0 ? ' active' : ''}" data-quickjump-row="${ctEscapeHtml(c.id)}">
+        <span>${ctEscapeHtml(c.name)}</span>
+        <span class="ct-quickjump-row-status">${ctEscapeHtml(c.status)}</span>
+      </div>`).join('');
+    resultsEl.querySelectorAll('[data-quickjump-row]').forEach(row => {
+      row.addEventListener('click', () => ctQuickJumpSelect(row.dataset.quickjumpRow));
+    });
+  }
+  function ctQuickJumpSelect(id) {
+    ctCloseQuickJump();
+    if (window.__ctOpenClientProfile) window.__ctOpenClientProfile(id);
+  }
+  function ctOpenQuickJump() {
+    const overlay = document.getElementById('ct-quickjump-overlay');
+    const input = document.getElementById('ct-quickjump-input');
+    input.value = '';
+    ctRenderQuickJumpResults();
+    overlay.classList.add('open');
+    requestAnimationFrame(() => { overlay.classList.add('shown'); input.focus(); });
+  }
+  function ctCloseQuickJump() {
+    const overlay = document.getElementById('ct-quickjump-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
+  document.getElementById('ct-quickjump-input').addEventListener('input', ctRenderQuickJumpResults);
+  document.getElementById('ct-quickjump-input').addEventListener('keydown', (e) => {
+    const rows = () => Array.from(document.querySelectorAll('#ct-quickjump-results .ct-quickjump-row'));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const list = rows();
+      if (!list.length) return;
+      ctQuickJumpActiveIndex = e.key === 'ArrowDown'
+        ? Math.min(list.length - 1, ctQuickJumpActiveIndex + 1)
+        : Math.max(0, ctQuickJumpActiveIndex - 1);
+      list.forEach((r, i) => r.classList.toggle('active', i === ctQuickJumpActiveIndex));
+      list[ctQuickJumpActiveIndex].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const list = rows();
+      if (list[ctQuickJumpActiveIndex]) ctQuickJumpSelect(list[ctQuickJumpActiveIndex].dataset.quickjumpRow);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      ctCloseQuickJump();
+    }
+  });
+  document.getElementById('ct-quickjump-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-quickjump-overlay') ctCloseQuickJump();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
+      e.preventDefault();
+      ctOpenQuickJump();
+    }
   });
 
   // TMT screenshot import — the toolbar button (pick a file) and dragging

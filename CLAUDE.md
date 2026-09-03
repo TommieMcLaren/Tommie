@@ -4646,6 +4646,174 @@ their information as well."
   additional travelers, fill in real passport info for each, remove one,
   and confirm the remaining one's data is intact before and after Save.
 
+## Client Tracker: navigating, tracking, and storing client information (Sep 2026, unverified live)
+
+Direct follow-up to "suggest a really seamless function for navigating,
+tracking and storing client information... be thorough," then "go ahead
+and action all of this." Seven pieces, built in the priority order
+proposed: storage safety first (trash/undo, backup reminder), then
+tracking (status history + a unified activity timeline, tags), then
+navigation (recently viewed, keyboard nav, a global quick-switcher).
+
+- **Trash / undo.** `ctHandleDelete()` no longer drops a client outright
+  — it moves the record into a separate `kt-client-tracker:trash:v1`
+  array (stamped `deletedAt`), leaving `ctClients` itself exactly as
+  clean as it always was (search, grouping, every AI tool needed zero
+  changes). A new 🗑️ button in the header opens a "Recently Deleted"
+  modal listing each trashed client with a real "↺ Restore" and a
+  "Delete permanently" (behind its own confirm), plus how many of the 30
+  days are left before `ctPurgeOldTrash()` — run on every load — removes
+  it for good, silently, with nothing to confirm (that's the whole point
+  of the window already having passed). The delete confirm dialog still
+  says "This can't be undone" on purpose — a 30-day safety net is
+  insurance for a mistake, not a feature to lean on, so Delete should
+  still feel final in the moment.
+- **Backup reminder.** `ctExportBackup()` now stamps
+  `kt-client-tracker:last-backup:v1` with today's date every time it
+  actually runs. A new `ctMaybeNudgeBackup()` — checked once whenever the
+  panel opens, same once-a-day dedup shape as this file's other ambient
+  checks — shows a dismissible gold banner ("It's been N days since your
+  last backup...") once there's real data at risk (at least one client
+  on file) and either nothing's ever been exported or it's been more
+  than 14 days. "📥 Back up now" runs the real export and clears the
+  banner immediately; dismissing just hides it for today without
+  resetting the clock, so a real 14-day gap still gets flagged tomorrow.
+  An empty roster never nudges — there's nothing to lose yet.
+- **Status-change history + a unified activity timeline.** The real gap
+  named in the original proposal: a card only ever showed the CURRENT
+  status, with no record of when it got there. `ctHandleSave()` now
+  appends `{status, changedAt}` to a new `client.statusHistory` array
+  whenever the status field actually changes on an edit (not on every
+  save — editing an unrelated field shouldn't fabricate a status-change
+  event), and seeds a first entry plus a real `createdAt` timestamp when
+  a client is created. A new "📜 Activity" button in the profile header
+  opens a READ-ONLY modal merging status changes, drafts, notes, and
+  follow-ups into one chronological feed — genuinely the single most
+  valuable piece of this whole batch, since a client's history used to
+  be split across three separate sidebar sections with no single place
+  that read "here's everything, in order." Deliberately does NOT touch
+  or replace the existing Notes/Follow-ups/Drafts sections — those stay
+  exactly as they are, since they're what the DE actually acts through
+  (add a note, mark a follow-up done, reopen a draft); the timeline is
+  purely "show me everything," so none of that already-tested
+  interactive UI had to be rebuilt or put at risk. Two disclosed,
+  real limitations rather than silently-assumed correctness: a follow-up
+  has no separate "added at" timestamp, so its own scheduled/target date
+  is used as its timeline position; and a note's timestamp comes from
+  `ctTimestampedNote()`'s `toLocaleString()` text (not a real ISO
+  string), re-parsed via `new Date(label)` to sort it — reliable in the
+  real browsers this file targets, not a spec-guaranteed round trip. An
+  event whose date can't be parsed at all sorts to the bottom rather than
+  crashing or vanishing.
+- **Tags.** A plain comma-separated `Tags` field next to Lead Category in
+  the Add/Edit form — the simplest UI that stores the real shape,
+  matching this file's own established call elsewhere rather than a
+  dedicated pill-input widget. Parsed into `client.tags[]` on save,
+  trimmed, and deduped case-insensitively (so "VIP" and "vip" typed on
+  two different calls collapse to one tag, keeping whichever casing was
+  seen first). Rendered as small pills on both the card and the profile
+  header; folded into the existing search box rather than a second
+  filter control, so typing a tag fragment finds the right client the
+  same way typing part of a phone number already does.
+- **Recently viewed.** A short, most-recent-first row of up to 5 names
+  above the list (`kt-client-tracker:recent:v1`), shown only once the
+  roster is bigger than 3 clients — a tiny book has no real need for a
+  shortcut back to something already one glance away. Updates on every
+  `ctOpenDetail()`; re-viewing an already-recent client moves it to the
+  front rather than duplicating it. Correctly hides while a profile is
+  open (nothing to jump to from inside a profile) and — a real bug
+  caught while testing, not by inspection alone — correctly REBUILDS
+  itself on "← Back to list," not just re-shows whatever it held before;
+  the first implementation only restored visibility on close without
+  re-rendering content, so the client just viewed would silently never
+  appear until some unrelated list re-render happened to run first.
+- **Keyboard nav in the list.** Arrow keys move a highlighted card
+  (`.ct-kbd-focus`), Enter opens it — scoped tightly to when the panel is
+  open, the list itself (not the form, a profile, or the quick-switcher)
+  is showing, and focus isn't actually inside a text input/select, so
+  typing in the search box is never hijacked.
+- **Global quick-switcher (Ctrl+Shift+K).** Jump to any client's profile
+  from anywhere in the app, not just from inside an already-open Client
+  Tracker — Ctrl+K and `j`/`k` are already the guide's own full-text-
+  search/section-nav bindings, so this deliberately uses a different
+  chord rather than fighting over an existing one. Fuzzy-matches
+  (name-starts-with ranked above name-contains, capped at 8), arrow keys
+  move the active result, Enter opens it via the same
+  `window.__ctOpenClientProfile` every other "jump to this client" entry
+  point in this file already uses (opens the panel and the profile in
+  one call), Escape or a backdrop click closes it.
+- **A real, shared test-harness bug found and fixed while building this**
+  — not an app bug, but worth recording since it could have silently
+  masked one: `dom_harness.js`'s `classList.toggle(class)` only ever
+  supported the one-argument flip form. This file's own real app code
+  (the keyboard-nav highlight, the lead-temp tab active state, and now
+  several new features) uses the standard two-argument
+  `toggle(class, force)` form, where `force` means "ensure present/
+  absent," not "flip." Ignoring that second argument produced correct-
+  looking output for a single toggle call but corrupted state across a
+  loop of several — confirmed directly: a second ArrowDown in the
+  keyboard-nav test left BOTH cards without the highlight class instead
+  of moving it, exactly the failure shape a caller of the real two-arg
+  API would hit. Fixed in the shared harness so this file's own test
+  suite doesn't keep re-discovering the same underlying bug shape by
+  accident, one feature at a time.
+- Verified with a real Node execution-harness test
+  (`test_nav_track_store.js`, 60+ checks) against the actual extracted
+  Client Tracker source: the full trash lifecycle (delete → moves to
+  trash, not gone → restore puts it back → permanent purge removes it
+  for good → an entry older than 30 days auto-purges on load → cancelling
+  the delete confirm leaves the client untouched); the backup nudge's
+  full decision table (no clients, never backed up, backed up today,
+  backed up 20 days ago, the once-a-day dedup, "Back up now" actually
+  stamping a fresh date and hiding the banner, dismiss hiding it without
+  touching the date); tags (parse/dedupe/trim, card and profile pills,
+  search-by-tag, round-tripping back into the form on edit); status
+  history (createdAt + a seeded first entry on creation, no duplicate
+  entry on an unrelated-field edit, a real entry on an actual status
+  change) and the activity timeline (merges status/follow-up/note events,
+  an empty-state message, the title naming the client); recently viewed
+  (shows only past 3 clients, hides while a profile is open, re-viewing
+  moves to front without duplicating, caps at 5, a chip actually opens
+  the right client, and the reported-shape "Back to list doesn't refresh
+  it" bug specifically); keyboard nav (ArrowDown highlights and clamps at
+  the last card rather than wrapping, Enter opens the highlighted card,
+  and it correctly does nothing while typing in search or while a
+  profile/form is open); and the quick-switcher (opens from a closed
+  panel, startsWith-ranked matching, the alphabetical empty-query list,
+  the no-matches message, Enter opening the active result and closing
+  the switcher, both uppercase/lowercase K, Escape). XSS probes across a
+  trashed client's name, a tag, and a timeline-rendered note all came
+  back fully escaped. Full pre-existing regression suite re-run with
+  zero failures caused by this change (the same two known-baseline
+  artifacts — `test_tabs_visibility.js`'s two non-bugs,
+  `test_draft_button.js`'s one async-timing check — are unchanged and
+  unrelated). All 17 `<script>` blocks parse; div/span/button/select/
+  label/details tag balance moved by exactly the new markup added, with
+  the established span/button false-positive gaps unchanged and no new
+  imbalance.
+- **Deliberately not built**: bulk restore from trash, exporting trash
+  alongside the regular backup (a backup represents the active roster;
+  recently-deleted is a separate, shorter-lived net — conflating the two
+  would make an old backup accidentally resurrect something meant to
+  stay gone), tag-click-to-filter as a second UI beyond the search box,
+  and a "who changed this status" identity on status-history entries
+  (this file doesn't track DE identity anywhere else either). None of
+  these were part of what was asked, and each is a real, separable
+  follow-up if wanted later.
+- **Unverified live, and this is a lot of new surface area at once**:
+  whether 14 days is the right backup-nudge threshold and 30 the right
+  trash window in practice, how the activity timeline reads against a
+  real client with months of mixed history, whether Ctrl+Shift+K is
+  discoverable without documentation (there's no on-screen hint for it
+  yet, unlike Ctrl+K's own placeholder text), and whether keyboard nav's
+  highlight ring is visible enough at a glance — none of this has been
+  seen in a real browser from this environment. Test next: delete and
+  restore a client, let the backup nudge appear (or force it by editing
+  `kt-client-tracker:last-backup:v1` in dev tools), add a tag and search
+  for it, open a client's Activity timeline, change a client's status a
+  couple of times and confirm the timeline reflects it, and try
+  Ctrl+Shift+K from outside the Client Tracker entirely.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
