@@ -5490,6 +5490,170 @@ hundreds, staying navigable.
   appear, click through a few column sorts, and export a filtered view
   to CSV and open it in real Excel.
 
+## Sales Analytics dashboard — a real reporting layer over the Sales tab (Sep 2026, unverified live)
+
+Direct follow-up to "do you know the CRM Hubspot, would that make sense
+to build something similar to that?" then, after being talked through
+what's actually buildable within this file's single-HTML/no-backend
+architecture (a full HubSpot equivalent needs a multi-user backend, real
+sync, and automation this project doesn't have and isn't going to grow):
+**"what would make the most sense? I dont want to cut corners because
+this is going to be a daily go to for everything customer related."**
+The two options on the table were a kanban-style drag-and-drop pipeline
+board and a real reporting/analytics dashboard — recommended the
+dashboard first, because a kanban board mostly re-presents data the
+Sales tab already shows (a nicer way to look at the same slice), while a
+dashboard answers questions that weren't answerable at all before this:
+conversion rate, average days-to-book, revenue trend, which destinations
+actually close. Also only honestly buildable now — `salesStatusHistory`
+only became accurate across every write path (form save, inline dropdown,
+bulk apply, AI patch) in the immediately preceding staleness-tracking
+work, so the time-series data this needs is finally real, not
+approximate. User agreed and asked to build it, with a link to their old
+real HubSpot deals pipeline for reference (a private, login-gated URL
+this environment can't fetch — used as a general "here's the category of
+tool" pointer, not a page actually read).
+
+- **A genuinely separate concern from Pipeline Stats (`ctBuildStatsHtml`,
+  the existing 📊 modal), not a rebuild of it.** Pipeline Stats answers
+  "where does everything stand right now" — a point-in-time snapshot,
+  explicitly documented elsewhere in this file as staying that way on
+  purpose. This answers a structurally different question a snapshot
+  can't: how is the pipeline actually PERFORMING over time. New 📈
+  header button (`ct-analytics-btn`, next to the existing 📊), its own
+  wider modal (`#ct-analytics-overlay`/`#ct-analytics-modal`, 900px vs.
+  Pipeline Stats' 640px — enough room for a trend chart and several
+  sections without feeling cramped), same overlay/modal open/close
+  fade-transition pattern as every other pop-out in this file, added to
+  the shared CSS lists (opacity/transform/`@media print` hide) alongside
+  them.
+- **`ctBuildSalesAnalytics()`** — pure data computation, deliberately
+  split from its HTML renderer (`ctBuildAnalyticsHtml`) so it's directly
+  Node-testable against real `ctClients` data with no DOM involved, same
+  split this file already uses for `ctGroupClients` vs. its own render
+  callers. Computes:
+  - **Open pipeline value / booked-all-time value** — straightforward
+    sums, reusing `ctParseCurrency`.
+  - **Win rate** — booked count ÷ everyone who ever had a Sales Status
+    set. **Deliberately disclosed as imperfect, not silently accepted as
+    exact**: there's no "Lost" stage tracked (`CT_SALES_STATUSES` is
+    exactly the four values asked for — Quoting/Requote/Final Touches/
+    Booked, no fifth status invented to make this metric cleaner), so a
+    lead that goes cold without ever being marked Booked stays counted
+    as "open" here forever, not "lost." A footnote on the dashboard
+    itself says this in plain language rather than presenting a
+    seemingly-precise percentage with a hidden asterisk.
+  - **Avg. days to book** — first real `salesStatusHistory` entry to the
+    entry where Sales Status became Booked, averaged across clients
+    where that's an honestly measurable journey. A client whose FIRST
+    ever logged entry is already "Booked" (no earlier stage was ever
+    tracked — a legacy record, a hand-created one, or one booked before
+    this feature existed) is correctly excluded rather than counted as a
+    fabricated "0-day" close — caught and fixed during testing, not
+    assumed correct from the start (see the Verified section below).
+  - **Pipeline funnel** — count + value at each of the four stages right
+    now, rendered as hand-rolled CSS horizontal bars (no charting
+    library — this file has no build step and no external dependency
+    anywhere else in it, so this doesn't start being the first one).
+  - **Avg. time in stage** — reuses `ctSalesStageDays()` (the exact same
+    function the Sales tab's own stale-badge and the Daily Brief's
+    staleness line already use) averaged per open stage — one
+    definition of "how long has this been sitting here," not a second
+    one just for this dashboard.
+  - **6-month booking trend** — a small vertical CSS bar chart (count +
+    value per month, read straight from every client's own
+    `salesStatusHistory` 'Booked' entries, no separate log needed) plus
+    a this-month-vs-last-month comparison line.
+  - **Top destinations (booked)** — grouped by `client.destination`
+    among Booked clients, ranked by value then count, rendered as the
+    same horizontal-bar language as the funnel.
+  - **At-risk deals** — the exact same `ctIsSalesStale`/staleness rule
+    already powering the Sales tab's badge and the Daily Brief's line,
+    not a second threshold invented for this view.
+  - **Recent pipeline activity** — every `salesStatusHistory` entry
+    across the whole roster, flattened, newest-first, capped to a
+    readable handful.
+  - Every at-risk/activity row is a real click target
+    (`data-an-open-client`) — clicking one closes the analytics modal
+    and calls `ctOpenDetail(id)` directly (a plain internal function,
+    not a `window.__ct*` export — this button only ever exists while
+    the Client Tracker panel itself is already open, since it lives
+    inside `#ct-head`), same "drive the real UI, don't make the DE hunt
+    for the client by hand" pattern as every other name-links-to-profile
+    spot in this file.
+- **A real bug caught by testing, not assumed correct from the start**:
+  the first version of the avg-days-to-book calculation counted a
+  client whose entire `salesStatusHistory` was a single "Booked" entry
+  as a 0-day close (first entry = last entry = the Booked entry itself).
+  That's not a real measured duration, it's the absence of one — fixed
+  by explicitly excluding any client whose earliest logged entry is
+  already 'Booked' from the average, rather than letting a silent "0"
+  quietly drag the real average down. Caught while writing the Node
+  harness test below, before this ever reached the live file's git
+  history as a bug to later find and fix.
+- Verified with a real Node execution-harness test (`test_sales_
+  analytics.js`, 43 checks) against the actual extracted Client Tracker
+  source (not a paraphrase), using a realistic 7-client synthetic roster
+  spanning multiple months/stages/destinations: every core metric
+  (pipeline value, booked value, win rate, avg. days to book excluding
+  the no-journey legacy client, the funnel's per-stage counts/values,
+  avg. time in stage, the 6-month trend's this-month/last-month buckets,
+  top destinations ranked correctly across three Barcelona bookings vs.
+  one Madrid booking, at-risk correctly flagging only the genuinely
+  stale lead, activity capped and sorted); the same edge cases on a
+  completely empty roster (win rate/avg-days-to-book correctly `null`,
+  not `NaN`/`0`, totals correctly `0`, list fields correctly empty
+  arrays); the HTML renderer's empty state and every section actually
+  appearing with real data; an XSS probe across both a client name and a
+  destination field (confirmed the ESCAPED text is what's present, not
+  a naive raw-substring check that would have wrongly flagged
+  `ctEscapeHtml`'s own correctly-escaped output — checked specifically
+  for the absence of a live, parseable `<img onerror=...>` tag, not just
+  the substring "onerror=" which legitimately still appears as inert
+  escaped text); and the real click-through from an at-risk row to that
+  client's actual profile, including that dom_harness's `click()`
+  doesn't bubble (a harness limitation, not an app one — worked around
+  by triggering the delegated listener directly with a `target`
+  override, the same way a real browser's bubbling would reach it).
+  Re-ran the full pre-existing regression suite (17 other test files)
+  against freshly re-extracted source with zero regressions — the same
+  two known baseline artifacts (`test_tabs_visibility.js`'s two
+  non-bugs, `test_draft_button.js`'s one no-API-key-configured check)
+  are unchanged and unrelated. All 16 inline `<script>` blocks parse;
+  tag balance held at the established baseline (div/select/label/
+  details/table/th clean; span/button carry their pre-existing,
+  previously-documented 1-off/2-off false-positive gaps from prose
+  comments elsewhere in the file, unaffected by this addition).
+- **Deliberately not built**: a "Lost" pipeline stage (would clean up
+  the win-rate math, but wasn't asked for — `CT_SALES_STATUSES` stays
+  exactly the four values the DE specified, with the win-rate limitation
+  disclosed instead of silently worked around by inventing scope); a
+  kanban-style drag-and-drop board (the other option on the table —
+  recommended second specifically because it's a UI-feel upgrade over
+  data the Sales tab already surfaces, not new capability, and dragging
+  a card would need to trigger the exact same `ctAppendSalesStatusHistory`
+  path every other Sales Status change does or it silently reopens the
+  staleness feature's own just-fixed data-quality gap); per-rep or
+  per-source reporting (this file has no lead-source field and tracks a
+  single DE, not a team — HubSpot's own multi-rep reporting has no
+  equivalent data to report on here); and exporting the dashboard itself
+  (the CSV export already covers "get this data into a spreadsheet," and
+  the roster-level Sales tab is closer to what's actually exportable
+  row-by-row).
+- **Unverified live, and this is the first genuinely new chart-shaped UI
+  in this file**: whether the hand-rolled CSS bar charts (both the
+  horizontal funnel/destination bars and the vertical 6-month trend)
+  render cleanly and read clearly at a glance in a real browser, whether
+  900px is the right modal width on a real laptop-sized window, whether
+  the win-rate footnote is noticed/understood rather than skipped past,
+  and whether clicking through from an at-risk/activity row to a
+  client's profile feels like the right shortcut in practice — none of
+  this has been seen outside this environment. Test next: open the 📈
+  Sales Analytics button with a real roster that has a few months of
+  booking history, confirm the funnel and trend chart look right, check
+  that the win-rate footnote reads clearly, and click through an
+  at-risk row to confirm it lands on the right client's profile.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

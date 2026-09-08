@@ -785,17 +785,17 @@
      before its own fade-out finishes playing. */
   #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
   #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay,
-  #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay {
+  #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay, #ct-analytics-overlay {
     opacity: 0; transition: opacity .18s ease;
   }
   #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
   #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown, #ct-stats-overlay.shown,
-  #ct-trash-overlay.shown, #ct-timeline-overlay.shown, #ct-quickjump-overlay.shown, #ta-history-overlay.shown, #ta-help-overlay.shown {
+  #ct-trash-overlay.shown, #ct-timeline-overlay.shown, #ct-quickjump-overlay.shown, #ta-history-overlay.shown, #ta-help-overlay.shown, #ct-analytics-overlay.shown {
     opacity: 1;
   }
   #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
   #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal, #ct-stats-modal,
-  #ct-trash-modal, #ct-timeline-modal, #ct-quickjump-modal, #ta-history-modal, #ta-help-modal {
+  #ct-trash-modal, #ct-timeline-modal, #ct-quickjump-modal, #ta-history-modal, #ta-help-modal, #ct-analytics-modal {
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
@@ -806,7 +806,7 @@
   #ct-scan-overlay.shown #ct-scan-modal, #ct-stats-overlay.shown #ct-stats-modal,
   #ct-trash-overlay.shown #ct-trash-modal, #ct-timeline-overlay.shown #ct-timeline-modal,
   #ct-quickjump-overlay.shown #ct-quickjump-modal, #ta-history-overlay.shown #ta-history-modal,
-  #ta-help-overlay.shown #ta-help-modal {
+  #ta-help-overlay.shown #ta-help-modal, #ct-analytics-overlay.shown #ct-analytics-modal {
     transform: translateY(0) scale(1);
   }
 
@@ -1742,7 +1742,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay, #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay, #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay, #ct-analytics-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -16412,6 +16412,65 @@ ${bodyHtml}
     white-space: nowrap;
   }
 
+  /* Sales Analytics dashboard (Sep 2026) — a real reporting layer over
+     the Sales tab's data (funnel, conversion, revenue trend), not just
+     another snapshot-of-right-now like Pipeline Stats. Same overlay/
+     modal pattern, wider to fit a trend chart and several sections
+     without feeling cramped. Hand-rolled CSS bars, not a charting
+     library — this file has no build step and no external dependency
+     anywhere else in it, so this doesn't start being the first one. */
+  #ct-analytics-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-analytics-overlay.open { display: flex; }
+  #ct-analytics-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 900px; width: 100%; max-height: 90vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid var(--sage-darker); position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-analytics-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-analytics-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-analytics-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-analytics-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-analytics-close:hover { color: var(--sage-darker); }
+  #ct-analytics-body { padding: 4px 30px 26px; overflow-y: auto; flex: 1; min-height: 0; }
+
+  /* Horizontal bar rows — the pipeline funnel and top-destinations list. */
+  .ct-an-bars { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .ct-an-bar-row { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px; font-size: 12.5px; }
+  .ct-an-bar-label { color: var(--ct-ink-soft); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ct-an-bar-track { background: var(--beige, #f6f1e7); border-radius: 6px; height: 16px; overflow: hidden; }
+  .ct-an-bar-fill { height: 100%; border-radius: 6px; background: var(--gold); min-width: 3px; transition: width .3s ease; }
+  .ct-an-bar-fill.requote { background: #c96a4a; }
+  .ct-an-bar-fill.final { background: #8467b0; }
+  .ct-an-bar-fill.booked { background: var(--sage-darker); }
+  .ct-an-bar-value { color: var(--sage-darker); font-weight: 700; white-space: nowrap; }
+
+  /* Simple list rows — stage duration, at-risk deals, recent activity. */
+  .ct-an-list { margin-bottom: 20px; display: flex; flex-direction: column; gap: 2px; }
+  .ct-an-list-row {
+    display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; padding: 7px 10px;
+    border-radius: 8px; color: var(--dark);
+  }
+  .ct-an-list-row span:last-child { color: var(--ct-ink-soft); white-space: nowrap; }
+  .ct-an-list-row em { font-style: normal; color: var(--ct-ink-soft); }
+  .ct-an-risk-row, .ct-an-activity-row { cursor: pointer; transition: background .1s ease; }
+  .ct-an-risk-row:hover, .ct-an-activity-row:hover { background: var(--ct-gold-soft, #f3ead9); }
+  .ct-an-risk-row { background: #fdf6ee; }
+  .ct-an-list-more { font-size: 11.5px; color: var(--ct-ink-soft); font-style: italic; padding: 2px 10px; }
+
+  /* Vertical bar chart — bookings over the last 6 months. */
+  .ct-an-trend { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; align-items: end; height: 120px; margin-bottom: 8px; }
+  .ct-an-trend-col { display: flex; flex-direction: column; align-items: center; height: 100%; }
+  .ct-an-trend-bar-wrap { flex: 1; display: flex; align-items: end; width: 100%; }
+  .ct-an-trend-bar { width: 60%; margin: 0 auto; min-height: 3px; background: var(--sage-darker); border-radius: 4px 4px 0 0; transition: height .3s ease; }
+  .ct-an-trend-count { font-size: 11px; font-weight: 700; color: var(--sage-darker); margin-top: 4px; height: 14px; }
+  .ct-an-trend-label { font-size: 10.5px; color: var(--ct-ink-soft); }
+  .ct-an-mom { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px; background: var(--ct-gold-soft, #f3ead9); border-radius: 8px; margin-bottom: 20px; font-size: 12.5px; }
+  .ct-an-mom b { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--sage-darker); }
+  .ct-an-mom-sub { color: var(--ct-ink-soft); }
+  .ct-an-mom-delta { color: var(--ct-ink-soft); font-weight: 700; }
+
+  .ct-an-footnote { font-size: 11px; color: var(--ct-ink-soft); font-style: italic; margin: 4px 0 0; line-height: 1.5; }
+
   /* Recently Deleted / trash (Sep 2026) — same overlay/modal pop-out
      pattern as #ct-stats-overlay, its own red-toned accent since this is
      the "undo a mistake" tool, not a neutral snapshot. */
@@ -16555,6 +16614,7 @@ ${bodyHtml}
     <div id="ct-head-actions">
       <button type="button" id="ct-notify-btn" class="ct-head-group" title="Browser reminders when a follow-up is due">🔕</button>
       <button type="button" id="ct-stats-btn" class="ct-head-group" title="Pipeline snapshot — counts by status and lead temperature">📊</button>
+      <button type="button" id="ct-analytics-btn" class="ct-head-group" title="Sales analytics — conversion, revenue trend, and what needs attention">📈</button>
       <span class="ct-head-divider"></span>
       <button type="button" id="ct-export-btn" class="ct-head-group" title="Download a backup of every client">📥</button>
       <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file">📤</button>
@@ -16882,6 +16942,17 @@ ${bodyHtml}
       <p>A quick read on the whole book — not a substitute for the actual list, just a health check.</p>
     </div>
     <div id="ct-stats-body"></div>
+  </div>
+</div>
+
+<div id="ct-analytics-overlay">
+  <div id="ct-analytics-modal">
+    <button type="button" id="ct-analytics-close" aria-label="Close">✕</button>
+    <div id="ct-analytics-head">
+      <h3>📈 Sales Analytics</h3>
+      <p>How the pipeline is actually performing — conversion, revenue trend, and what needs attention. Not a substitute for the Sales tab, a deeper read on the same data.</p>
+    </div>
+    <div id="ct-analytics-body"></div>
   </div>
 </div>
 
@@ -17298,6 +17369,129 @@ ${bodyHtml}
   function ctIsSalesStale(client) {
     const days = ctSalesStageDays(client);
     return days !== null && days >= CT_SALES_STALE_DAYS;
+  }
+
+  // Sales Analytics dashboard (Sep 2026) — direct follow-up once the Sales
+  // tab and its staleness check both existed: "what would make the most
+  // sense... this is going to be a daily go-to for everything customer
+  // related." Pipeline Stats (ctBuildStatsHtml, further below) already
+  // answers "where does everything stand right now" — this answers the
+  // question a point-in-time snapshot structurally can't: how is the
+  // pipeline actually PERFORMING over time (conversion, revenue, trend).
+  // Pure data computation, deliberately separated from the HTML builder
+  // below it (ctBuildAnalyticsHtml) so this function is directly Node-
+  // testable against real ctClients data with no DOM involved — same
+  // split this file already uses elsewhere (ctGroupClients vs. its own
+  // render callers).
+  function ctBuildSalesAnalytics() {
+    const withSales = ctClients.filter(c => c.salesStatus);
+    const booked = ctClients.filter(c => c.salesStatus === 'Booked');
+    const open = withSales.filter(c => c.salesStatus !== 'Booked');
+
+    const totalPipelineValue = open.reduce((sum, c) => sum + ctParseCurrency(c.saleAmount), 0);
+    const totalBookedValue = booked.reduce((sum, c) => sum + ctParseCurrency(c.saleAmount), 0);
+
+    // Win rate: of everyone who ever entered the sales pipeline, how many
+    // reached Booked. Honest limitation, not silently hidden — there's no
+    // "Lost" stage tracked (CT_SALES_STATUSES is exactly the 4 values
+    // asked for), so a lead that goes cold without ever being marked
+    // Booked stays counted as "open" here forever, not "lost." This is
+    // disclosed in the dashboard's own footnote, not fixed by inventing a
+    // fifth status that wasn't asked for.
+    const winRate = withSales.length ? Math.round((booked.length / withSales.length) * 100) : null;
+
+    // Avg. days to book: first real salesStatusHistory entry -> the entry
+    // where salesStatus became Booked, for clients where that's an actual
+    // measurable journey (i.e. NOT already Booked at their very first
+    // logged entry — that shape means no earlier stage was ever tracked,
+    // so there's nothing honest to measure a duration against, not a
+    // real "0-day" close).
+    const bookTimes = [];
+    booked.forEach(c => {
+      const hist = (Array.isArray(c.salesStatusHistory) ? c.salesStatusHistory : []).filter(h => h && h.changedAt);
+      if (!hist.length) return;
+      const sorted = hist.slice().sort((a, b) => new Date(a.changedAt) - new Date(b.changedAt));
+      if (sorted[0].salesStatus === 'Booked') return;
+      const bookedEntry = sorted.find(h => h.salesStatus === 'Booked');
+      if (!bookedEntry) return;
+      const days = Math.round((new Date(bookedEntry.changedAt) - new Date(sorted[0].changedAt)) / 86400000);
+      if (!isNaN(days) && days >= 0) bookTimes.push(days);
+    });
+    const avgDaysToBook = bookTimes.length ? Math.round(bookTimes.reduce((a, b) => a + b, 0) / bookTimes.length) : null;
+
+    // Funnel: who's at each stage right now, count + tracked value.
+    const funnel = CT_SALES_STATUSES.map(s => {
+      const atStage = ctClients.filter(c => c.salesStatus === s);
+      return { stage: s, count: atStage.length, value: atStage.reduce((sum, c) => sum + ctParseCurrency(c.saleAmount), 0) };
+    });
+
+    // Avg. time in stage, open stages only — reuses ctSalesStageDays per
+    // client (the same "no reliable signal, no guess" rule) averaged
+    // across everyone currently sitting in that stage.
+    const avgDaysInStage = {};
+    CT_SALES_STATUSES.filter(s => s !== 'Booked').forEach(s => {
+      const atStage = ctClients.filter(c => c.salesStatus === s);
+      const days = atStage.map(ctSalesStageDays).filter(d => d !== null);
+      avgDaysInStage[s] = days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : null;
+    });
+
+    // Monthly trend: last 6 calendar months (this month included), booked
+    // count + value, read straight from every client's own
+    // salesStatusHistory 'Booked' entries — no separate log needed.
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), label: d.toLocaleDateString('en-US', { month: 'short' }), count: 0, value: 0 });
+    }
+    const monthByKey = {};
+    months.forEach(m => { monthByKey[m.key] = m; });
+    ctClients.forEach(c => {
+      (Array.isArray(c.salesStatusHistory) ? c.salesStatusHistory : []).forEach(h => {
+        if (!h || h.salesStatus !== 'Booked' || !h.changedAt) return;
+        const d = new Date(h.changedAt);
+        if (isNaN(d.getTime())) return;
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (monthByKey[key]) { monthByKey[key].count++; monthByKey[key].value += ctParseCurrency(c.saleAmount); }
+      });
+    });
+    const thisMonth = months[months.length - 1];
+    const lastMonth = months[months.length - 2];
+
+    // Top destinations among booked clients, by value then count.
+    const destMap = {};
+    booked.forEach(c => {
+      const key = (c.destination || '').trim() || 'Unspecified';
+      if (!destMap[key]) destMap[key] = { destination: key, count: 0, value: 0 };
+      destMap[key].count++;
+      destMap[key].value += ctParseCurrency(c.saleAmount);
+    });
+    const topDestinations = Object.values(destMap).sort((a, b) => (b.value - a.value) || (b.count - a.count)).slice(0, 5);
+
+    // At-risk: the exact same staleness rule the Sales tab badges and the
+    // Daily Brief already use (__ctGetStaleSalesLeads) — one definition
+    // of "stalled," not a second one just for this dashboard.
+    const atRisk = ctClients.filter(ctIsSalesStale)
+      .map(c => ({ id: c.id, name: c.name, salesStatus: c.salesStatus, days: ctSalesStageDays(c), amount: ctParseCurrency(c.saleAmount) }))
+      .sort((a, b) => b.days - a.days);
+
+    // Recent activity: every salesStatusHistory entry across the whole
+    // roster, flattened and sorted newest-first, capped to a readable
+    // handful.
+    const activity = [];
+    ctClients.forEach(c => {
+      (Array.isArray(c.salesStatusHistory) ? c.salesStatusHistory : []).forEach(h => {
+        if (!h || !h.changedAt) return;
+        activity.push({ clientId: c.id, name: c.name, salesStatus: h.salesStatus, changedAt: h.changedAt });
+      });
+    });
+    activity.sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt));
+
+    return {
+      totalPipelineValue, totalBookedValue, openCount: open.length, bookedCount: booked.length,
+      winRate, avgDaysToBook, funnel, avgDaysInStage, months, thisMonth, lastMonth,
+      topDestinations, atRisk, activity: activity.slice(0, 8),
+    };
   }
 
   // Small helper so the many optional profile fields (intake questions,
@@ -19769,6 +19963,110 @@ text. If you genuinely can't find any client or task information at all, respond
     setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
+  // Sales Analytics dashboard HTML — reads ctBuildSalesAnalytics()'s pure
+  // data and renders it. Hand-rolled CSS bars (no charting library — this
+  // file has no build step and this session's own established call is to
+  // never add one), reusing .ct-stats-tile/.ct-stats-section-title for
+  // the KPI row so it visually matches Pipeline Stats rather than
+  // introducing a third tile language.
+  function ctBuildAnalyticsHtml() {
+    if (!ctClients.length) return '<p class="ct-stats-empty">No clients tracked yet — analytics will build up as deals move through the pipeline.</p>';
+    const a = ctBuildSalesAnalytics();
+
+    const kpiHtml = `
+      <div class="ct-stats-grid">
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${ctFormatCurrency(a.totalPipelineValue) || '$0'}</div><div class="ct-stats-tile-label">💼 Open pipeline value</div></div>
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${ctFormatCurrency(a.totalBookedValue) || '$0'}</div><div class="ct-stats-tile-label">💰 Booked all-time</div></div>
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${a.winRate === null ? '—' : a.winRate + '%'}</div><div class="ct-stats-tile-label">🎯 Win rate</div></div>
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${a.avgDaysToBook === null ? '—' : a.avgDaysToBook + 'd'}</div><div class="ct-stats-tile-label">⏱️ Avg. days to book</div></div>
+      </div>
+    `;
+
+    const maxFunnelCount = Math.max(1, ...a.funnel.map(f => f.count));
+    const funnelHtml = a.funnel.map(f => `
+      <div class="ct-an-bar-row">
+        <div class="ct-an-bar-label">${ctEscapeHtml(f.stage)}</div>
+        <div class="ct-an-bar-track"><div class="ct-an-bar-fill ${ctSalesStatusClass(f.stage)}" style="width:${Math.max(3, Math.round((f.count / maxFunnelCount) * 100))}%"></div></div>
+        <div class="ct-an-bar-value">${f.count}${f.value ? ' · ' + ctFormatCurrency(f.value) : ''}</div>
+      </div>
+    `).join('');
+
+    const stageDurationHtml = CT_SALES_STATUSES.filter(s => s !== 'Booked').map(s => `
+      <div class="ct-an-list-row"><span>${ctEscapeHtml(s)}</span><span>${a.avgDaysInStage[s] === null ? 'no data yet' : a.avgDaysInStage[s] + ' days avg.'}</span></div>
+    `).join('');
+
+    const maxTrendValue = Math.max(1, ...a.months.map(m => m.value));
+    const trendHtml = a.months.map(m => `
+      <div class="ct-an-trend-col">
+        <div class="ct-an-trend-bar-wrap"><div class="ct-an-trend-bar" style="height:${m.value ? Math.max(4, Math.round((m.value / maxTrendValue) * 100)) : 0}%" title="${ctEscapeHtml(m.label)}: ${m.count} booked, ${ctFormatCurrency(m.value) || '$0'}"></div></div>
+        <div class="ct-an-trend-count">${m.count || ''}</div>
+        <div class="ct-an-trend-label">${ctEscapeHtml(m.label)}</div>
+      </div>
+    `).join('');
+
+    const momValueDelta = a.lastMonth.value ? Math.round(((a.thisMonth.value - a.lastMonth.value) / a.lastMonth.value) * 100) : null;
+    const momDeltaText = (a.lastMonth.count === 0 && a.thisMonth.count === 0) ? 'No bookings yet this month or last.'
+      : (momValueDelta === null ? `vs. ${a.lastMonth.count} booked last month` : (momValueDelta >= 0 ? '▲ ' : '▼ ') + Math.abs(momValueDelta) + '% in booked value vs. last month');
+    const momHtml = `
+      <div class="ct-an-mom">
+        <div><b>${a.thisMonth.count}</b> booked this month <span class="ct-an-mom-sub">(${ctFormatCurrency(a.thisMonth.value) || '$0'})</span></div>
+        <div class="ct-an-mom-delta">${momDeltaText}</div>
+      </div>
+    `;
+
+    const destHtml = a.topDestinations.length ? a.topDestinations.map(d => {
+      const max = a.topDestinations[0].value || 1;
+      return `<div class="ct-an-bar-row">
+        <div class="ct-an-bar-label">${ctEscapeHtml(d.destination)}</div>
+        <div class="ct-an-bar-track"><div class="ct-an-bar-fill booked" style="width:${Math.max(3, Math.round((d.value / max) * 100))}%"></div></div>
+        <div class="ct-an-bar-value">${ctFormatCurrency(d.value) || '$0'} · ${d.count}</div>
+      </div>`;
+    }).join('') : '<p class="ct-stats-empty">No booked trips yet.</p>';
+
+    const atRiskHtml = a.atRisk.length ? (a.atRisk.slice(0, 6).map(c => `
+      <div class="ct-an-list-row ct-an-risk-row" data-an-open-client="${c.id}">
+        <span>${ctEscapeHtml(c.name)} <em>(${ctEscapeHtml(c.salesStatus)})</em></span>
+        <span>${c.days}d stalled${c.amount ? ' · ' + ctFormatCurrency(c.amount) : ''}</span>
+      </div>
+    `).join('') + (a.atRisk.length > 6 ? `<div class="ct-an-list-more">+${a.atRisk.length - 6} more</div>` : '')) : '<p class="ct-stats-empty">Nothing stalled right now.</p>';
+
+    const activityHtml = a.activity.length ? a.activity.map(ev => `
+      <div class="ct-an-list-row ct-an-activity-row" data-an-open-client="${ev.clientId}">
+        <span>${ctEscapeHtml(ev.name)} → ${ctEscapeHtml(ev.salesStatus)}</span>
+        <span>${ctFormatDate(String(ev.changedAt).slice(0, 10)) || ''}</span>
+      </div>
+    `).join('') : '<p class="ct-stats-empty">Nothing logged yet.</p>';
+
+    return `
+      ${kpiHtml}
+      <p class="ct-stats-section-title">Pipeline Funnel</p>
+      <div class="ct-an-bars">${funnelHtml}</div>
+      <p class="ct-stats-section-title">Avg. Time in Stage</p>
+      <div class="ct-an-list">${stageDurationHtml}</div>
+      <p class="ct-stats-section-title">Bookings — Last 6 Months</p>
+      <div class="ct-an-trend">${trendHtml}</div>
+      ${momHtml}
+      <p class="ct-stats-section-title">Top Destinations (Booked)</p>
+      <div class="ct-an-bars">${destHtml}</div>
+      <p class="ct-stats-section-title">⏳ At-Risk Deals</p>
+      <div class="ct-an-list">${atRiskHtml}</div>
+      <p class="ct-stats-section-title">Recent Pipeline Activity</p>
+      <div class="ct-an-list">${activityHtml}</div>
+      <p class="ct-an-footnote">Win rate counts everyone who ever had a Sales Status set, against how many reached Booked — there's no "Lost" stage tracked, so a lead that goes cold without ever being marked Booked stays counted as open here, not lost.</p>
+    `;
+  }
+  function ctOpenAnalytics() {
+    document.getElementById('ct-analytics-body').innerHTML = ctBuildAnalyticsHtml();
+    const overlay = document.getElementById('ct-analytics-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseAnalytics() {
+    const overlay = document.getElementById('ct-analytics-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
+
   // Browser desktop-notification reminders for due/overdue follow-ups.
   // This same-tab path is the one guaranteed to work — it needs no
   // backend, no OAuth, no hosting, and runs fine from a plain downloaded
@@ -19879,6 +20177,23 @@ text. If you genuinely can't find any client or task information at all, respond
   document.getElementById('ct-stats-close').addEventListener('click', ctCloseStats);
   document.getElementById('ct-stats-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'ct-stats-overlay') ctCloseStats();
+  });
+  document.getElementById('ct-analytics-btn').addEventListener('click', ctOpenAnalytics);
+  document.getElementById('ct-analytics-close').addEventListener('click', ctCloseAnalytics);
+  document.getElementById('ct-analytics-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-analytics-overlay') ctCloseAnalytics();
+  });
+  // A stalled-deal or activity row is a real click target — jump straight
+  // to that client's profile, same "drive the real UI" pattern as every
+  // other name-links-to-profile spot in this file. ctOpenDetail is a
+  // plain internal function (no window.__ct* export needed — this button
+  // only ever exists while the Client Tracker panel itself is already
+  // open, since it lives inside ct-head).
+  document.getElementById('ct-analytics-body').addEventListener('click', (e) => {
+    const row = e.target.closest('[data-an-open-client]');
+    if (!row) return;
+    ctCloseAnalytics();
+    ctOpenDetail(row.dataset.anOpenClient);
   });
   document.getElementById('ct-trash-btn').addEventListener('click', ctOpenTrash);
   document.getElementById('ct-trash-close').addEventListener('click', ctCloseTrash);
