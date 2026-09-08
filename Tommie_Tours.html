@@ -12423,13 +12423,15 @@ Ground rules:
     },
     {
       name: 'propose_todo_update',
-      description: "Prepare a change to one client's Client Tracker record — status, lead category, next follow-up date, or a note to add. Never applies anything directly: the app shows the DE a Confirm/Cancel card and only their tap changes real data. Use this when asked to mark something done, reschedule a follow-up, or update a client's status/notes from conversation. Only include the fields actually being changed.",
+      description: "Prepare a change to one client's Client Tracker record — status, lead category, sales status, sale amount, next follow-up date, or a note to add. Never applies anything directly: the app shows the DE a Confirm/Cancel card and only their tap changes real data. Use this when asked to mark something done, reschedule a follow-up, mark a deal booked, or update a client's status/notes from conversation. Only include the fields actually being changed.",
       input_schema: {
         type: 'object',
         properties: {
           clientName: { type: 'string', description: "The client's name, matched against the Client Tracker (case-insensitive, partial match is fine)" },
           status: { type: 'string', description: 'New status, only if changing it: Inquiry, Quote sent, Booked, Traveling, Follow-up needed, or Closed' },
           leadTemp: { type: 'string', description: 'New lead category, only if changing it: Hot Lead, Warm Lead, Check Back Later, Cold Lead, or "" to clear it' },
+          salesStatus: { type: 'string', description: 'New sales status, only if changing it: Quoting, Requote, Final Touches, or Booked, or "" to clear it — this is a separate field from status, tracking where a QUOTE is in the sales process' },
+          saleAmount: { type: 'number', description: 'New sale amount in dollars, only if changing it (e.g. when a deal is booked)' },
           nextFollowUp: { type: 'string', description: 'New next-follow-up date as YYYY-MM-DD, only if changing it, or "" to clear it' },
           noteToAdd: { type: 'string', description: "A note to append to the client's existing notes, only if adding one" }
         },
@@ -12611,6 +12613,8 @@ Ground rules:
     const changes = [];
     if (input.status) { fields.status = input.status; changes.push(`status → ${input.status}`); }
     if (input.leadTemp !== undefined) { fields.leadTemp = input.leadTemp; changes.push(`lead category → ${input.leadTemp || '(cleared)'}`); }
+    if (input.salesStatus !== undefined) { fields.salesStatus = input.salesStatus; changes.push(`sales status → ${input.salesStatus || '(cleared)'}`); }
+    if (input.saleAmount !== undefined) { fields.saleAmount = Number(input.saleAmount) || 0; changes.push(`sale amount → $${fields.saleAmount.toLocaleString('en-US')}`); }
     if (input.nextFollowUp !== undefined) { fields.nextFollowUp = input.nextFollowUp; changes.push(`next follow-up → ${input.nextFollowUp || '(cleared)'}`); }
     if (input.noteToAdd) {
       // Matches the Client Tracker's own manual "add a note" path
@@ -12672,6 +12676,13 @@ Ground rules:
     const row = (label, value) => { if (value && String(value).trim()) rows.push(`${label}: ${value}`); };
     row('Status', c.status);
     row('Lead category', c.leadTemp);
+    row('Sales status', c.salesStatus);
+    // Small, deliberate duplication of the Client Tracker's own
+    // ctFormatCurrency — this tool lives in a different <script> block
+    // and there's no cross-IIFE export for a one-line formatter, same
+    // call this file already makes for ctTimestampedNote's format
+    // elsewhere in this tool.
+    row('Sale amount', c.saleAmount ? '$' + Number(c.saleAmount).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '');
     row('Tags', Array.isArray(c.tags) && c.tags.length ? c.tags.join(', ') : '');
     row('Destination', c.destination);
     row('Linked itinerary', taFindItineraryTitle(c.itineraryId));
@@ -16024,6 +16035,14 @@ ${bodyHtml}
   .ct-flag.temp.warm { background: var(--ct-gold-soft); color: var(--gold-text); }
   .ct-flag.temp.checkback { background: #E4E9F0; color: #3d5470; }
   .ct-flag.temp.cold { background: #E7ECEF; color: #5c7080; }
+  /* Sales Status (Sep 2026) — its own color family, distinct from both
+     Status (gold/green/beige) and Lead Temp (orange/gold/blue/gray) above
+     so all three axes stay visually tellable apart on a card that shows
+     more than one flag at once. */
+  .ct-flag.sales.quoting { background: var(--ct-gold-soft); color: var(--gold-text); }
+  .ct-flag.sales.requote { background: var(--ct-overdue-soft); color: var(--ct-overdue); }
+  .ct-flag.sales.final { background: #EAE1F5; color: #6B4FA0; }
+  .ct-flag.sales.booked { background: #eef4ea; color: var(--sage-darker); }
   /* "All Clients" view's inline status switcher — same color language as
      .ct-flag.status (a plain badge everywhere else) so a card looks the
      same at a glance in either view, just with a real control here
@@ -16037,6 +16056,9 @@ ${bodyHtml}
   }
   .ct-inline-status.booked { background-color: #eef4ea; color: var(--sage-darker); }
   .ct-inline-status.closed { background-color: var(--ct-closed-soft); color: var(--ct-closed); }
+  .ct-inline-status.ct-inline-sales.requote { background-color: var(--ct-overdue-soft); color: var(--ct-overdue); }
+  .ct-inline-status.ct-inline-sales.final { background-color: #EAE1F5; color: #6B4FA0; }
+  .ct-inline-status.ct-inline-sales.booked { background-color: #eef4ea; color: var(--sage-darker); }
   .ct-meta-line { font-size: 12px; color: var(--ct-ink-soft); margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--ct-line); }
   .ct-card-note-btn {
     margin-left: auto; background: none; border: none; font-size: 14px; cursor: pointer; padding: 2px 4px;
@@ -16296,6 +16318,42 @@ ${bodyHtml}
   .ct-stats-tile.cold { background: #E7ECEF; }
   .ct-stats-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
 
+  /* Sales tab (Sep 2026) — "some kind of excel style tab." A real HTML
+     table element, not the card-grid every other view here uses —
+     sortable-reading rows/columns rather than cards, which is the whole
+     point of asking for something spreadsheet-shaped. Summary tiles above
+     it reuse
+     the exact same visual language as .ct-stats-tile so the "at a glance
+     totals" feel is consistent with the Pipeline Stats modal, not a
+     second design language for the same idea. */
+  .ct-sales-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .ct-sales-summary-tile { background: var(--ct-gold-soft, #f3ead9); border-radius: 10px; padding: 12px 14px; text-align: center; }
+  .ct-sales-summary-tile.requote { background: var(--ct-overdue-soft); }
+  .ct-sales-summary-tile.final { background: #EAE1F5; }
+  .ct-sales-summary-tile.booked { background: #eef4ea; }
+  .ct-sales-summary-count { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sage-darker); line-height: 1.1; }
+  .ct-sales-summary-label { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 2px; font-weight: 700; }
+  .ct-sales-summary-total { font-size: 12.5px; color: var(--sage-darker); font-weight: 800; margin-top: 4px; }
+  .ct-sales-table-wrap { overflow-x: auto; border: 1px solid var(--ct-line); border-radius: 10px; }
+  .ct-sales-table { width: 100%; min-width: 620px; border-collapse: collapse; background: #fff; font-size: 13px; }
+  .ct-sales-table thead th {
+    text-align: left; font-family: 'Lato', sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--ct-ink-soft); background: var(--beige, #f6f1e7); padding: 9px 12px;
+    border-bottom: 1px solid var(--ct-line);
+  }
+  .ct-sales-table tbody tr { cursor: pointer; transition: background .1s ease; }
+  .ct-sales-table tbody tr:hover { background: var(--ct-gold-soft, #f3ead9); }
+  .ct-sales-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--ct-line); }
+  .ct-sales-table td { padding: 8px 12px; vertical-align: middle; }
+  .ct-sales-td-name { font-weight: 700; color: var(--sage-darker); white-space: nowrap; }
+  .ct-sales-td-dest, .ct-sales-td-date { color: var(--ct-ink-soft); white-space: nowrap; }
+  .ct-sales-amount-input {
+    width: 90px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--sage-darker);
+    padding: 4px 8px; border: 1px solid var(--ct-line); border-radius: 6px; background: #fff;
+  }
+  .ct-sales-amount-input:focus { outline: none; border-color: var(--gold); }
+  .ct-sales-td-check { width: 24px; }
+
   /* Recently Deleted / trash (Sep 2026) — same overlay/modal pop-out
      pattern as #ct-stats-overlay, its own red-toned accent since this is
      the "undo a mistake" tool, not a neutral snapshot. */
@@ -16479,6 +16537,7 @@ ${bodyHtml}
   <div id="ct-view-toggle">
     <button type="button" class="ct-view-tab active" data-view="urgency">📅 Follow-up</button>
     <button type="button" class="ct-view-tab" data-view="all">📇 All Clients</button>
+    <button type="button" class="ct-view-tab" data-view="sales">💰 Sales</button>
   </div>
   <button type="button" id="ct-bulk-toggle" hidden>☑️ Select</button>
   <div id="ct-tabs">
@@ -16518,6 +16577,20 @@ ${bodyHtml}
           <option value="Check Back Later">🕐 Check Back Later</option>
           <option value="Cold Lead">❄️ Cold Lead</option>
         </select>
+      </div>
+      <div>
+        <label for="ct-f-salesstatus">Sales status</label>
+        <select id="ct-f-salesstatus">
+          <option value="">— Not set —</option>
+          <option value="Quoting">Quoting</option>
+          <option value="Requote">Requote</option>
+          <option value="Final Touches">Final Touches</option>
+          <option value="Booked">Booked</option>
+        </select>
+      </div>
+      <div>
+        <label for="ct-f-saleamount">Sale amount</label>
+        <input type="text" id="ct-f-saleamount" placeholder="$4,200">
       </div>
       <div>
         <label for="ct-f-destination">Destination / trip</label>
@@ -16798,6 +16871,17 @@ ${bodyHtml}
   // and converting them isn't needed for what this constant is actually
   // for.
   const CT_STATUSES = ['Inquiry', 'Quote sent', 'Booked', 'Traveling', 'Follow-up needed', 'Closed'];
+  // Sales Status + Sale Amount (Sep 2026) — direct request: "I need to be
+  // able to track my sales and status of the client." Deliberately a
+  // SEPARATE axis from CT_STATUSES above, not a rename/extension of it —
+  // Status already tracks where a client sits in the overall relationship
+  // (Inquiry → Booked → Closed), the same way Lead Temp tracks urgency as
+  // its own independent axis; Sales Status tracks specifically where a
+  // QUOTE is in the sales process, which doesn't map cleanly onto either
+  // existing field ("Quoting" isn't quite "Quote sent," and a client can
+  // be "Traveling" long after their sale is "Booked"). Kept as a plain
+  // string, not required — a client with nothing sold yet just has ''.
+  const CT_SALES_STATUSES = ['Quoting', 'Requote', 'Final Touches', 'Booked'];
   // Trash/undo (Sep 2026) — a separate storage key, not a "deleted: true"
   // flag on the same record. Keeps ctClients itself (and therefore every
   // existing consumer — search, grouping, the AI tools) exactly as clean
@@ -17072,6 +17156,34 @@ ${bodyHtml}
     if (temp === 'Check Back Later') return 'checkback';
     if (temp === 'Cold Lead') return 'cold';
     return '';
+  }
+
+  function ctSalesStatusClass(status) {
+    if (status === 'Quoting') return 'quoting';
+    if (status === 'Requote') return 'requote';
+    if (status === 'Final Touches') return 'final';
+    if (status === 'Booked') return 'booked';
+    return '';
+  }
+
+  // Sale Amount is stored as a real number (not a formatted string) so it
+  // can actually be SUMMED for the Sales tab's totals row and the Pipeline
+  // Stats modal — the trade-off is these two small format/parse helpers,
+  // matching this file's existing "store the real shape, format only for
+  // display" call (see Tags/travelers elsewhere in this panel). Deliberately
+  // tolerant on parse — "$4,200", "4200", " 4,200.50 " all resolve the same
+  // way — since a DE typing a dollar figure shouldn't have to think about
+  // exact formatting.
+  function ctParseCurrency(raw) {
+    if (raw === null || raw === undefined) return 0;
+    const cleaned = String(raw).replace(/[^0-9.\-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+  function ctFormatCurrency(amount) {
+    const n = ctParseCurrency(amount);
+    if (!n) return '';
+    return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
   }
 
   // Small helper so the many optional profile fields (intake questions,
@@ -17690,6 +17802,8 @@ text. If you genuinely can't find any client or task information at all, respond
     document.getElementById('ct-f-name').value = client ? client.name : '';
     document.getElementById('ct-f-status').value = client ? client.status : 'Inquiry';
     document.getElementById('ct-f-leadtemp').value = client ? (client.leadTemp || '') : '';
+    document.getElementById('ct-f-salesstatus').value = client ? (client.salesStatus || '') : '';
+    document.getElementById('ct-f-saleamount').value = client ? ctFormatCurrency(client.saleAmount) : '';
     document.getElementById('ct-f-tags').value = client && Array.isArray(client.tags) ? client.tags.join(', ') : '';
     document.getElementById('ct-f-destination').value = client ? (client.destination || '') : '';
     document.getElementById('ct-f-itinerary').value = client ? (client.itineraryId || '') : '';
@@ -17896,6 +18010,8 @@ text. If you genuinely can't find any client or task information at all, respond
       name,
       status: document.getElementById('ct-f-status').value,
       leadTemp: document.getElementById('ct-f-leadtemp').value,
+      salesStatus: document.getElementById('ct-f-salesstatus').value,
+      saleAmount: ctParseCurrency(document.getElementById('ct-f-saleamount').value),
       tags,
       destination: document.getElementById('ct-f-destination').value.trim(),
       itineraryId: document.getElementById('ct-f-itinerary').value,
@@ -17966,11 +18082,22 @@ text. If you genuinely can't find any client or task information at all, respond
         // history entry for every save.
         const statusHistory = Array.isArray(prev.statusHistory) ? prev.statusHistory.slice() : [];
         if (data.status !== prev.status) statusHistory.push({ status: data.status, changedAt: nowIso });
-        ctClients[idx] = { ...prev, ...data, statusHistory };
+        // Same tracking, same rule, for the new Sales Status axis — only
+        // logged when it actually changed, and only ever seeded from a
+        // pre-existing record's own prior value the first time this runs
+        // on one that predates the feature (no fabricated history).
+        const salesStatusHistory = Array.isArray(prev.salesStatusHistory) ? prev.salesStatusHistory.slice() : [];
+        if (data.salesStatus !== prev.salesStatus && data.salesStatus) salesStatusHistory.push({ salesStatus: data.salesStatus, changedAt: nowIso });
+        ctClients[idx] = { ...prev, ...data, statusHistory, salesStatusHistory };
       }
     } else {
       newId = ctUid();
-      ctClients.push({ id: newId, createdAt: nowIso, statusHistory: [{ status: data.status, changedAt: nowIso }], ...data });
+      ctClients.push({
+        id: newId, createdAt: nowIso,
+        statusHistory: [{ status: data.status, changedAt: nowIso }],
+        salesStatusHistory: data.salesStatus ? [{ salesStatus: data.salesStatus, changedAt: nowIso }] : [],
+        ...data
+      });
     }
     ctCloseForm();
     ctRender();
@@ -18243,6 +18370,7 @@ text. If you genuinely can't find any client or task information at all, respond
           <span class="ct-client-name">${ctEscapeHtml(c.name)}</span>
           ${statusMarkup}
           ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
+          ${c.salesStatus ? `<span class="ct-flag sales ${ctSalesStatusClass(c.salesStatus)}">${ctEscapeHtml(c.salesStatus)}${c.saleAmount ? ' · ' + ctFormatCurrency(c.saleAmount) : ''}</span>` : ''}
           ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
           <button type="button" class="ct-card-note-btn" data-quicknote-toggle="${c.id}" title="Add a quick note">📝</button>
         </div>
@@ -18450,6 +18578,10 @@ text. If you genuinely can't find any client or task information at all, respond
       if (!h || !h.changedAt) return;
       events.push({ icon: '☑️', text: `Status set to ${h.status}`, displayDate: fullDate(new Date(h.changedAt)), sortTime: parseTime(h.changedAt) });
     });
+    (client.salesStatusHistory || []).forEach(h => {
+      if (!h || !h.changedAt) return;
+      events.push({ icon: '💰', text: `Sales status set to ${h.salesStatus}`, displayDate: fullDate(new Date(h.changedAt)), sortTime: parseTime(h.changedAt) });
+    });
     (client.drafts || []).forEach(d => {
       events.push({ icon: '✉️', text: `Drafted: ${d.subject || '(no subject)'}`, displayDate: fullDate(new Date(d.createdAt)), sortTime: parseTime(d.createdAt) });
     });
@@ -18550,6 +18682,11 @@ text. If you genuinely can't find any client or task information at all, respond
     const diff = c.nextFollowUp ? ctDaysBetween(c.nextFollowUp) : null;
     const isOverdue = diff !== null && diff < 0 && c.status !== 'Closed';
     const lastText = c.lastContact ? ctFormatDate(c.lastContact) : 'Not logged';
+
+    const salesRows = [
+      ctRow('Sales status', c.salesStatus),
+      ctRow('Sale amount', c.saleAmount ? ctFormatCurrency(c.saleAmount) : '')
+    ].join('');
 
     const tripRows = [];
     if (c.destination) tripRows.push(`<div class="ct-profile-row">🌍 ${ctEscapeHtml(c.destination)}</div>`);
@@ -18680,12 +18817,14 @@ text. If you genuinely can't find any client or task information at all, respond
         <span class="ct-profile-name">${ctEscapeHtml(c.name)}</span>
         <span class="ct-flag status ${ctStatusClass(c.status)}">${ctEscapeHtml(c.status)}</span>
         ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
+        ${c.salesStatus ? `<span class="ct-flag sales ${ctSalesStatusClass(c.salesStatus)}">${ctEscapeHtml(c.salesStatus)}${c.saleAmount ? ' · ' + ctFormatCurrency(c.saleAmount) : ''}</span>` : ''}
         ${isOverdue ? '<span class="ct-flag overdue">⚑ Overdue</span>' : ''}
         ${(c.tags && c.tags.length) ? c.tags.map(t => `<span class="ct-tag-pill">${ctEscapeHtml(t)}</span>`).join('') : ''}
       </div>
       <div class="ct-detail-columns">
         <div class="ct-detail-main">
           ${tripRows.length ? `<div class="ct-profile-section"><h4>Trip</h4>${tripRows.join('')}</div>` : ''}
+          ${ctSection('Sales', salesRows)}
           ${contactRows.length ? `<div class="ct-profile-section"><h4>Contact</h4>${contactRows.join('')}</div>` : ''}
           <div class="ct-profile-section">
             <h4>Follow-up</h4>
@@ -18906,6 +19045,153 @@ text. If you genuinely can't find any client or task information at all, respond
     requestAnimationFrame(() => { list.style.opacity = '1'; });
   }
 
+  // Sales tab (Sep 2026) — direct request: "I need to be able to track my
+  // sales and status of the client... some kind of excel style tab." A
+  // genuine flat table, not the card-grouped layout the other two views
+  // use — Client / Status / Sales Status / Sale Amount / Destination /
+  // Last Contact, one row per client. Both status columns and the amount
+  // are inline-editable, writing through the exact same
+  // window.__ctApplyPatch every other inline edit in this panel already
+  // goes through (the "All Clients" view's own status dropdown,
+  // propose_todo_update's Confirm card) — one write path, not a second
+  // one just for this view. Sorted by Sales Status pipeline order
+  // (Quoting → Requote → Final Touches → Booked, unset last) then name,
+  // so same-stage clients cluster together the way a sorted spreadsheet
+  // column would, without needing separate group-header rows breaking up
+  // the grid.
+  function ctSalesRank(status) {
+    const idx = CT_SALES_STATUSES.indexOf(status);
+    return idx === -1 ? CT_SALES_STATUSES.length : idx;
+  }
+  function ctBuildSalesSummaryHtml(list) {
+    const byStatus = {};
+    CT_SALES_STATUSES.forEach(s => { byStatus[s] = { count: 0, total: 0 }; });
+    list.forEach(c => {
+      if (!c.salesStatus || !byStatus[c.salesStatus]) return;
+      byStatus[c.salesStatus].count++;
+      byStatus[c.salesStatus].total += ctParseCurrency(c.saleAmount);
+    });
+    return `<div class="ct-sales-summary">${CT_SALES_STATUSES.map(s => `
+      <div class="ct-sales-summary-tile ${ctSalesStatusClass(s)}">
+        <div class="ct-sales-summary-count">${byStatus[s].count}</div>
+        <div class="ct-sales-summary-label">${ctEscapeHtml(s)}</div>
+        ${byStatus[s].total ? `<div class="ct-sales-summary-total">${ctFormatCurrency(byStatus[s].total)}</div>` : ''}
+      </div>`).join('')}</div>`;
+  }
+  // Same shape as ctApplyBulkStatus (one save/render pass, not N) — a
+  // separate function rather than a parameterized version of that one,
+  // since the two bulk bars apply to different fields and it reads
+  // clearer as two small functions than one with a "which field" flag.
+  function ctApplyBulkSalesStatus(salesStatus) {
+    if (!ctBulkSelected.size) return;
+    const ids = ctBulkSelected;
+    let updated = 0;
+    ctClients = ctClients.map(c => {
+      if (!ids.has(c.id)) return c;
+      updated++;
+      return { ...c, salesStatus };
+    });
+    ctBulkSelected = new Set();
+    ctSaveData();
+    ctRender();
+    ctSetStatus(`Updated ${updated} client${updated === 1 ? '' : 's'} to ${salesStatus}.`);
+  }
+  function ctRenderSalesTable(list, filtered) {
+    const rows = filtered.slice().sort((a, b) => {
+      const r = ctSalesRank(a.salesStatus) - ctSalesRank(b.salesStatus);
+      return r !== 0 ? r : a.name.localeCompare(b.name);
+    });
+    // Bulk mode here applies SALES status, not pipeline status — the more
+    // relevant field to change in bulk from this specific view (see
+    // ctApplyBulkSalesStatus above).
+    const bulkBarHtml = (ctBulkMode && ctBulkSelected.size > 0) ? `
+      <div id="ct-bulk-bar">
+        <span>${ctBulkSelected.size} selected</span>
+        <select id="ct-bulk-status">${CT_SALES_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}">${ctEscapeHtml(s)}</option>`).join('')}</select>
+        <button type="button" id="ct-bulk-apply">Apply to ${ctBulkSelected.size}</button>
+        <button type="button" id="ct-bulk-clear-btn">Clear</button>
+      </div>` : '';
+    const summaryHtml = ctBuildSalesSummaryHtml(filtered);
+    const bodyRows = rows.map(c => {
+      const bulkCell = ctBulkMode
+        ? `<td class="ct-sales-td-check"><input type="checkbox" class="ct-bulk-check" data-bulk-check="${c.id}"${ctBulkSelected.has(c.id) ? ' checked' : ''} title="Select for bulk sales-status change"></td>`
+        : '';
+      return `
+      <tr data-open="${c.id}">
+        ${bulkCell}
+        <td class="ct-sales-td-name">${ctEscapeHtml(c.name)}</td>
+        <td><select class="ct-inline-status ${ctStatusClass(c.status)}" data-status-select="${c.id}" title="Change status">${CT_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.status ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select></td>
+        <td><select class="ct-inline-status ct-inline-sales ${ctSalesStatusClass(c.salesStatus)}" data-salesstatus-select="${c.id}" title="Change sales status"><option value=""${!c.salesStatus ? ' selected' : ''}>— Not set —</option>${CT_SALES_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.salesStatus ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select></td>
+        <td><input type="text" class="ct-sales-amount-input" data-amount-input="${c.id}" value="${ctEscapeHtml(c.saleAmount ? ctFormatCurrency(c.saleAmount) : '')}" placeholder="—" title="Sale amount"></td>
+        <td class="ct-sales-td-dest">${ctEscapeHtml(c.destination || '—')}</td>
+        <td class="ct-sales-td-date">${c.lastContact ? ctEscapeHtml(ctFormatDate(c.lastContact)) : '—'}</td>
+      </tr>`;
+    }).join('');
+    const tableHtml = rows.length ? `
+      <div class="ct-sales-table-wrap"><table class="ct-sales-table">
+        <thead><tr>
+          ${ctBulkMode ? '<th></th>' : ''}
+          <th>Client</th><th>Status</th><th>Sales Status</th><th>Sale Amount</th><th>Destination</th><th>Last Contact</th>
+        </tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table></div>` : `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`;
+
+    ctSetListHtml(list, bulkBarHtml + summaryHtml + tableHtml);
+
+    list.querySelectorAll('tr[data-open]').forEach(tr => {
+      tr.addEventListener('click', () => ctOpenDetail(tr.dataset.open));
+    });
+    list.querySelectorAll('[data-bulk-check]').forEach(cb => {
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', () => {
+        const id = cb.dataset.bulkCheck;
+        if (cb.checked) ctBulkSelected.add(id); else ctBulkSelected.delete(id);
+        ctRender();
+      });
+    });
+    const bulkApplyBtn = document.getElementById('ct-bulk-apply');
+    if (bulkApplyBtn) bulkApplyBtn.addEventListener('click', () => {
+      ctApplyBulkSalesStatus(document.getElementById('ct-bulk-status').value);
+    });
+    const bulkClearBtn = document.getElementById('ct-bulk-clear-btn');
+    if (bulkClearBtn) bulkClearBtn.addEventListener('click', () => { ctBulkSelected.clear(); ctRender(); });
+
+    // Same stopPropagation discipline as the "All Clients" view's own
+    // inline status dropdown — without it, opening any of these cells'
+    // own controls (or just clicking into the amount field to type)
+    // would also count as a click on the row underneath, opening the
+    // profile before the actual edit even registers.
+    list.querySelectorAll('[data-status-select]').forEach(sel => {
+      sel.addEventListener('click', (e) => e.stopPropagation());
+      sel.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const id = sel.dataset.statusSelect;
+        const ok = window.__ctApplyPatch && window.__ctApplyPatch(id, { status: sel.value });
+        if (!ok) ctSetStatus('Could not update status — try again.');
+      });
+    });
+    list.querySelectorAll('[data-salesstatus-select]').forEach(sel => {
+      sel.addEventListener('click', (e) => e.stopPropagation());
+      sel.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const id = sel.dataset.salesstatusSelect;
+        const ok = window.__ctApplyPatch && window.__ctApplyPatch(id, { salesStatus: sel.value });
+        if (!ok) ctSetStatus('Could not update sales status — try again.');
+      });
+    });
+    list.querySelectorAll('[data-amount-input]').forEach(input => {
+      input.addEventListener('click', (e) => e.stopPropagation());
+      input.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const id = input.dataset.amountInput;
+        const ok = window.__ctApplyPatch && window.__ctApplyPatch(id, { saleAmount: ctParseCurrency(input.value) });
+        if (!ok) ctSetStatus('Could not update sale amount — try again.');
+      });
+    });
+
+    ctRenderRecentRow();
+  }
+
   function ctRender() {
     const search = document.getElementById('ct-search').value.trim().toLowerCase();
     const statusFilter = document.getElementById('ct-status-filter').value;
@@ -18953,8 +19239,16 @@ text. If you genuinely can't find any client or task information at all, respond
       ctSetListHtml(list, `<div class="ct-empty"><p class="ct-empty-big">No clients yet</p><p>Add your first client to start tracking follow-ups.</p></div>`);
       return;
     }
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && ctListView !== 'sales') {
       ctSetListHtml(list, `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`);
+      return;
+    }
+
+    // Sales tab (Sep 2026) — a genuinely different layout (a real table,
+    // not card groups), so it gets its own render function entirely
+    // rather than being squeezed into the sections/cardOpts shape below.
+    if (ctListView === 'sales') {
+      ctRenderSalesTable(list, filtered);
       return;
     }
 
@@ -19155,12 +19449,27 @@ text. If you genuinely can't find any client or task information at all, respond
       <div class="ct-stats-tile ${cls}"><div class="ct-stats-tile-count">${tempCounts[t]}</div><div class="ct-stats-tile-label">${emoji} ${ctEscapeHtml(t)}</div></div>
     `).join('') + (noTemp ? `<div class="ct-stats-tile"><div class="ct-stats-tile-count">${noTemp}</div><div class="ct-stats-tile-label">Not set</div></div>` : '');
 
+    // Sales (Sep 2026) — same counts-only "snapshot," now for the Sales
+    // Status axis. Reuses ctBuildSalesSummaryHtml's own tiles rather than
+    // a third near-identical tile-building block, since this modal and
+    // the Sales tab are answering the same "where does everything stand"
+    // question at two different zoom levels.
+    const salesTilesHtml = ctBuildSalesSummaryHtml(ctClients);
+    const totalBooked = ctClients.filter(c => c.salesStatus === 'Booked').reduce((sum, c) => sum + ctParseCurrency(c.saleAmount), 0);
+    const totalTracked = ctClients.reduce((sum, c) => sum + ctParseCurrency(c.saleAmount), 0);
+
     return `
       <div class="ct-stats-total"><b>${total}</b> client${total === 1 ? '' : 's'} tracked</div>
       <p class="ct-stats-section-title">By Status</p>
       <div class="ct-stats-grid">${statusTiles}</div>
       <p class="ct-stats-section-title">By Lead Temperature</p>
       <div class="ct-stats-grid">${tempTiles}</div>
+      <p class="ct-stats-section-title">Sales</p>
+      ${salesTilesHtml}
+      ${totalTracked ? `<div class="ct-stats-grid" style="margin-top:8px;">
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${ctFormatCurrency(totalBooked) || '$0'}</div><div class="ct-stats-tile-label">💰 Total booked</div></div>
+        <div class="ct-stats-tile"><div class="ct-stats-tile-count">${ctFormatCurrency(totalTracked) || '$0'}</div><div class="ct-stats-tile-label">📊 Total tracked value</div></div>
+      </div>` : ''}
       <p class="ct-stats-section-title">This Week</p>
       <div class="ct-stats-grid">
         <div class="ct-stats-tile"><div class="ct-stats-tile-count">${groups.overdue.length}</div><div class="ct-stats-tile-label">⚑ Overdue follow-ups</div></div>
@@ -19551,7 +19860,7 @@ text. If you genuinely can't find any client or task information at all, respond
   });
   const ctBulkToggleBtn = document.getElementById('ct-bulk-toggle');
   function ctSyncBulkToggleUI() {
-    ctBulkToggleBtn.hidden = ctListView !== 'all';
+    ctBulkToggleBtn.hidden = ctListView !== 'all' && ctListView !== 'sales';
     ctBulkToggleBtn.classList.toggle('active', ctBulkMode);
     ctBulkToggleBtn.textContent = ctBulkMode ? '✕ Cancel select' : '☑️ Select';
   }
@@ -19560,10 +19869,10 @@ text. If you genuinely can't find any client or task information at all, respond
       ctCloseForm();
       ctListView = btn.dataset.view;
       document.querySelectorAll('.ct-view-tab').forEach(b => b.classList.toggle('active', b === btn));
-      // Bulk select only makes sense in the "All Clients" view — leaving
-      // it drops both the mode and whatever was selected, rather than
+      // Bulk select only makes sense in "All Clients"/"Sales" — leaving
+      // either drops both the mode and whatever was selected, rather than
       // letting a stale selection silently carry over to a later visit.
-      if (ctListView !== 'all') { ctBulkMode = false; ctBulkSelected = new Set(); }
+      if (ctListView !== 'all' && ctListView !== 'sales') { ctBulkMode = false; ctBulkSelected = new Set(); }
       ctSyncBulkToggleUI();
       ctRender();
     });

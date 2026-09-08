@@ -5114,6 +5114,163 @@ any of it was implemented, not after.
   Conversations end to end, open Help, and toggle dark mode against a
   real itinerary answer.
 
+## Client Tracker: Sales Status, Sale Amount, and a real "excel style" Sales tab (Sep 2026, unverified live)
+
+Direct request: "I need to be able to track my sales and status of the
+client. Sales status - Quoting, Requote, Final Touches, Sold. Also a
+column to track my sales. So I am thinking like some kind of excel style
+tab... but I am happy to hear your thoughts. This needs to work with the
+existing functions of the client tracker and assistant already has."
+Mid-build, a direct correction: **"change Sold to Booked"** — the fourth
+Sales Status value shipped as `Booked`, not `Sold`.
+
+- **A genuinely separate axis, not a rename of the existing Status
+  field.** `CT_SALES_STATUSES = ['Quoting', 'Requote', 'Final Touches',
+  'Booked']`, stored as `client.salesStatus` — deliberately distinct from
+  `CT_STATUSES` (Inquiry → Booked → Closed, the overall relationship
+  pipeline) the same way Lead Temp is already its own independent axis
+  from Status. "Quoting" isn't quite "Quote sent," and a client can stay
+  "Traveling" long after their sale is "Booked" — folding this into the
+  existing field would have meant one dropdown trying to answer two
+  different questions.
+- **`client.saleAmount` is stored as a real number, not a formatted
+  string** — `ctParseCurrency()`/`ctFormatCurrency()` are the only two
+  new helpers this needed: parsing tolerates "$4,200", "4200", or
+  " 4,200.50 " identically (a DE typing a dollar figure shouldn't have to
+  think about exact formatting), and formatting only ever happens for
+  display. Storing the real number (not a display string) is what makes
+  the summable totals below possible without a second parse step
+  scattered across every consumer.
+- **A real "💰 Sales" tab — a genuine `<table>`, not the card-grid the
+  other two views use.** Third segmented button on `#ct-view-toggle`
+  (Follow-up / All Clients / Sales), rendered by a new
+  `ctRenderSalesTable()`: Client / Status / Sales Status / Sale Amount /
+  Destination / Last Contact, one row per client, sorted by Sales Status
+  pipeline order (Quoting → Requote → Final Touches → Booked, unset
+  last) then name — same-stage clients cluster together the way a sorted
+  spreadsheet column would, with no separate group-header rows needed to
+  break up the grid. A summary strip of 4 tiles (count + total $ per
+  Sales Status) sits above the table, reusing `.ct-stats-tile`'s own
+  visual language rather than inventing a second "totals" look.
+- **Both status columns and the amount are inline-editable, writing
+  through the exact same `window.__ctApplyPatch` every other inline edit
+  in this panel already uses** (the "All Clients" view's own status
+  dropdown, `propose_todo_update`'s Confirm card) — one write path, not
+  a second one just for this view. Same `stopPropagation()` discipline
+  as the existing inline status dropdown: without it, clicking into any
+  of these cells' own controls would also count as a click on the row
+  underneath, opening the profile before the edit registers.
+- **Bulk select extends to the Sales tab**, applying Sales Status instead
+  of pipeline Status from that view (`ctApplyBulkSalesStatus`, mirroring
+  `ctApplyBulkStatus`'s own "one save/render pass, not N" shape) — the
+  more relevant field to bulk-change from this specific screen. The bulk
+  toggle button is now shown for both "All Clients" and "Sales," and
+  switching to any other view still drops both the mode and whatever was
+  selected, same rule as before.
+- **Status-change history, same pattern as the existing `statusHistory`,
+  same scope decision.** `client.salesStatusHistory` only appends via
+  `ctHandleSave()` (the form save) — matching the existing (if
+  imperfect) precedent that `status` changes via the inline dropdown or
+  an AI patch don't get logged either. Extending that inconsistency to a
+  second field, rather than fixing it only for the new one, was the
+  deliberate call — no bug was reported about inline status-history
+  logging, and fixing it here but not there would have been a new,
+  unasked-for asymmetry. Folded into `ctBuildActivityTimeline()` (a new
+  💰 event type) so a client's sales history reads in the same
+  chronological feed as everything else.
+- **Works with what already exists, per the explicit ask, mostly by
+  construction:**
+  - **Card + profile**: a small sales badge (status + amount, color-coded
+    per stage) appears next to the existing status/lead-temp/overdue
+    flags on both the card and the profile header, only when
+    `salesStatus` is actually set. A new Sales section in the profile's
+    main column (`ctRow`/`ctSection`, same "only render what's filled"
+    discipline as every other section there).
+  - **Pipeline Stats modal**: a new Sales section reusing
+    `ctBuildSalesSummaryHtml()`'s own tiles (not a third near-identical
+    tile-builder) plus two extra tiles — total booked $ and total tracked
+    value across every client with an amount on file, regardless of
+    status.
+  - **`get_client_profile` (Trip Assistant tool)**: now reports Sales
+    status and a formatted Sale amount — a small, deliberate duplication
+    of `ctFormatCurrency`'s formatting logic (this tool lives in a
+    different `<script>` block; no cross-IIFE export exists for a
+    one-line formatter, same call this file already makes for
+    `ctTimestampedNote`'s format elsewhere in this tool).
+  - **`propose_todo_update` (Trip Assistant tool)**: extended to accept
+    `salesStatus`/`saleAmount`, so "mark Amanda's deal as Booked at
+    $8,000" can flow through the exact same propose-then-confirm
+    Confirm/Cancel card every other AI-driven Client Tracker write
+    already uses — never applied directly, same as status/leadTemp/notes.
+  - **Backup/restore**: no code change needed — both new fields are
+    plain properties on the same client object the existing JSON
+    export/import already round-trips as-is.
+- Verified with a real Node execution-harness test (`test_sales_tab.js`,
+  44 checks) against the actual extracted Client Tracker AND Trip
+  Assistant source (not paraphrases): the full Add/Edit save round-trip
+  (a new client's salesStatus/saleAmount persist correctly, an edit that
+  actually changes salesStatus appends exactly one history entry, a
+  re-save with no real change doesn't fabricate a duplicate one); six
+  currency parse/format edge cases plus the format-on-reopen round-trip
+  (a real amount reopens as "$4,200," a zero amount reopens as a blank
+  field, not "$0"); the Sales tab's real `<table>` rendering, its sort
+  order across all four pipeline stages plus unset, and the summary
+  tiles' counts/totals; inline sales-status and amount edits actually
+  persisting via `__ctApplyPatch`; bulk sales-status apply updating only
+  the selected clients (caught and fixed a real test-authoring mistake
+  along the way — three same-rank clients sort alphabetically, not by
+  id, so positional checkbox selection was silently selecting the wrong
+  two clients; fixed by selecting checkboxes by client id instead); the
+  profile/card badge and Sales-section rendering, including that a
+  client with nothing set shows neither; the activity timeline including
+  both sales-status history entries in the right order; the Pipeline
+  Stats modal's Sales section totals; an XSS probe sending a malicious
+  `salesStatus` string through `__ctApplyPatch` (the same path
+  `propose_todo_update` would use) coming back fully inert in the
+  rendered profile; and `get_client_profile`/`propose_todo_update`
+  correctly reading/writing the two new fields end-to-end, including a
+  static check that `TA_TOOLS`' own schema documents both. Re-ran the
+  full pre-existing regression suite — and, having noticed several of
+  those test files were quietly loading STALE extraction snapshots from
+  earlier sessions (`/tmp/ct_block2.js`/`ct_block3.js`/`ct_block4.js`,
+  some from Sep 2–3, predating today's — and several other sessions'
+  — changes entirely), refreshed all of them to the current file's real
+  extracted source before re-running, so this was a genuine regression
+  check against today's actual code, not an old snapshot silently
+  passing against itself. Zero regressions caused by this batch — the
+  same two known pre-existing baseline artifacts
+  (`test_tabs_visibility.js`'s two non-bugs, `test_draft_button.js`'s
+  one no-API-key-configured check) are unchanged and unrelated. All 17
+  `<script>` blocks parse; tag balance held at the established baseline
+  (div/select/label/details clean; span/button carry their pre-existing,
+  previously-documented 1-off/2-off false-positive gaps from prose
+  comments elsewhere in the file — plus one NEW same-shape false positive
+  caught before it shipped: a comment describing the new table as "a real
+  `<table>`" briefly threw off the `<table>` tag count too, reworded
+  before committing so that check stays clean, same discipline this
+  file's own history already establishes for `<button>`/`<span>`/
+  `<details>`).
+- **Deliberately not built**: validation on the Sale Amount field beyond
+  numeric parsing (no currency selector, no negative-amount guard — not
+  asked for, and this file has no authoritative source for what a
+  travel-agency sale amount "should" look like); exporting Sales Status/
+  Sale Amount into the Outlook deep link or the itinerary document (those
+  already have their own established field sets and this wasn't part of
+  the request); and search-by-sales-status in the toolbar's search box
+  (the Sales tab's own sort/grouping already answers "who's at what
+  stage" without needing the same fact searchable a second way).
+- **Unverified live**: whether the summary tiles' four-color palette
+  reads clearly at a glance, whether the inline amount input's width
+  (90px) is comfortable to type into against a real dollar figure, how
+  the table's `overflow-x: auto` wrapper behaves on a genuinely narrow
+  window, and whether sorting by Sales Status (rather than, say, name or
+  amount) is actually the most useful default order in practice — none
+  of this has been seen in a real browser from this environment. Test
+  next: add a Sales Status and Sale Amount to a couple of clients, open
+  the 💰 Sales tab and confirm the table/summary tiles look right, edit a
+  status and amount inline, try a bulk Sales Status change, and open
+  Pipeline Stats to confirm the new totals look correct.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to
