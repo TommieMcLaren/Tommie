@@ -5348,6 +5348,148 @@ keep everything a neat and easy to navigate as possible."
   tap it again to clear, and confirm Pipeline Stats' own Sales tiles are
   still inert.
 
+## Three Client Tracker upgrades: sales-stage staleness, sortable Sales-tab columns, CSV export (Sep 2026, unverified live)
+
+Direct follow-up to "seeing all the functions and how I will be tracking
+and using this, what would be the biggest upgrades" — a recommendation
+(sales-stage staleness alerts, sortable columns, CSV export), then
+"Lets go ahead and action all of this." All three built together, aimed
+at the same stated goal: a roster that's about to grow into the
+hundreds, staying navigable.
+
+- **1. Sales-stage staleness alerts** — the real gap named in the ask:
+  the existing Hot Lead nudge watches CONTACT recency, not pipeline
+  MOVEMENT, so a lead can be dutifully followed up on schedule and still
+  be quietly stuck at Quoting for weeks with nothing flagging that
+  specifically. `ctIsSalesStale(client)`/`ctSalesStageDays(client)`
+  (`CT_SALES_STALE_DAYS = 7`) answer "how long has this client been in
+  its CURRENT sales stage" from the most recent `salesStatusHistory`
+  entry that actually matches the current `salesStatus` — Booked is
+  never flagged (nothing left to stall in once a deal is done), and a
+  client with a `salesStatus` set but no matching history entry
+  (predates the feature, hand-edited, an odd import) is correctly left
+  un-flagged rather than assigned a fabricated "0 days" or
+  "since account creation" guess.
+  - **A real data-quality fix this feature needed to be honest, not
+    scope creep for its own sake**: `salesStatusHistory` previously only
+    ever appended via the form save (`ctHandleSave`) — a deliberate,
+    documented gap at the time (matching `statusHistory`'s own same
+    limitation, with no feature yet depending on it being complete). A
+    staleness feature that only saw form-save changes would have been
+    silently wrong for most real edits, since the inline Sales-tab
+    dropdown, bulk apply, and an AI-confirmed `propose_todo_update`
+    patch are all more likely ways a DE actually changes Sales Status
+    day to day. Factored into one shared `ctAppendSalesStatusHistory()`
+    helper, now called by all three write paths
+    (`ctHandleSave`/`window.__ctApplyPatch`/`ctApplyBulkSalesStatus`) —
+    one accurate history, not three separately-tracked, partially-blind
+    ones.
+  - **Surfaced two ways**, reusing established mechanisms rather than
+    building a new alert channel: a new "📉 N stalled in the pipeline:
+    Name (Stage, Nd)..." line in the Trip Assistant's existing Daily
+    Brief (same once-a-day ambient-check shape as the Hot Lead nudge,
+    via a new `window.__ctGetStaleSalesLeads()` export, independently
+    gated/try-caught so a Client Tracker without it yet just skips this
+    one line), AND a small ⏳ badge directly on the affected row in the
+    Sales tab table itself (an amber left border, distinct from
+    `.ct-card.overdue`'s pink/red, which means a FOLLOW-UP is overdue —
+    a different fact) — so a stalled lead is visible both proactively
+    once a day and at a glance while actually working the pipeline, not
+    just one or the other.
+- **2. Sortable Sales-tab columns.** Every header (Client / Status /
+  Sales Status / Sale Amount / Destination / Last Contact) is now a real
+  click target — click once to sort by that column (▲), click the SAME
+  one again to reverse (▼), click a different one to switch. No explicit
+  sort chosen (`ctSalesSortKey === null`) keeps the exact original
+  default (pipeline order, then name) — clicking never happens
+  automatically, so nothing about the table's look changes for a DE who
+  never touches a header. Resets to the default whenever the DE leaves
+  the Sales tab, same "don't let stray view state silently carry over"
+  rule the tile filter already established.
+- **3. CSV export of the roster.** A new "📈 Export CSV" button, shown
+  only in the Sales tab (same static-button-toggled-by-view pattern as
+  the existing "☑️ Select" bulk toggle right next to it — wired once,
+  not rebuilt on every render). **Exports exactly what's currently ON
+  SCREEN** — search, the lead-temp tab, the clickable tile filter, and
+  whatever column sort is active, all re-applied via the same
+  `ctMatchesSearchAndStatus`/`ctSalesSortRows` helpers the table itself
+  uses — not a second "always full roster" export; the full roster
+  already has its own dedicated export (the 📥 JSON backup button),
+  which serves a different purpose (data preservation, not spreadsheet
+  analysis). A DE who filters to "Booked this quarter" before exporting
+  gets exactly that in the file, matching how export normally behaves in
+  a real spreadsheet tool. Real CSV escaping (`ctCsvEscape`) — a client
+  named "Smith, John" or a destination like "Barcelona, Spain" gets
+  properly quoted, not silently misaligning every column after it — plus
+  a leading BOM so Excel reliably reads accented characters instead of
+  guessing the wrong encoding. Sale Amount exports as a plain number
+  (not a formatted "$4,200" string), so it stays usable as a real number
+  once opened in Excel. An empty (filtered-to-nothing) view shows a clear
+  "nothing to export" message instead of downloading a useless
+  header-only file.
+- Verified with real Node execution-harness test extensions against the
+  actual extracted Client Tracker AND Trip Assistant source (not
+  paraphrases): `test_sales_tab.js` grew from 54 to 87 checks — cross-path
+  `salesStatusHistory` tracking (the inline dropdown and bulk apply both
+  now log a real entry, re-applying the same value is still a no-op, not
+  a duplicate); the full staleness decision table (a genuinely 10-day-
+  stalled lead flagged, a 2-day-fresh one correctly not, Booked never
+  flagged regardless of age, a `salesStatus` with no matching history
+  entry correctly left un-flagged rather than guessed at, and results
+  sorting longest-stalled first with real day counts) plus the Sales
+  tab's own ⏳ badge/row-highlight rendering only on genuinely stale rows;
+  sortable columns (default order unchanged, ascending/descending toggle
+  on the same header, switching headers, the arrow indicator, and the
+  reset on leaving/re-entering the tab); and CSV export (a real blob's
+  content captured via the same `FakeBlob`/`URL`-stub pattern
+  `test_export_backup.js` already established, header row correctness,
+  comma-containing fields correctly quoted, tags joined with a semicolon
+  instead of a column-breaking comma, the amount exported as a plain
+  number, the export respecting an active tile filter, and the empty-
+  result "nothing to export" case). A separate extension to
+  `test_autoopen_refresh.js` (loading the real Trip Assistant, Client
+  Tracker, AND Daily Tasks scripts together, exactly like every other
+  Daily Brief test) confirmed the staleness line live end-to-end: a
+  brief appearing purely because of a stalled lead (Daily Tasks
+  checklist deliberately cleared first, to isolate the one new signal),
+  the real client name still auto-linked via the existing
+  `wireClientProfileLinks()` (same as every other name in the brief),
+  the stage/day-count text present, and a 2-day-fresh lead correctly not
+  triggering the line. Re-ran the full pre-existing regression suite (16
+  other test files, using freshly re-extracted `/tmp/dt_block.js` too,
+  not just the Client Tracker/Trip Assistant ones already refreshed last
+  session) with zero regressions — the same two known baseline artifacts
+  are unchanged and unrelated. All 17 `<script>` blocks parse; div/
+  select/label/details/table/th tag balance held exactly at the
+  established baseline (span/button carry their same pre-existing 1-off/
+  2-off gaps, unchanged by this batch — this time from real balanced
+  markup additions, not a new prose false positive).
+- **Deliberately not built**: per-stage staleness thresholds (one shared
+  `CT_SALES_STALE_DAYS = 7` for all three non-Booked stages, not a
+  separate tunable number for Quoting vs. Requote vs. Final Touches —
+  reasonable-sounding but unproven guesses at three numbers instead of
+  one weren't worth the added complexity before living with the single
+  threshold for a while); multi-column sort (clicking a header replaces
+  the sort entirely, matching a plain spreadsheet's default click
+  behavior, not a shift-click-to-add-a-secondary-sort convention); and
+  an Excel-formula-aware `.xlsx` export (a real CSV, opened directly by
+  Excel/Sheets/Numbers, was judged the right scope for "excel style" —
+  generating an actual `.xlsx` binary would be a meaningfully bigger,
+  riskier build for marginal benefit over a CSV a DE can already open
+  and immediately work with).
+- **Unverified live**: whether 7 days is the right staleness threshold
+  in practice (a reasonable-sounding guess, same caveat as the original
+  5-day Hot Lead threshold when it first shipped), whether the ⏳ badge
+  and amber row border read clearly at a glance against the table's
+  other colors, whether clicking through several column sorts feels
+  responsive on a roster actually in the hundreds, and whether the
+  exported CSV opens cleanly with correct columns/encoding in the DE's
+  actual copy of Excel — none of this has been seen in a real browser
+  from this environment. Test next: let a lead sit in Quoting for a
+  week and confirm both the Daily Brief line and the Sales-tab badge
+  appear, click through a few column sorts, and export a filtered view
+  to CSV and open it in real Excel.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

@@ -15056,22 +15056,41 @@ ${bodyHtml}
         checklistLine = listLine(`☑️ ${openItems.length} on today's checklist`, openItems);
       } catch (e) { /* Daily Tasks data unavailable — just skip this one line */ }
     }
+    // Sales-stage staleness (Sep 2026) — direct request: watch for a lead
+    // that's quietly stopped MOVING through the pipeline, not just one
+    // that's overdue for contact (a different fact — see
+    // ctIsSalesStale's own comment for why they're not the same check).
+    // Independently gated and try/caught, same pattern as the checklist
+    // line, so a Client Tracker without this export yet (or Sales Status
+    // simply unused) just skips this one line rather than breaking the
+    // rest of the brief.
+    let staleLine = null;
+    let staleClients = [];
+    if (window.__ctGetStaleSalesLeads) {
+      try {
+        const stale = window.__ctGetStaleSalesLeads();
+        staleClients = stale;
+        const staleNames = stale.map(c => `${c.name} (${c.salesStatus}, ${c.days}d)`);
+        staleLine = listLine(`📉 ${stale.length} stalled in the pipeline`, staleNames);
+      } catch (e) { /* Client Tracker's sales data unavailable — skip this one line */ }
+    }
     const lines = [
       listLine(`⚑ ${overdueNames.length} overdue follow-up${overdueNames.length === 1 ? '' : 's'}`, overdueNames),
       listLine(`📅 ${dueSoonNames.length} due this week`, dueSoonNames),
       listLine(`🔥 ${flaggedHot.length} hot lead${flaggedHot.length === 1 ? '' : 's'} worth a look`, flaggedHot),
+      staleLine,
       checklistLine
     ].filter(Boolean);
     if (!lines.length) return; // clean day — stay silent, same as every ambient check in this file
-    // Quick actions: every flagged client (overdue, due-soon, or hot for
-    // any reason), deduped by id so someone flagged more than one way
-    // only gets one action row — capped at 5 so a bad day doesn't turn
-    // into a wall of buttons (the summary lines above can still mention
-    // more names than have a button here, same truncation the lines
-    // themselves already use).
+    // Quick actions: every flagged client (overdue, due-soon, hot for any
+    // reason, or stalled in the pipeline), deduped by id so someone
+    // flagged more than one way only gets one action row — capped at 5
+    // so a bad day doesn't turn into a wall of buttons (the summary
+    // lines above can still mention more names than have a button here,
+    // same truncation the lines themselves already use).
     const actionable = [];
     const seenActionIds = new Set();
-    [...(summary.overdue || []), ...(summary.dueThisWeek || []), ...hotClients].forEach(c => {
+    [...(summary.overdue || []), ...(summary.dueThisWeek || []), ...hotClients, ...staleClients].forEach(c => {
       if (seenActionIds.has(c.id)) return;
       seenActionIds.add(c.id);
       actionable.push(c);
@@ -15835,6 +15854,17 @@ ${bodyHtml}
   }
   #ct-bulk-toggle:hover { border-color: #3d5470; color: #3d5470; }
   #ct-bulk-toggle.active { background: #3d5470; border-color: #3d5470; color: #fff; }
+  /* Sales-tab CSV export (Sep 2026) — same static-button-toggled-by-view
+     pattern as #ct-bulk-toggle right above (wired once at top-level
+     script eval, shown/hidden per ctListView rather than rebuilt on
+     every ctRenderSalesTable call), sitting right next to it. */
+  #ct-sales-csv-btn {
+    display: inline-block; margin: 14px 0 0 8px; vertical-align: top;
+    background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft);
+    font-family: 'Lato', sans-serif; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    border-radius: 20px; padding: 9px 15px; transition: background .12s ease, border-color .12s ease;
+  }
+  #ct-sales-csv-btn:hover { border-color: var(--sage-darker); color: var(--sage-darker); }
   .ct-bulk-check { margin-right: 6px; flex-shrink: 0; }
   #ct-bulk-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -16365,6 +16395,22 @@ ${bodyHtml}
   }
   .ct-sales-amount-input:focus { outline: none; border-color: var(--gold); }
   .ct-sales-td-check { width: 24px; }
+  /* Sortable headers (Sep 2026) — a header is a real click target, so it
+     gets its own hover/active treatment distinct from a plain label. */
+  .ct-sales-th-sort { cursor: pointer; user-select: none; white-space: nowrap; transition: color .12s ease; }
+  .ct-sales-th-sort:hover { color: var(--sage-darker); }
+  .ct-sales-th-sort.active { color: var(--sage-darker); }
+  /* Sales-stage staleness (Sep 2026) — a subtle amber left border on the
+     row itself (distinct from .ct-card.overdue's pink/red, which means a
+     FOLLOW-UP is overdue — a different fact) plus a small badge right
+     next to the Sales Status cell naming how long it's been stalled. */
+  .ct-sales-row-stale { border-left: 3px solid var(--gold); }
+  .ct-sales-row-stale td:first-child { padding-left: 9px; }
+  .ct-sales-stale-badge {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+    color: var(--gold-text); background: var(--ct-gold-soft); border-radius: 10px; padding: 1px 7px;
+    white-space: nowrap;
+  }
 
   /* Recently Deleted / trash (Sep 2026) — same overlay/modal pop-out
      pattern as #ct-stats-overlay, its own red-toned accent since this is
@@ -16552,6 +16598,7 @@ ${bodyHtml}
     <button type="button" class="ct-view-tab" data-view="sales">💰 Sales</button>
   </div>
   <button type="button" id="ct-bulk-toggle" hidden>☑️ Select</button>
+  <button type="button" id="ct-sales-csv-btn" hidden title="Export what's currently shown in the Sales tab as a CSV file (opens in Excel)">📈 Export CSV</button>
   <div id="ct-tabs">
     <button type="button" class="ct-tab active" data-temp="">All<span class="ct-tab-count"></span></button>
     <button type="button" class="ct-tab" data-temp="Hot Lead">🔥 Hot Lead<span class="ct-tab-count"></span></button>
@@ -17196,6 +17243,61 @@ ${bodyHtml}
     const n = ctParseCurrency(amount);
     if (!n) return '';
     return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+
+  // Shared salesStatusHistory append (Sep 2026) — factored out so the
+  // Sales-stage staleness check below has an accurate "when did this
+  // lead enter its current stage" signal regardless of WHICH of the
+  // three write paths changed it. Originally this only ever logged via
+  // the form save (ctHandleSave) — a deliberate scope decision at the
+  // time, matching statusHistory's own same gap, since nothing yet
+  // depended on the inline-edit/bulk/AI-patch paths being tracked. The
+  // staleness feature below is the first thing that actually needs it
+  // to be accurate everywhere, so all three write paths now call this
+  // one helper instead of only the form save still logging reliably.
+  // Only appends when the value genuinely changed (never a fake entry
+  // for "still Quoting"), and returns the array unchanged (same
+  // reference) when there's nothing to add, so callers can spread it
+  // back onto a client object either way with no extra branching.
+  function ctAppendSalesStatusHistory(prevSalesStatus, prevHistory, newSalesStatus) {
+    if (!newSalesStatus || newSalesStatus === prevSalesStatus) return Array.isArray(prevHistory) ? prevHistory : [];
+    const history = Array.isArray(prevHistory) ? prevHistory.slice() : [];
+    history.push({ salesStatus: newSalesStatus, changedAt: new Date().toISOString() });
+    return history;
+  }
+
+  // Sales-stage staleness (Sep 2026) — direct follow-up once the Sales
+  // tab existed: "the biggest upgrades... something specifically watches
+  // 'this Quoting-stage lead hasn't moved in N days'" — a real gap the
+  // existing Hot Lead nudge doesn't cover, since that's keyed off contact
+  // recency/follow-up dates, not sales-pipeline movement. A lead can be
+  // dutifully followed up on schedule and still be quietly stuck at
+  // Quoting for weeks with nothing flagging THAT specifically.
+  //
+  // Deliberately never guesses when there's no reliable signal: only the
+  // most recent salesStatusHistory entry that actually matches the
+  // client's CURRENT salesStatus counts (now written consistently by the
+  // form save, the inline dropdown, bulk apply, and an AI-confirmed
+  // patch — see ctAppendSalesStatusHistory above); a client with a
+  // salesStatus set but no matching history entry (e.g. one that had a
+  // status before this feature existed, hand-edited localStorage, or a
+  // legacy import) is correctly left un-flagged rather than assigned a
+  // fabricated "0 days" or "since account creation" guess. Booked is
+  // never stale — there's no pipeline stage left to stall in once a deal
+  // is done.
+  const CT_SALES_STALE_DAYS = 7;
+  function ctSalesStageDays(client) {
+    if (!client.salesStatus || client.salesStatus === 'Booked') return null;
+    const matching = (Array.isArray(client.salesStatusHistory) ? client.salesStatusHistory : [])
+      .filter(h => h && h.salesStatus === client.salesStatus && h.changedAt);
+    if (!matching.length) return null;
+    const latest = matching.reduce((a, b) => (new Date(a.changedAt) > new Date(b.changedAt) ? a : b));
+    const days = Math.floor((Date.now() - new Date(latest.changedAt).getTime()) / 86400000);
+    return isNaN(days) ? null : days;
+  }
+  function ctIsSalesStale(client) {
+    const days = ctSalesStageDays(client);
+    return days !== null && days >= CT_SALES_STALE_DAYS;
   }
 
   // Small helper so the many optional profile fields (intake questions,
@@ -18094,12 +18196,11 @@ text. If you genuinely can't find any client or task information at all, respond
         // history entry for every save.
         const statusHistory = Array.isArray(prev.statusHistory) ? prev.statusHistory.slice() : [];
         if (data.status !== prev.status) statusHistory.push({ status: data.status, changedAt: nowIso });
-        // Same tracking, same rule, for the new Sales Status axis — only
-        // logged when it actually changed, and only ever seeded from a
-        // pre-existing record's own prior value the first time this runs
-        // on one that predates the feature (no fabricated history).
-        const salesStatusHistory = Array.isArray(prev.salesStatusHistory) ? prev.salesStatusHistory.slice() : [];
-        if (data.salesStatus !== prev.salesStatus && data.salesStatus) salesStatusHistory.push({ salesStatus: data.salesStatus, changedAt: nowIso });
+        // Same tracking, same rule, for the new Sales Status axis — now
+        // via the shared ctAppendSalesStatusHistory helper (see its own
+        // comment above) so this stays in sync with the inline-edit and
+        // AI-patch/bulk write paths below, not just the form save.
+        const salesStatusHistory = ctAppendSalesStatusHistory(prev.salesStatus, prev.salesStatusHistory, data.salesStatus);
         ctClients[idx] = { ...prev, ...data, statusHistory, salesStatusHistory };
       }
     } else {
@@ -19053,6 +19154,15 @@ text. If you genuinely can't find any client or task information at all, respond
   // whenever the DE leaves the Sales view (alongside ctBulkMode below) so
   // a forgotten filter can't silently hide clients on a later visit.
   let ctSalesStatusFilter = null;
+  // Sortable columns (Sep 2026) — "the biggest upgrades... sortable Sales
+  // tab columns." null key means "no explicit sort chosen yet," which
+  // keeps today's existing default (pipeline order, then name) — clicking
+  // a header switches to that column; clicking the SAME header again
+  // flips direction, matching the familiar spreadsheet convention. Reset
+  // alongside the tile filter whenever the DE leaves the Sales view, same
+  // "don't let stray view state silently carry over" rule.
+  let ctSalesSortKey = null;
+  let ctSalesSortDir = 'asc';
 
   // Small fade so a re-render (switching views, typing a search, changing
   // a status, anything that calls ctRender) reads as new content replacing
@@ -19084,6 +19194,30 @@ text. If you genuinely can't find any client or task information at all, respond
   function ctSalesRank(status) {
     const idx = CT_SALES_STATUSES.indexOf(status);
     return idx === -1 ? CT_SALES_STATUSES.length : idx;
+  }
+  // Sortable columns (Sep 2026) — a null sortKey keeps the original
+  // default (pipeline order, then name); any other key sorts by that
+  // column instead, in sortDir. Shared by both ctRenderSalesTable (the
+  // on-screen table) and ctComputeSalesExportRows (the CSV export) below,
+  // so the exported file always matches exactly what's on screen.
+  function ctSalesSortRows(rows, sortKey, sortDir) {
+    const byDefault = (a, b) => {
+      const r = ctSalesRank(a.salesStatus) - ctSalesRank(b.salesStatus);
+      return r !== 0 ? r : a.name.localeCompare(b.name);
+    };
+    if (!sortKey) return rows.slice().sort(byDefault);
+    const comparators = {
+      name: (a, b) => a.name.localeCompare(b.name),
+      status: (a, b) => { const r = CT_STATUSES.indexOf(a.status) - CT_STATUSES.indexOf(b.status); return r !== 0 ? r : a.name.localeCompare(b.name); },
+      salesStatus: byDefault,
+      saleAmount: (a, b) => ctParseCurrency(a.saleAmount) - ctParseCurrency(b.saleAmount),
+      destination: (a, b) => (a.destination || '').localeCompare(b.destination || ''),
+      lastContact: (a, b) => (a.lastContact || '').localeCompare(b.lastContact || ''),
+    };
+    const cmp = comparators[sortKey];
+    if (!cmp) return rows.slice().sort(byDefault);
+    const dir = sortDir === 'desc' ? -1 : 1;
+    return rows.slice().sort((a, b) => dir * cmp(a, b));
   }
   // opts.clickable makes each tile a real filter toggle — used only by
   // the Sales tab itself (ctRenderSalesTable below). The Pipeline Stats
@@ -19121,25 +19255,84 @@ text. If you genuinely can't find any client or task information at all, respond
     ctClients = ctClients.map(c => {
       if (!ids.has(c.id)) return c;
       updated++;
-      return { ...c, salesStatus };
+      return { ...c, salesStatus, salesStatusHistory: ctAppendSalesStatusHistory(c.salesStatus, c.salesStatusHistory, salesStatus) };
     });
     ctBulkSelected = new Set();
     ctSaveData();
     ctRender();
     ctSetStatus(`Updated ${updated} client${updated === 1 ? '' : 's'} to ${salesStatus}.`);
   }
+
+  // CSV export (Sep 2026) — direct request: "the biggest upgrades... a
+  // real CSV/Excel export of the roster." Exports exactly what's
+  // currently ON SCREEN in the Sales tab (search, the lead-temp tab, the
+  // clickable tile filter, and whatever column sort is active — all
+  // re-applied here via the same ctMatchesSearchAndStatus/ctSalesSortRows
+  // helpers ctRender()/ctRenderSalesTable() themselves use), not a
+  // second "always full roster" export — the full roster already has its
+  // own dedicated export (the 📥 JSON backup button), which serves a
+  // different purpose (data preservation, not spreadsheet analysis). A
+  // DE who filters down to just "Booked this month" before exporting
+  // gets exactly that in the CSV, matching how export normally behaves
+  // in a real spreadsheet tool.
+  function ctComputeSalesExportRows() {
+    const search = document.getElementById('ct-search').value.trim().toLowerCase();
+    const statusFilter = document.getElementById('ct-status-filter').value;
+    let rows = ctClients.filter(c => ctMatchesSearchAndStatus(c, search, statusFilter));
+    if (ctActiveTempTab) rows = rows.filter(c => c.leadTemp === ctActiveTempTab);
+    if (ctSalesStatusFilter) rows = rows.filter(c => c.salesStatus === ctSalesStatusFilter);
+    return ctSalesSortRows(rows, ctSalesSortKey, ctSalesSortDir);
+  }
+  // Real CSV escaping, not just a naive join(',') — any field containing
+  // a comma, a quote, or a newline (client names, notes, destinations all
+  // routinely have one of these) has to be quoted, with internal quotes
+  // doubled, per the actual CSV spec, or the file silently misaligns
+  // columns the moment someone opens a client named "Smith, John" in
+  // Excel.
+  function ctCsvEscape(value) {
+    const s = value === null || value === undefined ? '' : String(value);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function ctExportSalesCsv() {
+    const rows = ctComputeSalesExportRows();
+    if (!rows.length) { ctSetStatus('Nothing to export — no clients match the current view.'); return; }
+    const headers = ['Name', 'Status', 'Sales Status', 'Sale Amount', 'Lead Temperature', 'Destination', 'Itinerary', 'Phone', 'Email', 'Last Contact', 'Next Follow-up', 'Tags'];
+    const lines = [headers.join(',')];
+    rows.forEach(c => {
+      const itinerary = c.itineraryId ? ctFindItinerary(c.itineraryId) : null;
+      lines.push([
+        c.name, c.status || '', c.salesStatus || '', c.saleAmount ? ctParseCurrency(c.saleAmount) : '',
+        c.leadTemp || '', c.destination || '', itinerary ? itinerary.title : '', c.phone || '', c.email || '',
+        c.lastContact || '', c.nextFollowUp || '', Array.isArray(c.tags) ? c.tags.join('; ') : ''
+      ].map(ctCsvEscape).join(','));
+    });
+    // Leading BOM so Excel (which otherwise guesses the wrong encoding
+    // for a plain UTF-8 CSV on some locales) reliably renders accented/
+    // non-ASCII characters correctly — a real, commonly-hit Excel-CSV
+    // gotcha, not defensive overkill.
+    const csv = '﻿' + lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kensington-tours-sales-${ctTodayISO()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    ctSetStatus(`Exported ${rows.length} client${rows.length === 1 ? '' : 's'} to CSV.`);
+  }
+
   function ctRenderSalesTable(list, filtered) {
     // The summary tiles are built from the full `filtered` set (search/
     // lead-temp already applied, same as every other view) regardless of
     // whether a tile filter is active — their counts stay a stable
     // overview of everything currently in view, not shrunk to match
     // whichever single stage the table itself is narrowed to.
-    const rows = filtered
-      .filter(c => !ctSalesStatusFilter || c.salesStatus === ctSalesStatusFilter)
-      .sort((a, b) => {
-        const r = ctSalesRank(a.salesStatus) - ctSalesRank(b.salesStatus);
-        return r !== 0 ? r : a.name.localeCompare(b.name);
-      });
+    const rows = ctSalesSortRows(
+      filtered.filter(c => !ctSalesStatusFilter || c.salesStatus === ctSalesStatusFilter),
+      ctSalesSortKey, ctSalesSortDir
+    );
     // Bulk mode here applies SALES status, not pipeline status — the more
     // relevant field to change in bulk from this specific view (see
     // ctApplyBulkSalesStatus above).
@@ -19151,16 +19344,24 @@ text. If you genuinely can't find any client or task information at all, respond
         <button type="button" id="ct-bulk-clear-btn">Clear</button>
       </div>` : '';
     const summaryHtml = ctBuildSalesSummaryHtml(filtered, { clickable: true });
+    // Sales-stage staleness (Sep 2026) — a small ⏳ badge right on the
+    // affected row, so a stalled lead is visible at a glance while
+    // actually looking at the pipeline, not just once a day in the Daily
+    // Brief (see ctIsSalesStale's own comment above for what "stale"
+    // means here and why it's a different check from contact/follow-up
+    // staleness).
     const bodyRows = rows.map(c => {
       const bulkCell = ctBulkMode
         ? `<td class="ct-sales-td-check"><input type="checkbox" class="ct-bulk-check" data-bulk-check="${c.id}"${ctBulkSelected.has(c.id) ? ' checked' : ''} title="Select for bulk sales-status change"></td>`
         : '';
+      const staleDays = ctIsSalesStale(c) ? ctSalesStageDays(c) : null;
+      const staleBadge = staleDays !== null ? `<span class="ct-sales-stale-badge" title="No pipeline movement in ${staleDays} days">⏳ ${staleDays}d</span>` : '';
       return `
-      <tr data-open="${c.id}">
+      <tr data-open="${c.id}"${staleDays !== null ? ' class="ct-sales-row-stale"' : ''}>
         ${bulkCell}
         <td class="ct-sales-td-name">${ctEscapeHtml(c.name)}</td>
         <td><select class="ct-inline-status ${ctStatusClass(c.status)}" data-status-select="${c.id}" title="Change status">${CT_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.status ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select></td>
-        <td><select class="ct-inline-status ct-inline-sales ${ctSalesStatusClass(c.salesStatus)}" data-salesstatus-select="${c.id}" title="Change sales status"><option value=""${!c.salesStatus ? ' selected' : ''}>— Not set —</option>${CT_SALES_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.salesStatus ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select></td>
+        <td><select class="ct-inline-status ct-inline-sales ${ctSalesStatusClass(c.salesStatus)}" data-salesstatus-select="${c.id}" title="Change sales status"><option value=""${!c.salesStatus ? ' selected' : ''}>— Not set —</option>${CT_SALES_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}"${s === c.salesStatus ? ' selected' : ''}>${ctEscapeHtml(s)}</option>`).join('')}</select>${staleBadge}</td>
         <td><input type="text" class="ct-sales-amount-input" data-amount-input="${c.id}" value="${ctEscapeHtml(c.saleAmount ? ctFormatCurrency(c.saleAmount) : '')}" placeholder="—" title="Sale amount"></td>
         <td class="ct-sales-td-dest">${ctEscapeHtml(c.destination || '—')}</td>
         <td class="ct-sales-td-date">${c.lastContact ? ctEscapeHtml(ctFormatDate(c.lastContact)) : '—'}</td>
@@ -19169,11 +19370,20 @@ text. If you genuinely can't find any client or task information at all, respond
     const emptyHtml = ctSalesStatusFilter
       ? `<div class="ct-empty"><p class="ct-empty-big">No one's "${ctEscapeHtml(ctSalesStatusFilter)}"</p><p>Tap the tile again to see everyone.</p></div>`
       : `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`;
+    // Sortable headers (Sep 2026) — click a column to sort by it, click
+    // the same one again to reverse. th(label, key) renders a small ▲/▼
+    // on whichever column is actually active; every other header stays
+    // plain. See ctSalesSortRows above for the actual comparators.
+    const th = (label, key) => {
+      const active = ctSalesSortKey === key;
+      const arrow = active ? (ctSalesSortDir === 'desc' ? ' ▼' : ' ▲') : '';
+      return `<th class="ct-sales-th-sort${active ? ' active' : ''}" data-sort-key="${key}" title="Sort by ${ctEscapeHtml(label)}">${ctEscapeHtml(label)}${arrow}</th>`;
+    };
     const tableHtml = rows.length ? `
       <div class="ct-sales-table-wrap"><table class="ct-sales-table">
         <thead><tr>
           ${ctBulkMode ? '<th></th>' : ''}
-          <th>Client</th><th>Status</th><th>Sales Status</th><th>Sale Amount</th><th>Destination</th><th>Last Contact</th>
+          ${th('Client', 'name')}${th('Status', 'status')}${th('Sales Status', 'salesStatus')}${th('Sale Amount', 'saleAmount')}${th('Destination', 'destination')}${th('Last Contact', 'lastContact')}
         </tr></thead>
         <tbody>${bodyRows}</tbody>
       </table></div>` : emptyHtml;
@@ -19182,6 +19392,14 @@ text. If you genuinely can't find any client or task information at all, respond
 
     list.querySelectorAll('tr[data-open]').forEach(tr => {
       tr.addEventListener('click', () => ctOpenDetail(tr.dataset.open));
+    });
+    list.querySelectorAll('[data-sort-key]').forEach(header => {
+      header.addEventListener('click', () => {
+        const key = header.dataset.sortKey;
+        ctSalesSortDir = (ctSalesSortKey === key && ctSalesSortDir === 'asc') ? 'desc' : 'asc';
+        ctSalesSortKey = key;
+        ctRender();
+      });
     });
     // Tap a tile to narrow the table to just that Sales Status; tap the
     // already-active one again to clear back to everyone — same toggle
@@ -19246,29 +19464,36 @@ text. If you genuinely can't find any client or task information at all, respond
     ctRenderRecentRow();
   }
 
+  // Pulled out of ctRender() (Sep 2026) so ctComputeSalesExportRows()
+  // below can build the exact same filtered set the CSV export needs
+  // without a second, drifting copy of the search predicate — one
+  // definition of "matches the toolbar's search/status filter," two
+  // callers.
+  function ctMatchesSearchAndStatus(c, search, statusFilter) {
+    // Phone/email were already searched here; TMT link and the linked
+    // itinerary's own title weren't — a real gap for a link the DE
+    // might paste in and then want to find again by pasting or typing
+    // a fragment of it, or a client they only remember by which
+    // itinerary they're on.
+    const itinerary = c.itineraryId ? ctFindItinerary(c.itineraryId) : null;
+    const matchesSearch = !search
+      || c.name.toLowerCase().includes(search)
+      || (c.notes || '').toLowerCase().includes(search)
+      || (c.destination || '').toLowerCase().includes(search)
+      || (c.phone || '').toLowerCase().includes(search)
+      || (c.email || '').toLowerCase().includes(search)
+      || (c.tmtLink || '').toLowerCase().includes(search)
+      || (Array.isArray(c.tags) && c.tags.some(t => t.toLowerCase().includes(search)))
+      || (itinerary ? itinerary.title.toLowerCase().includes(search) : false);
+    const matchesStatus = !statusFilter || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  }
+
   function ctRender() {
     const search = document.getElementById('ct-search').value.trim().toLowerCase();
     const statusFilter = document.getElementById('ct-status-filter').value;
 
-    let preTempFiltered = ctClients.filter(c => {
-      // Phone/email were already searched here; TMT link and the linked
-      // itinerary's own title weren't — a real gap for a link the DE
-      // might paste in and then want to find again by pasting or typing
-      // a fragment of it, or a client they only remember by which
-      // itinerary they're on.
-      const itinerary = c.itineraryId ? ctFindItinerary(c.itineraryId) : null;
-      const matchesSearch = !search
-        || c.name.toLowerCase().includes(search)
-        || (c.notes || '').toLowerCase().includes(search)
-        || (c.destination || '').toLowerCase().includes(search)
-        || (c.phone || '').toLowerCase().includes(search)
-        || (c.email || '').toLowerCase().includes(search)
-        || (c.tmtLink || '').toLowerCase().includes(search)
-        || (Array.isArray(c.tags) && c.tags.some(t => t.toLowerCase().includes(search)))
-        || (itinerary ? itinerary.title.toLowerCase().includes(search) : false);
-      const matchesStatus = !statusFilter || c.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
+    let preTempFiltered = ctClients.filter(c => ctMatchesSearchAndStatus(c, search, statusFilter));
 
     // Tab counts reflect the search/status filter already applied, so
     // they answer "how many of what I'm currently looking at are Hot",
@@ -19927,10 +20152,12 @@ text. If you genuinely can't find any client or task information at all, respond
       // either drops both the mode and whatever was selected, rather than
       // letting a stale selection silently carry over to a later visit.
       if (ctListView !== 'all' && ctListView !== 'sales') { ctBulkMode = false; ctBulkSelected = new Set(); }
-      // The sales-tile filter only makes sense inside the Sales tab
-      // itself — leaving it clears the filter so it can't silently keep
-      // hiding clients the next time this tab is opened.
-      if (ctListView !== 'sales') ctSalesStatusFilter = null;
+      // The sales-tile filter (and its column sort) only makes sense
+      // inside the Sales tab itself — leaving either clears it so it
+      // can't silently keep hiding clients or reordering the table the
+      // next time this tab is opened.
+      if (ctListView !== 'sales') { ctSalesStatusFilter = null; ctSalesSortKey = null; ctSalesSortDir = 'asc'; }
+      document.getElementById('ct-sales-csv-btn').hidden = ctListView !== 'sales';
       ctSyncBulkToggleUI();
       ctRender();
     });
@@ -19941,6 +20168,7 @@ text. If you genuinely can't find any client or task information at all, respond
     ctSyncBulkToggleUI();
     ctRender();
   });
+  document.getElementById('ct-sales-csv-btn').addEventListener('click', ctExportSalesCsv);
   document.getElementById('ct-f-name').addEventListener('input', () => {
     document.getElementById('ct-err-name').style.display = 'none';
   });
@@ -20002,6 +20230,17 @@ text. If you genuinely can't find any client or task information at all, respond
     }));
     return { overdue: fmt(groups.overdue), dueThisWeek: fmt(groups.soon), upcoming: fmt(groups.later), noDate: fmt(groups.noDate) };
   };
+  // Exposed for the Trip Assistant's Daily Brief (see
+  // maybeSurfaceDailyBrief's new pipeline-staleness line) — same "read
+  // fresh at call time, never cache" export shape as __ctGetTodoSummary
+  // right above. Sorted longest-stalled first so the brief's own 5-name
+  // cap surfaces the most overdue stalls, not an arbitrary subset.
+  window.__ctGetStaleSalesLeads = () => {
+    return ctClients
+      .filter(ctIsSalesStale)
+      .map(c => ({ id: c.id, name: c.name, salesStatus: c.salesStatus, days: ctSalesStageDays(c) }))
+      .sort((a, b) => b.days - a.days);
+  };
   window.__ctFindClientByName = name => {
     if (!name) return null;
     const q = String(name).trim().toLowerCase();
@@ -20016,7 +20255,17 @@ text. If you genuinely can't find any client or task information at all, respond
   window.__ctApplyPatch = (id, fields) => {
     const idx = ctClients.findIndex(c => c.id === id);
     if (idx === -1) return false;
+    const prevSalesStatus = ctClients[idx].salesStatus;
+    const prevSalesStatusHistory = ctClients[idx].salesStatusHistory;
     ctClients[idx] = { ...ctClients[idx], ...fields };
+    // Same salesStatusHistory tracking as the form save and bulk-apply
+    // paths (see ctAppendSalesStatusHistory) — this is the path both the
+    // inline Sales-tab dropdown AND an AI-confirmed propose_todo_update
+    // patch actually write through, so without this, most real-world
+    // sales-status changes would never log a history entry at all.
+    if (fields.salesStatus !== undefined) {
+      ctClients[idx] = { ...ctClients[idx], salesStatusHistory: ctAppendSalesStatusHistory(prevSalesStatus, prevSalesStatusHistory, fields.salesStatus) };
+    }
     // A patch that changes nextFollowUp is the AI's own tool acting on
     // the SAME field the manual Follow-ups list (see ctAddFollowUp et al.
     // above) keeps synced from its own array — without this, the next
