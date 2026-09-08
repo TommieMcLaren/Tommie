@@ -5654,6 +5654,130 @@ tool" pointer, not a page actually read).
   that the win-rate footnote reads clearly, and click through an
   at-risk row to confirm it lands on the right client's profile.
 
+## Client Tracker header buttons: labeled instead of icon-only, and a real styling bug fixed (Sep 2026, unverified live)
+
+Direct follow-up, from a screenshot of `#ct-head`'s icon row: "can you
+clean up the buttons and make them a bit cleaner to tell what the
+functions actually do." The screenshot itself made the sharpest part of
+the complaint visible directly, not just implied: the export (📥) and
+import (📤) icons render as near-identical blue trays at this size — a
+DE would have to hover both to tell them apart, exactly the "can't tell
+what it does" problem being reported.
+
+- **Every `.ct-head-group` button except ✕ now shows a real, always-
+  visible text label next to its icon**, not just a hover tooltip —
+  `<span class="ct-head-icon">`/`<span class="ct-head-label">` inside
+  each button: 🔕 **Alerts**, 📊 **Snapshot**, 📈 **Analytics**, 💾
+  **Backup**, 📂 **Restore**, 🗑️ **Deleted**. The `title` attribute
+  stays too (a fuller sentence for anyone who does hover), but the
+  visible label is what actually answers "what does this do" without
+  hovering at all. ✕ close is deliberately left unlabeled and visually
+  separate — it's dismissal, not a labeled action, and "Close" text
+  next to six real action labels would compete with them for no benefit
+  (✕ reads on sight already).
+- **Export/Import swapped off the confusable 📥/📤 pair** — confirmed
+  hard to tell apart directly from the reported screenshot, not just a
+  guess — to 💾 (Backup) and 📂 (Restore): a floppy disk and a folder are
+  two genuinely different glyphs at a glance, unlike two near-identical
+  trays differing only in arrow direction.
+- **A real, confirmed styling bug found and fixed while touching this
+  CSS, not caused by this pass**: `.ct-head-group` had been applied as a
+  class on all six buttons in the markup since the header facelift
+  earlier this session — but the CSS rule underneath it had silently
+  stayed an ID list (`#ct-close, #ct-notify-btn, #ct-export-btn,
+  #ct-import-btn`) written before `#ct-stats-btn`/`#ct-analytics-btn`/
+  `#ct-trash-btn` even existed. Confirmed via grep: zero CSS rules
+  anywhere in the file actually selected `.ct-head-group` as a class
+  before this fix — three of the six buttons had never once received
+  this panel's own circular-icon-button treatment (background, hover
+  scale, sizing), silently rendering with default browser button chrome
+  the whole time this session. Fixed at the root: `.ct-head-group` is
+  now the real styling hook (a pill shape wide enough for icon+label,
+  consistent hover treatment across all six), so any future button
+  added with that class is correctly styled without needing its id
+  appended to a growing selector list again — the same failure shape
+  that let this gap open in the first place.
+- **Narrow panels fall back to icon-only** (`@media (max-width: 700px)`,
+  the same breakpoint the sidebar's own two-column-to-one-column
+  collapse already uses) — six labeled pills plus the subtitle and ✕
+  would crowd a narrow window, so labels hide and buttons shrink back to
+  30px circles there; the `title` tooltip still carries the full
+  description regardless of width.
+- **A real bug this rework would have introduced, caught before it
+  shipped**: `ctRefreshNotifyUI()` used to do `btn.textContent = '🔕'`
+  directly on the whole button — safe when the button held nothing but
+  an emoji, but `textContent` replaces every child with a single text
+  node, so unchanged that line would have silently deleted the new
+  "Alerts" label every time notification-permission state changed
+  (page load, granting/denying permission, or the toggle click).
+  Fixed by reaching `.querySelector('.ct-head-icon')` and setting only
+  that span's text, leaving the label span untouched.
+- Verified with a real Node execution-harness test (`test_header_
+  buttons.js`, 25 checks) against the actual extracted Client Tracker
+  source AND the live file's raw markup (not paraphrases): every button
+  carries the exact expected icon+label pair, read straight out of the
+  real `Tommie_Tours.html` `#ct-head` block; `.ct-head-group` is
+  confirmed to exist as a real CSS class rule with the icon+label flex
+  layout (the actual regression test for the styling bug found above);
+  export/import are confirmed to no longer contain the old 📥/📤
+  glyphs; ✕ close is confirmed to carry no label; and
+  `ctRefreshNotifyUI()` is exercised against all four real permission
+  states (unsupported, granted, denied, default) with the label checked
+  to survive every single one — catching along the way a genuine bug in
+  the test's OWN first draft, not the app: the app's real guard is
+  `'Notification' in window` (the window OBJECT's own property), while
+  `.permission` is read off a separately-injected top-level identifier
+  — a test session that passes a fake `Notification` constructor only
+  as that separate identifier without also attaching it to `window`
+  never actually reaches the granted/denied branches, silently testing
+  the unsupported branch three extra times instead. Fixed by attaching
+  `Notification` onto the window object itself in the test, matching
+  what the app genuinely checks. Also verified the click wiring for
+  Snapshot/Analytics/Deleted/Backup still fires correctly through the
+  restructured markup (a real click-through, not just a listener-
+  attached check). Re-ran the full pre-existing regression suite (18
+  other test files) against freshly re-extracted source — this surfaced
+  a widespread but shallow breakage across 15 of those files (all
+  crashed identically, `Cannot set properties of null (setting
+  'textContent')`, inside `ctRefreshNotifyUI()`): every one of them
+  builds its own synthetic `#ct-notify-btn` via a generic single-node
+  fallback with no children, so once `ctRefreshNotifyUI()` started
+  reaching for a real `.ct-head-icon` child that fallback never had,
+  every test session that runs the Client Tracker script at all hit the
+  same null-pointer at load time — confirmed this is a test-harness/
+  real-markup mismatch, not a live bug: the Client Tracker's own
+  `<script>` tag sits AFTER its own HTML in the file (this file's
+  established document-order convention), so a real browser always has
+  the genuine nested-span markup already parsed before this function
+  ever runs. Fixed by pre-seeding each affected test's `registry['ct-
+  notify-btn']` with the real icon/label structure before the script
+  executes, applied identically across all 15 files via a small script
+  rather than by hand, to avoid missing one. All 16 inline `<script>`
+  blocks parse; div/select/label/details/table/th tag balance held
+  clean; span moved +12/+12 (six buttons × two new spans each),
+  matching the file's established 1-off false-positive gap exactly with
+  no new imbalance.
+- **Deliberately not built**: a dropdown/overflow menu consolidating
+  these six actions behind a single "⋯ More" button — considered, since
+  the row has grown from two buttons to six across this session and
+  could keep growing, but a labeled-pill row directly answers "make it
+  cleaner to tell what the functions do" (the actual ask) with far less
+  new UI risk (no click-outside-to-close, no keyboard nav, no z-index/
+  animation to get right) than building a real menu component; worth
+  revisiting if a seventh action ever gets added and the row stops
+  fitting even with the mobile fallback.
+- **Unverified live**: whether the pill shape and 12px label text read
+  clearly at a glance against the gold gradient header (matching every
+  other "does this actually look right" caveat in this panel's own
+  history), whether six labeled buttons feel crowded or clean on a
+  real laptop-sized window before the 700px fallback kicks in, and
+  whether 💾/📂 read as "Backup"/"Restore" without needing to look at
+  the label at all — none of this has been seen in a real browser from
+  this environment. Test next: open the Client Tracker and confirm all
+  six header buttons read clearly with their labels, resize the panel
+  narrow and confirm they collapse to icon-only cleanly, and tap
+  Alerts through its states to confirm the label never disappears.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

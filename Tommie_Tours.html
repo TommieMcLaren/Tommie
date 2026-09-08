@@ -15734,28 +15734,66 @@ ${bodyHtml}
   }
   #ct-head b { font-family: 'Playfair Display', serif; font-size: 21px; letter-spacing: 0.2px; }
   #ct-head span { display: block; font-size: 12.5px; opacity: 0.88; margin-top: 4px; line-height: 1.4; }
-  /* Sep 2026 facelift — direct response to "clean up the toolbar... give
-     it a face lift, fluid and clean." Four icon buttons (notify/export/
-     import/close) used to sit in one undifferentiated row with only a
-     hover tooltip telling them apart. #ct-head-actions groups them with
-     a real flex gap instead of each button carrying its own
-     margin-left, and two thin .ct-head-divider rules split the row into
-     three legible clusters: the persistent 🔕 reminder toggle, the one-
-     shot 📥/📤 backup actions, and ✕ dismiss — so the grouping reads at
-     a glance instead of four identical circles in a line. Scoped as
-     "#ct-head .ct-head-divider" (id + class) rather than a bare class,
-     since the existing "#ct-head span" rule above is itself an id
-     selector and would otherwise win the specificity fight and force
-     display:block/subtitle styling onto the divider. */
-  #ct-head-actions { display: flex; align-items: center; gap: 6px; }
+  /* Sep 2026 facelift, then a labeled-pill rework the same month —
+     direct response to a screenshot: "clean up the buttons and make
+     them a bit cleaner to tell what the functions actually do." The
+     facelift above grouped six icon-only circles into three clusters
+     with dividers, which helped the GROUPING read clearly but did
+     nothing for each button's own meaning — a DE still had to hover
+     every circle to find out what it did, and two of them (the old
+     📥/📤 export/import pair) render as near-identical blue tray icons
+     at this size, confirmed directly from the reported screenshot. Two
+     real fixes landed together:
+     1. Every button but ✕ now shows a real icon+text label
+        (.ct-head-icon/.ct-head-label), not just a hover tooltip — the
+        tooltip (`title`) stays as a fuller description, the visible
+        label is what actually answers "what does this do" at a glance.
+     2. `.ct-head-group` is now a REAL class selector. It was only ever
+        applied as a class in the markup, but the styling rule
+        underneath had silently stayed an ID list
+        (`#ct-close, #ct-notify-btn, #ct-export-btn, #ct-import-btn`)
+        from before #ct-stats-btn/#ct-analytics-btn/#ct-trash-btn
+        existed — so those three buttons never actually got this
+        panel's own circular-icon-button treatment, falling back to
+        unstyled default button chrome the whole time. Confirmed by
+        grepping the file for `.ct-head-group` as a CSS selector before
+        this fix: zero matches. Fixed at the root by making the class
+        itself the real styling hook, so any future button added with
+        `class="ct-head-group"` is correctly styled without needing its
+        id manually appended to a growing list again. ✕ close is
+        deliberately left OUT of `.ct-head-group` and kept as its own
+        bare circle — it's dismissal, not a labeled action, and adding
+        "Close" text next to six real action labels would visually
+        compete with them for no benefit (✕ is already universally
+        understood on sight). */
+  #ct-head-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   #ct-head .ct-head-divider { display: block; width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 2px; }
-  #ct-close, #ct-notify-btn, #ct-export-btn, #ct-import-btn {
+  .ct-head-group {
+    background: rgba(255,255,255,0.15); border: none; color: #fff; cursor: pointer;
+    display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px 0 10px;
+    border-radius: 15px; flex-shrink: 0; font-family: 'Lato', sans-serif;
+    transition: background .15s ease, transform .12s ease;
+  }
+  .ct-head-group .ct-head-icon { font-size: 14px; line-height: 1; }
+  .ct-head-group .ct-head-label { font-size: 12px; font-weight: 700; white-space: nowrap; letter-spacing: 0.01em; }
+  .ct-head-group:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+  #ct-notify-btn.on { background: rgba(255,255,255,0.32); }
+  #ct-close {
     background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 16px; cursor: pointer;
     width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
     transition: background .15s ease, transform .12s ease;
   }
-  #ct-close:hover, #ct-notify-btn:hover, #ct-export-btn:hover, #ct-import-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
-  #ct-notify-btn.on { background: rgba(255,255,255,0.32); }
+  #ct-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
+  /* Narrow panel widths (see the 700px mobile breakpoint elsewhere in
+     this file): labels would crowd six pills plus the subtitle/close
+     into too little room, so they drop back to icon-only circles —
+     `flex-wrap` above already lets the row wrap if it still needs to,
+     this just keeps each button compact first. The `title` tooltip
+     still carries the full description either way. */
+  @media (max-width: 700px) {
+    .ct-head-group { padding: 0; width: 30px; justify-content: center; border-radius: 50%; }
+    .ct-head-group .ct-head-label { display: none; }
+  }
 
   #ct-toolbar { display: flex; flex-wrap: wrap; gap: 10px; row-gap: 10px; padding: 16px 26px 0; flex-shrink: 0; }
   #ct-search {
@@ -16612,14 +16650,14 @@ ${bodyHtml}
   <div id="ct-head">
     <div><b>Client Tracker</b><span id="ct-head-subtitle">Every active client, sorted by who needs you next</span></div>
     <div id="ct-head-actions">
-      <button type="button" id="ct-notify-btn" class="ct-head-group" title="Browser reminders when a follow-up is due">🔕</button>
-      <button type="button" id="ct-stats-btn" class="ct-head-group" title="Pipeline snapshot — counts by status and lead temperature">📊</button>
-      <button type="button" id="ct-analytics-btn" class="ct-head-group" title="Sales analytics — conversion, revenue trend, and what needs attention">📈</button>
+      <button type="button" id="ct-notify-btn" class="ct-head-group" title="Browser reminders when a follow-up is due"><span class="ct-head-icon">🔕</span><span class="ct-head-label">Alerts</span></button>
+      <button type="button" id="ct-stats-btn" class="ct-head-group" title="Pipeline snapshot — counts by status and lead temperature"><span class="ct-head-icon">📊</span><span class="ct-head-label">Snapshot</span></button>
+      <button type="button" id="ct-analytics-btn" class="ct-head-group" title="Sales analytics — conversion, revenue trend, and what needs attention"><span class="ct-head-icon">📈</span><span class="ct-head-label">Analytics</span></button>
       <span class="ct-head-divider"></span>
-      <button type="button" id="ct-export-btn" class="ct-head-group" title="Download a backup of every client">📥</button>
-      <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file">📤</button>
+      <button type="button" id="ct-export-btn" class="ct-head-group" title="Download a backup of every client"><span class="ct-head-icon">💾</span><span class="ct-head-label">Backup</span></button>
+      <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file"><span class="ct-head-icon">📂</span><span class="ct-head-label">Restore</span></button>
       <input type="file" id="ct-import-file" accept="application/json,.json" hidden>
-      <button type="button" id="ct-trash-btn" class="ct-head-group" title="Recently deleted — restore a client within 30 days">🗑️</button>
+      <button type="button" id="ct-trash-btn" class="ct-head-group" title="Recently deleted — restore a client within 30 days"><span class="ct-head-icon">🗑️</span><span class="ct-head-label">Deleted</span></button>
       <span class="ct-head-divider"></span>
       <button type="button" id="ct-close" aria-label="Close">✕</button>
     </div>
@@ -20083,22 +20121,30 @@ text. If you genuinely can't find any client or task information at all, respond
 
   function ctRefreshNotifyUI() {
     const btn = document.getElementById('ct-notify-btn');
+    // Only the icon span's text changes — the button now also carries a
+    // visible "Alerts" label (.ct-head-label) beside it, and the old
+    // `btn.textContent = '...'` here would have wiped that label out
+    // entirely (textContent replaces every child with one text node),
+    // silently reverting this button back to icon-only every time
+    // permission state changes. Reaching the icon span directly leaves
+    // the label alone.
+    const icon = btn.querySelector('.ct-head-icon');
     if (!('Notification' in window)) {
-      btn.textContent = '🔕';
+      icon.textContent = '🔕';
       btn.title = "This browser doesn't support notifications.";
       btn.classList.remove('on');
       return;
     }
     if (Notification.permission === 'granted') {
-      btn.textContent = '🔔';
+      icon.textContent = '🔔';
       btn.title = 'Reminders on — you\'ll get a browser notification when a follow-up is due, while this tab is open (and possibly in the background too, if this page is hosted online and installed as an app — not guaranteed either way).';
       btn.classList.add('on');
     } else if (Notification.permission === 'denied') {
-      btn.textContent = '🚫';
+      icon.textContent = '🚫';
       btn.title = 'Notifications blocked for this page in your browser settings — re-enable them there to use reminders.';
       btn.classList.remove('on');
     } else {
-      btn.textContent = '🔕';
+      icon.textContent = '🔕';
       btn.title = 'Tap to turn on browser reminders for due follow-ups.';
       btn.classList.remove('on');
     }
