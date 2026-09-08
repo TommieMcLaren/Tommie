@@ -5271,6 +5271,83 @@ Sales Status value shipped as `Booked`, not `Sold`.
   status and amount inline, try a bulk Sales Status change, and open
   Pipeline Stats to confirm the new totals look correct.
 
+## Sales-tab summary tiles are now clickable filters (Sep 2026, unverified live)
+
+Direct follow-up, immediately after seeing the Sales tab's summary tiles
+in a screenshot: "Can these tabs be clickable to bring me to correct
+section. The thought is, I will have 100s of leads so really want to
+keep everything a neat and easy to navigate as possible."
+
+- **A filter, not a scroll-to-section** — the deliberate call given the
+  stated scale. The Sales tab is one continuous sorted table with no
+  group-header rows breaking it up (see the entry above for why); once a
+  roster is genuinely in the hundreds, scrolling to "the right part" of
+  one long table doesn't actually reduce clutter, narrowing the table
+  down to just that stage does. Tapping a tile now sets
+  `ctSalesStatusFilter` to that Sales Status and re-renders
+  `ctRenderSalesTable()` with only matching rows; tapping the
+  already-active tile again clears it back to everyone — same toggle
+  shape the lead-temp tabs already use elsewhere in this panel, so it
+  isn't a new interaction pattern to learn.
+- **The tiles themselves keep showing the FULL overview, not the
+  narrowed count** — built from the same `filtered` (search/lead-temp
+  already applied) set regardless of which tile is active, so all four
+  numbers stay a stable "where does everything stand" glance even while
+  the table underneath is zoomed into one stage. Only the table rows
+  narrow.
+- **The Pipeline Stats modal's copy of these same tiles had to stay
+  genuinely read-only** — that modal was explicitly built as "a
+  lightweight snapshot, not a second navigation surface... clicking a
+  tile does nothing" (see the five-upgrades entry above), and this
+  follow-up reuses `ctBuildSalesSummaryHtml()` for both places. Rather
+  than fork a second tile-builder, it now takes an `opts.clickable` flag:
+  `true` (Sales tab only) renders each tile as a real `<button>` with
+  `data-sales-filter`; omitted (the Stats modal's own call site) renders
+  the exact same plain, inert markup as before — one function, two
+  call sites, the interactive behavior opt-in and scoped to where it was
+  actually asked for.
+- **Resets when leaving the Sales tab.** `ctSalesStatusFilter` clears
+  alongside `ctBulkMode` in the view-toggle's own click handler whenever
+  the DE switches to a different view — a filter left silently active
+  from a forgotten earlier visit hiding clients on a later one would be
+  exactly the kind of surprising behavior "neat and easy to navigate"
+  was asking to avoid.
+- **A clear empty state for a stage with zero matches** — "No one's
+  'Requote' — Tap the tile again to see everyone" — rather than a bare
+  "No matches" that reads like the search box is broken.
+- Verified with a real Node execution-harness test extension (10 new
+  checks added to `test_sales_tab.js`, 54 total) against the actual
+  extracted Client Tracker source: the four tiles render as real
+  clickable buttons with none active by default; clicking one narrows
+  the table to exactly the matching clients; the clicked tile gets the
+  `active` class; the summary tiles' own text still shows every stage's
+  numbers while the table is narrowed (confirming the "overview stays
+  full" design decision actually holds); clicking the same tile again
+  restores all clients and clears the active state; a stage with zero
+  clients shows the dedicated empty-state message rather than crashing;
+  switching to "All Clients" and back to "Sales" resets the filter; and
+  — the concrete proof the read-only Stats-modal decision wasn't
+  silently broken — opening Pipeline Stats afterward confirms its own
+  Sales tiles still render with zero `data-sales-filter` buttons in the
+  output. Re-ran the full pre-existing regression suite (16 other test
+  files) with zero regressions caused by this change — the same two
+  known baseline artifacts are unchanged and unrelated. All 17
+  `<script>` blocks parse; div/select/label/details tag balance held
+  clean, span/button unchanged from their established 1-off/2-off
+  baseline (two new comments briefly introduced their own literal
+  `<button>`/`<div>` false positives while drafting — caught before
+  committing and reworded, same discipline this file's own history
+  already establishes for this exact class of noise).
+- **Unverified live**: whether the tile's active-state border (a
+  2px sage ring) reads clearly enough at a glance against each tile's
+  own background color, and whether the toggle interaction (tap to
+  narrow, tap again to clear) is discoverable without being told —
+  neither can be judged without a real browser. Test next: open the
+  Sales tab with a real mixed roster, tap a tile and confirm the table
+  narrows while the tiles themselves keep showing every stage's totals,
+  tap it again to clear, and confirm Pipeline Stats' own Sales tiles are
+  still inert.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

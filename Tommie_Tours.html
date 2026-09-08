@@ -16331,6 +16331,18 @@ ${bodyHtml}
   .ct-sales-summary-tile.requote { background: var(--ct-overdue-soft); }
   .ct-sales-summary-tile.final { background: #EAE1F5; }
   .ct-sales-summary-tile.booked { background: #eef4ea; }
+  /* Clickable tiles (Sep 2026, Sales tab only — see ctBuildSalesSummaryHtml's
+     opts.clickable) render as real button elements, which need their
+     default button chrome reset back to look like the plain tiles they
+     still are everywhere else (including the read-only Pipeline Stats
+     copy, which stays a plain non-interactive element and never matches
+     this attribute selector). */
+  .ct-sales-summary-tile[data-sales-filter] {
+    border: 2px solid transparent; font: inherit; cursor: pointer; width: 100%;
+    transition: transform .12s ease, border-color .12s ease;
+  }
+  .ct-sales-summary-tile[data-sales-filter]:hover { transform: translateY(-1px); }
+  .ct-sales-summary-tile[data-sales-filter].active { border-color: var(--sage-darker); }
   .ct-sales-summary-count { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sage-darker); line-height: 1.1; }
   .ct-sales-summary-label { font-size: 11.5px; color: var(--ct-ink-soft); margin-top: 2px; font-weight: 700; }
   .ct-sales-summary-total { font-size: 12.5px; color: var(--sage-darker); font-weight: 800; margin-top: 4px; }
@@ -19031,6 +19043,16 @@ text. If you genuinely can't find any client or task information at all, respond
   // lose who's already selected.
   let ctBulkMode = false;
   let ctBulkSelected = new Set();
+  // Sales-tab tile filter (Sep 2026) — direct request: "can these tabs
+  // be clickable to bring me to correct section... I will have 100s of
+  // leads so really want to keep everything neat and easy to navigate."
+  // With a roster that large, scrolling to a section of one long sorted
+  // table doesn't actually reduce clutter — narrowing the table down to
+  // just that Sales Status does, matching how the lead-temp tabs and the
+  // status filter dropdown already work elsewhere in this panel. Reset
+  // whenever the DE leaves the Sales view (alongside ctBulkMode below) so
+  // a forgotten filter can't silently hide clients on a later visit.
+  let ctSalesStatusFilter = null;
 
   // Small fade so a re-render (switching views, typing a search, changing
   // a status, anything that calls ctRender) reads as new content replacing
@@ -19063,7 +19085,16 @@ text. If you genuinely can't find any client or task information at all, respond
     const idx = CT_SALES_STATUSES.indexOf(status);
     return idx === -1 ? CT_SALES_STATUSES.length : idx;
   }
-  function ctBuildSalesSummaryHtml(list) {
+  // opts.clickable makes each tile a real filter toggle — used only by
+  // the Sales tab itself (ctRenderSalesTable below). The Pipeline Stats
+  // modal reuses this same builder for its own Sales section but
+  // deliberately calls it with no opts, keeping those tiles inert — that
+  // modal is explicitly read-only by design (see "Pipeline snapshot"
+  // above: "clicking a tile does nothing"), and this function shouldn't
+  // silently change that just because the Sales tab grew real
+  // interactivity on the identical-looking markup.
+  function ctBuildSalesSummaryHtml(list, opts) {
+    const clickable = !!(opts && opts.clickable);
     const byStatus = {};
     CT_SALES_STATUSES.forEach(s => { byStatus[s] = { count: 0, total: 0 }; });
     list.forEach(c => {
@@ -19071,12 +19102,13 @@ text. If you genuinely can't find any client or task information at all, respond
       byStatus[c.salesStatus].count++;
       byStatus[c.salesStatus].total += ctParseCurrency(c.saleAmount);
     });
+    const tag = clickable ? 'button' : 'div';
     return `<div class="ct-sales-summary">${CT_SALES_STATUSES.map(s => `
-      <div class="ct-sales-summary-tile ${ctSalesStatusClass(s)}">
+      <${tag}${clickable ? ' type="button"' : ''} class="ct-sales-summary-tile ${ctSalesStatusClass(s)}${clickable && ctSalesStatusFilter === s ? ' active' : ''}"${clickable ? ` data-sales-filter="${ctEscapeHtml(s)}" title="Show only ${ctEscapeHtml(s)}"` : ''}>
         <div class="ct-sales-summary-count">${byStatus[s].count}</div>
         <div class="ct-sales-summary-label">${ctEscapeHtml(s)}</div>
         ${byStatus[s].total ? `<div class="ct-sales-summary-total">${ctFormatCurrency(byStatus[s].total)}</div>` : ''}
-      </div>`).join('')}</div>`;
+      </${tag}>`).join('')}</div>`;
   }
   // Same shape as ctApplyBulkStatus (one save/render pass, not N) — a
   // separate function rather than a parameterized version of that one,
@@ -19097,10 +19129,17 @@ text. If you genuinely can't find any client or task information at all, respond
     ctSetStatus(`Updated ${updated} client${updated === 1 ? '' : 's'} to ${salesStatus}.`);
   }
   function ctRenderSalesTable(list, filtered) {
-    const rows = filtered.slice().sort((a, b) => {
-      const r = ctSalesRank(a.salesStatus) - ctSalesRank(b.salesStatus);
-      return r !== 0 ? r : a.name.localeCompare(b.name);
-    });
+    // The summary tiles are built from the full `filtered` set (search/
+    // lead-temp already applied, same as every other view) regardless of
+    // whether a tile filter is active — their counts stay a stable
+    // overview of everything currently in view, not shrunk to match
+    // whichever single stage the table itself is narrowed to.
+    const rows = filtered
+      .filter(c => !ctSalesStatusFilter || c.salesStatus === ctSalesStatusFilter)
+      .sort((a, b) => {
+        const r = ctSalesRank(a.salesStatus) - ctSalesRank(b.salesStatus);
+        return r !== 0 ? r : a.name.localeCompare(b.name);
+      });
     // Bulk mode here applies SALES status, not pipeline status — the more
     // relevant field to change in bulk from this specific view (see
     // ctApplyBulkSalesStatus above).
@@ -19111,7 +19150,7 @@ text. If you genuinely can't find any client or task information at all, respond
         <button type="button" id="ct-bulk-apply">Apply to ${ctBulkSelected.size}</button>
         <button type="button" id="ct-bulk-clear-btn">Clear</button>
       </div>` : '';
-    const summaryHtml = ctBuildSalesSummaryHtml(filtered);
+    const summaryHtml = ctBuildSalesSummaryHtml(filtered, { clickable: true });
     const bodyRows = rows.map(c => {
       const bulkCell = ctBulkMode
         ? `<td class="ct-sales-td-check"><input type="checkbox" class="ct-bulk-check" data-bulk-check="${c.id}"${ctBulkSelected.has(c.id) ? ' checked' : ''} title="Select for bulk sales-status change"></td>`
@@ -19127,6 +19166,9 @@ text. If you genuinely can't find any client or task information at all, respond
         <td class="ct-sales-td-date">${c.lastContact ? ctEscapeHtml(ctFormatDate(c.lastContact)) : '—'}</td>
       </tr>`;
     }).join('');
+    const emptyHtml = ctSalesStatusFilter
+      ? `<div class="ct-empty"><p class="ct-empty-big">No one's "${ctEscapeHtml(ctSalesStatusFilter)}"</p><p>Tap the tile again to see everyone.</p></div>`
+      : `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`;
     const tableHtml = rows.length ? `
       <div class="ct-sales-table-wrap"><table class="ct-sales-table">
         <thead><tr>
@@ -19134,12 +19176,24 @@ text. If you genuinely can't find any client or task information at all, respond
           <th>Client</th><th>Status</th><th>Sales Status</th><th>Sale Amount</th><th>Destination</th><th>Last Contact</th>
         </tr></thead>
         <tbody>${bodyRows}</tbody>
-      </table></div>` : `<div class="ct-empty"><p class="ct-empty-big">No matches</p><p>Try a different search or filter.</p></div>`;
+      </table></div>` : emptyHtml;
 
     ctSetListHtml(list, bulkBarHtml + summaryHtml + tableHtml);
 
     list.querySelectorAll('tr[data-open]').forEach(tr => {
       tr.addEventListener('click', () => ctOpenDetail(tr.dataset.open));
+    });
+    // Tap a tile to narrow the table to just that Sales Status; tap the
+    // already-active one again to clear back to everyone — same toggle
+    // shape as the lead-temp tabs (a second click on "All" isn't needed
+    // there since "All" is its own separate tab, but the effect —
+    // narrow, then clear — is the same idea).
+    list.querySelectorAll('[data-sales-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.salesFilter;
+        ctSalesStatusFilter = (ctSalesStatusFilter === val) ? null : val;
+        ctRender();
+      });
     });
     list.querySelectorAll('[data-bulk-check]').forEach(cb => {
       cb.addEventListener('click', (e) => e.stopPropagation());
@@ -19873,6 +19927,10 @@ text. If you genuinely can't find any client or task information at all, respond
       // either drops both the mode and whatever was selected, rather than
       // letting a stale selection silently carry over to a later visit.
       if (ctListView !== 'all' && ctListView !== 'sales') { ctBulkMode = false; ctBulkSelected = new Set(); }
+      // The sales-tile filter only makes sense inside the Sales tab
+      // itself — leaving it clears the filter so it can't silently keep
+      // hiding clients the next time this tab is opened.
+      if (ctListView !== 'sales') ctSalesStatusFilter = null;
       ctSyncBulkToggleUI();
       ctRender();
     });
