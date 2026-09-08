@@ -5778,6 +5778,187 @@ what it does" problem being reported.
   narrow and confirm they collapse to icon-only cleanly, and tap
   Alerts through its states to confirm the label never disappears.
 
+## Client Tracker: duplicate detection, lead source, a Smart Priority view, bulk outreach (Sep 2026, unverified live)
+
+Direct follow-up to the header-button cleanup above: "okay great. Now
+focusing on the client tracker, what can we do for upgrades and smarter
+functions?" Proposed four candidates (duplicate detection/merge,
+referral/lead-source tracking, a smart priority sort, and bulk
+communication), recommending duplicate detection as the place to start —
+the DE's own reply was **"yeah build all 4,"** so all four shipped
+together rather than one at a time.
+
+- **Duplicate detection — high-confidence only, on purpose.** Once a
+  roster is genuinely heading into the hundreds (TMT-screenshot imports
+  and manual entry both add clients independently — see the TMT-import
+  entries above), nothing stopped the same person being tracked twice.
+  `ctFindPossibleDuplicates(candidate, excludeId)` flags only an exact
+  normalized-name match, an exact email match, or an exact digits-only
+  phone match (7+ digits, guarding against two blank values both
+  normalizing to `''` and matching each other by accident) — deliberately
+  **no fuzzy/Levenshtein name scoring**. A near-miss ("Tom" vs "Tommy")
+  is deliberately NOT flagged: a wrong guess here would train the DE to
+  ignore the warning entirely, which is worse than occasionally missing a
+  real duplicate. Checked two ways:
+  1. **Save-time**, inside `ctHandleSave()` — before a new/edited record
+     is written, checked against everyone except the record currently
+     being edited (so editing a client never flags itself). A match shows
+     `ctShowDuplicateWarning()`, a banner (`#ct-dup-warning`) right above
+     Save/Cancel — not a blocking `confirm()` — listing each candidate's
+     name and reason, with a "Merge into this record" button per
+     candidate and a "Save as new anyway" fallback (sets
+     `ctDupAcknowledged`, which the save re-run then respects so the same
+     match isn't re-flagged a second time).
+  2. **A manual "🔍 Duplicates" scan** (`ctOpenDuplicatesModal`) —
+     `ctFindAllDuplicateGroups()` applies the same exact-match rule
+     pairwise across the whole roster, for duplicates that predate this
+     feature or that a TMT import's own fuzzy client-name matching
+     missed. Each group shows every member with a "Merge into
+     `<primary>`" button on every entry but the first.
+  - **`ctMergeRecordData(base, incoming)`** is the one merge
+    implementation both paths share (`ctMergeFormIntoExisting` for the
+    save-time path, `ctMergeExistingRecords` for the scan path) — pure,
+    never touches `ctClients` itself. Every scalar field: base wins
+    unless it's empty, in which case incoming fills the gap. Every
+    list-shaped field (notes, tags, travelers, drafts, statusHistory,
+    salesStatusHistory, followUps) is **unioned, never overwritten** — a
+    merge can never lose real history from either side. A legacy
+    single-date follow-up on either side gets resolved through
+    `ctFollowUpsFor()` first and re-stamped with a fresh id if it was
+    `'legacy'`, so two legacy entries from each side can't collide under
+    the same literal id once combined. The losing record is always
+    trashed (30-day recoverable trash, same as every other delete in
+    this panel), never dropped outright — even for a merge the DE
+    themselves triggered.
+- **Lead source tracking.** A plain free-text field (`client.leadSource`,
+  "Referred by Amanda Jackson," "Instagram ad," matching this file's own
+  established "simplest UI that stores the real shape" call rather than
+  a dedicated dropdown of invented source categories this file has no
+  authority to define) — added to the Add/Edit form right after Tags,
+  folded into the existing search box (so typing part of a referral
+  source finds the right client the same way a phone-number fragment
+  already does), shown in the profile's Trip section, and added as its
+  own column to the Sales tab's CSV export. `ctBuildSalesAnalytics()`
+  also computes `topLeadSources` (booked-only, ranked by value then
+  count) mirroring the existing `topDestinations` computation exactly,
+  and `ctBuildAnalyticsHtml()` renders it as a new "Top Lead Sources
+  (Booked)" section right after "Top Destinations (Booked)" in the Sales
+  Analytics dashboard — reusing the exact same horizontal-bar rendering,
+  not a second chart language.
+- **Smart Priority view.** `ctComputeLeadScore(client)` is the one
+  scoring function — returns `null` for a Closed client (nothing to
+  prioritize once a relationship is over) and otherwise a `{score,
+  reasons}` pair built from: lead temperature (Hot 40 / Warm 25 / Check
+  Back Later 10 / Cold 0 / unset 5), follow-up urgency (+30 overdue, +20
+  due within 7 days, or +15 for a Hot Lead with 5+ days of no logged
+  contact and nothing scheduled — the same staleness threshold
+  `maybeSurfaceHotLeadNudge`/the Daily Brief already use), and — the one
+  genuinely new signal, not reused from elsewhere — a stalled or
+  sizeable open deal (+15 if `ctIsSalesStale()` says the Sales Status
+  hasn't moved, plus up to +20 scaled from `saleAmount`). New "⭐
+  Priority" tab on `#ct-view-toggle`: a single flat queue (not grouped,
+  unlike the other two views — the whole point is "who's most worth
+  chasing right now," not a bucketed browse), sorted score-descending
+  then name, each card showing a `⭐ N` badge (`ctCardHTML`'s new
+  `opts.showPriority`) whose hover title spells out the actual reasons
+  ("🔥 hot lead, overdue 3d") — same "explain why, don't just show a bare
+  number" call this file already makes for `ctBuildTaskCallout`. A
+  search/filter combination that leaves nothing scoreable (everyone
+  matching is Closed) shows a dedicated "Nothing to prioritize" empty
+  state rather than a silently blank list.
+- **Bulk outreach queue** — the Priority view's own bulk action,
+  reachable once "☑️ Select" is toggled and at least one card is checked:
+  a "✉️ Draft outreach for N" bar button (in place of the "All Clients"
+  view's status-apply bar) opens a step-through review queue
+  (`#ct-outreach-overlay`), not an automatic multi-send blast — this
+  file's standing "draft only, DE confirms/sends" rule (Outlook,
+  `propose_todo_update`) applies here too. Each queued row's own "✉️
+  Draft outreach" button drives the **exact same single-client
+  `ctDraftOutreach()`** flow already used everywhere else in this panel
+  (close the Client Tracker overlay, open Trip Assistant, prefill,
+  send) — one client at a time, never a batch call. A drafted row shows
+  ✓/"Drafted" and disables itself; the header gains a new "📋 Outreach"
+  button (hidden until a queue is actually in progress) so the DE can
+  come back and resume the rest after reviewing/sending the first one
+  from Trip Assistant, without re-selecting anyone. `ctOpenBulkOutreachQueue(ids)`
+  is deliberately dual-purpose: called with a real id array (from the
+  bulk bar) it starts a FRESH queue; called with no usable array at all
+  (the header button's own click listener passes the click `Event`
+  itself, which fails `Array.isArray`) it RESUMES whatever's already in
+  progress instead of silently wiping it — the tooltip says exactly
+  this ("Resume drafting outreach to the rest of your selected
+  clients"). The header button hides itself again
+  (`ctSyncOutreachQueueBtn`) the moment nothing's left to resume.
+- Verified with a real Node execution-harness test
+  (`test_ct_four_upgrades.js`, 59 checks) against the actual extracted
+  Client Tracker source (not a paraphrase): the full save-time warning
+  lifecycle (blocked save, the real reason shown, "Save as new anyway"
+  genuinely creating a second record, the warning clearing after);
+  merging from the save-time warning (destination filled from the empty
+  side, name kept from the non-empty side, tags unioned, note history
+  preserved); a near-miss name correctly NOT flagged; editing a record
+  through the real `#ct-detail-edit-btn` → re-save path correctly never
+  self-flagging; the manual scan modal (flags a real duplicate group,
+  leaves an unrelated client out of the output entirely, scan-merge
+  reduces the roster by exactly one and keeps the right merged data);
+  lead source searchability and profile display; the Priority view's
+  card count, its exclusion of Closed clients, its badge count, and —
+  the actual scoring-order proof — that an overdue Hot Lead sorts before
+  both an untouched Cold Lead and a merely-due-soon Warm Lead in the
+  rendered HTML; the empty state when every match is Closed; and the
+  full bulk-outreach lifecycle end to end (bulk-select two clients, the
+  bar shows the outreach action rather than a status dropdown, the queue
+  modal lists both, drafting one closes the overlay and genuinely drives
+  Trip Assistant's real send flow with that client's name in the
+  prefilled message, reopening via the header button resumes with the
+  first shown as done and the second still actionable, drafting the
+  second hides the header button since nothing's left) — one real bug
+  caught and fixed while writing this exact check: an early draft of the
+  test used a `:not([disabled])` CSS selector this project's own Node
+  DOM-harness selector engine doesn't actually support (its regex-based
+  attribute matcher reads `:not([disabled])` as requiring `[disabled]`
+  to be present, not absent — the opposite of `:not`'s real meaning),
+  which was silently selecting the WRONG row (the already-drafted one)
+  and still happened to produce a passing-looking count; rewritten to
+  filter in plain JS instead of leaning on a selector the harness can't
+  parse. XSS probes across the save-time warning, the scan modal, and
+  the priority queue's own card rendering all came back fully inert. Re-
+  ran the full pre-existing regression suite (39 other test files, all
+  refreshed against freshly re-extracted `/tmp/ct_block.js`/`ta_block.js`/
+  `dt_block.js`) with zero regressions — the same two known baseline
+  artifacts (`test_tabs_visibility.js`'s two non-bugs, `test_draft_
+  button.js`'s one no-API-key-configured check) are unchanged and
+  unrelated. All 17 `<script>` blocks parse; div/select/label/details
+  tag balance held clean; span/button carry their pre-existing,
+  previously-documented 1-off/2-off false-positive gaps from prose
+  comments elsewhere in the file, unaffected by this batch.
+- **Deliberately not built**: fuzzy/near-match duplicate detection (see
+  above — a deliberate scope boundary, not an oversight); a dedicated
+  lead-source dropdown of preset categories (free text was judged the
+  right call — this file has no authority to define KT's real referral
+  taxonomy); auto-applying the top-scored Priority card's suggested
+  action (propose-then-confirm via the outreach queue, never an
+  automatic send, matching this file's standing rule everywhere else);
+  and true bulk SENDING (the queue is a review aid for stepping through
+  several drafts faster, not a way to skip the per-client Outlook/SMS
+  review this file has enforced from the very first Outlook button
+  onward).
+- **Unverified live**: whether the priority score's exact weights (40/
+  25/10/0 for lead temp, +30/+20/+15 for urgency, up to +20 scaled from
+  deal size) actually rank clients the way a DE's own gut feel would,
+  whether the `⭐ N` badge and its hover-title reasons read clearly at a
+  glance, whether the duplicate-detection banner's placement and copy
+  are noticed rather than dismissed on a real save, and whether stepping
+  through the outreach queue one client at a time (closing/reopening
+  Client Tracker between each) feels efficient or tedious in practice —
+  none of this has been seen in a real browser from this environment.
+  Test next: create a client with the same name as an existing one and
+  confirm the save-time warning appears and both "Merge" and "Save as
+  new anyway" work, run the manual "🔍 Duplicates" scan against a real
+  roster, add a lead source and search for it, switch to "⭐ Priority"
+  and confirm the ordering feels right, and select a few Priority-view
+  clients to run through the bulk outreach queue end to end.
+
 ## Design decisions to preserve, not "helpfully" change
 
 - Outlook is read+draft only, never send. The Client Tracker's "Add to

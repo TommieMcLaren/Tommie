@@ -785,17 +785,20 @@
      before its own fade-out finishes playing. */
   #ta-itinerary-overlay, #ta-draft-overlay, #quote-builder-overlay,
   #dashboard-overlay, #stale-overlay, #tmm-overlay, #quiz-overlay, #tip-modal-overlay, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay,
-  #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay, #ct-analytics-overlay {
+  #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay, #ct-analytics-overlay,
+  #ct-dup-overlay, #ct-outreach-overlay {
     opacity: 0; transition: opacity .18s ease;
   }
   #ta-itinerary-overlay.shown, #ta-draft-overlay.shown, #quote-builder-overlay.shown,
   #dashboard-overlay.shown, #stale-overlay.shown, #tmm-overlay.shown, #quiz-overlay.shown, #tip-modal-overlay.shown, #dt-overlay.shown, #ct-scan-overlay.shown, #ct-stats-overlay.shown,
-  #ct-trash-overlay.shown, #ct-timeline-overlay.shown, #ct-quickjump-overlay.shown, #ta-history-overlay.shown, #ta-help-overlay.shown, #ct-analytics-overlay.shown {
+  #ct-trash-overlay.shown, #ct-timeline-overlay.shown, #ct-quickjump-overlay.shown, #ta-history-overlay.shown, #ta-help-overlay.shown, #ct-analytics-overlay.shown,
+  #ct-dup-overlay.shown, #ct-outreach-overlay.shown {
     opacity: 1;
   }
   #ta-itinerary-modal, #ta-draft-modal, #quote-builder-modal,
   #dashboard-modal, #stale-modal, #tmm-modal, #quiz-modal, #tip-modal, #dt-modal, #ct-scan-modal, #ct-stats-modal,
-  #ct-trash-modal, #ct-timeline-modal, #ct-quickjump-modal, #ta-history-modal, #ta-help-modal, #ct-analytics-modal {
+  #ct-trash-modal, #ct-timeline-modal, #ct-quickjump-modal, #ta-history-modal, #ta-help-modal, #ct-analytics-modal,
+  #ct-dup-modal, #ct-outreach-modal {
     transform: translateY(14px) scale(0.98);
     transition: transform .18s cubic-bezier(.2,.9,.3,1.2);
   }
@@ -806,7 +809,8 @@
   #ct-scan-overlay.shown #ct-scan-modal, #ct-stats-overlay.shown #ct-stats-modal,
   #ct-trash-overlay.shown #ct-trash-modal, #ct-timeline-overlay.shown #ct-timeline-modal,
   #ct-quickjump-overlay.shown #ct-quickjump-modal, #ta-history-overlay.shown #ta-history-modal,
-  #ta-help-overlay.shown #ta-help-modal, #ct-analytics-overlay.shown #ct-analytics-modal {
+  #ta-help-overlay.shown #ta-help-modal, #ct-analytics-overlay.shown #ct-analytics-modal,
+  #ct-dup-overlay.shown #ct-dup-modal, #ct-outreach-overlay.shown #ct-outreach-modal {
     transform: translateY(0) scale(1);
   }
 
@@ -1742,7 +1746,7 @@
   @media print {
     body { display: block; background: #fff; font-size: 11.5pt; }
     #main { margin: 0; max-width: none; } #main-inner { padding: 0; }
-    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay, #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay, #ct-analytics-overlay { display: none !important; }
+    #progress-bar-track, #guideSearchExamples, #why-bubble, #sidebarExpandBtn, .bm-btn, .card-expand-btn, .speak-btn, .map-btn, #mobileMenuBtn, #tip-modal-overlay, #quiz-overlay, #quote-builder-overlay, #tmm-overlay, #tell-me-more-btn, #quickSearchBtn, #quickSearchOverlay, #why-reopen-btn, #dashboard-overlay, #dashboardEntryBtn, #ta-btn, #ta-panel, #stale-overlay, #ta-itinerary-overlay, #ct-btn, #ct-overlay, #dt-btn, #dt-overlay, #ct-scan-overlay, #ct-stats-overlay, #ct-trash-overlay, #ct-timeline-overlay, #ct-quickjump-overlay, #ta-history-overlay, #ta-help-overlay, #ct-analytics-overlay, #ct-dup-overlay, #ct-outreach-overlay { display: none !important; }
     #main h2 { background: none; border-left: 4px solid #000; page-break-after: avoid; }
     #main h3, #main h4 { page-break-after: avoid; }
     table, .hotel-card, .media-card, .weather-card, .flip-card, blockquote { page-break-inside: avoid; }
@@ -16542,6 +16546,91 @@ ${bodyHtml}
   .ct-trash-purge-btn:hover { background: #f6e8e4; }
   .ct-trash-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
 
+  /* Duplicate detection (Sep 2026) — the save-time warning banner
+     (#ct-dup-warning, inside the form, styled like a softer cousin of
+     #ct-err-name) and the manual roster-wide scan modal
+     (#ct-dup-overlay/#ct-dup-modal, same pop-out pattern as Trash). */
+  #ct-dup-warning {
+    background: var(--ct-overdue-soft, #f9e4de); border: 1px solid #d9a99a; border-radius: 10px;
+    padding: 12px 14px; margin: 4px 26px 0; font-size: 12.5px;
+  }
+  .ct-dup-intro { margin: 0 0 8px; font-weight: 700; color: var(--dark); }
+  .ct-dup-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .ct-dup-name { font-weight: 700; color: var(--dark); }
+  .ct-dup-reason { color: var(--ct-ink-soft); font-size: 11.5px; }
+  .ct-dup-merge-btn, #ct-dup-save-anyway {
+    font-family: 'Lato', sans-serif; font-size: 11.5px; font-weight: 700; cursor: pointer;
+    border-radius: 8px; padding: 5px 10px; border: none;
+  }
+  .ct-dup-merge-btn { background: var(--sage-dark); color: #fff; margin-left: auto; }
+  .ct-dup-merge-btn:hover { background: var(--sage-darker); }
+  #ct-dup-save-anyway { background: #fff; border: 1px solid var(--ct-line); color: var(--ct-ink-soft); margin-top: 4px; }
+  #ct-dup-save-anyway:hover { border-color: var(--sage-dark); color: var(--sage-darker); }
+
+  #ct-dup-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-dup-overlay.open { display: flex; }
+  #ct-dup-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 640px; width: 100%; max-height: 88vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid var(--sage-dark); position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-dup-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-dup-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-dup-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-dup-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-dup-close:hover { color: var(--sage-darker); }
+  #ct-dup-body { padding: 4px 30px 26px; overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-dup-group { background: #fff; border: 1px solid var(--ct-line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .ct-dup-group-title { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ct-ink-soft); font-weight: 700; }
+  .ct-dup-scan-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--ct-line); }
+  .ct-dup-scan-row:first-of-type { border-top: none; }
+  .ct-dup-scan-name { font-weight: 700; color: var(--dark); font-size: 13px; }
+  .ct-dup-scan-meta { display: block; font-size: 11.5px; color: var(--ct-ink-soft); }
+  .ct-dup-scan-merge {
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 8px; padding: 6px 12px;
+    font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: 'Lato', sans-serif; flex-shrink: 0;
+  }
+  .ct-dup-scan-merge:hover { background: var(--sage-darker); }
+  .ct-dup-scan-keep { font-size: 11px; color: var(--ct-ink-soft); font-style: italic; flex-shrink: 0; }
+  .ct-dup-empty { font-size: 13px; color: var(--ct-ink-soft); font-style: italic; }
+
+  /* Bulk outreach queue (Sep 2026) — step-through list, not an automatic
+     blast: each row still opens the exact same single-client
+     ctDraftOutreach flow, so every draft still gets reviewed and sent
+     individually via the Trip Assistant. Same pop-out pattern again. */
+  #ct-outreach-overlay { position: fixed; inset: 0; background: rgba(10, 14, 11, 0.88); display: none; align-items: center; justify-content: center; z-index: 10500; padding: 24px; }
+  #ct-outreach-overlay.open { display: flex; }
+  #ct-outreach-modal {
+    background: #fffdf9; border-radius: 16px; max-width: 520px; width: 100%; max-height: 80vh;
+    display: flex; flex-direction: column; box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+    border-top: 6px solid var(--gold); position: relative; font-family: 'Lato', sans-serif;
+  }
+  #ct-outreach-head { padding: 26px 30px 14px; flex-shrink: 0; }
+  #ct-outreach-head h3 { margin: 0 0 4px; font-family: 'Playfair Display', serif; font-size: 21px; color: var(--sage-darker); }
+  #ct-outreach-head p { margin: 0; font-size: 13px; color: var(--ct-ink-soft); }
+  #ct-outreach-close { position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 20px; color: #8a8776; cursor: pointer; line-height: 1; }
+  #ct-outreach-close:hover { color: var(--sage-darker); }
+  #ct-outreach-body { padding: 4px 30px 26px; overflow-y: auto; flex: 1; min-height: 0; }
+  .ct-outreach-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: #fff; border: 1px solid var(--ct-line); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;
+  }
+  .ct-outreach-row.done { background: var(--ct-gold-soft, #f3ead9); border-color: var(--gold); }
+  .ct-outreach-row-name { font-weight: 700; color: var(--dark); font-size: 13.5px; }
+  .ct-outreach-row-btn {
+    background: var(--sage-dark); color: #fff; border: none; border-radius: 8px; padding: 6px 12px;
+    font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: 'Lato', sans-serif; flex-shrink: 0;
+  }
+  .ct-outreach-row-btn:hover { background: var(--sage-darker); }
+
+  /* Smart Priority view (Sep 2026) — a small badge on each card naming
+     WHY it ranked where it did, same "reassurance/explanation over a
+     bare number" call this file already makes for ctBuildTaskCallout. */
+  .ct-priority-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--gold-text);
+    background: var(--ct-gold-soft, #f3ead9); border-radius: 8px; padding: 2px 8px; margin-bottom: 6px;
+  }
+
   /* Backup reminder banner — matches #ct-call-banner's "persistent
      colored strip at the top of the panel" shape, gold rather than call
      mode's accent so it reads as a nudge, not an active-call indicator. */
@@ -16658,6 +16747,8 @@ ${bodyHtml}
       <button type="button" id="ct-import-btn" class="ct-head-group" title="Restore clients from a backup file"><span class="ct-head-icon">📂</span><span class="ct-head-label">Restore</span></button>
       <input type="file" id="ct-import-file" accept="application/json,.json" hidden>
       <button type="button" id="ct-trash-btn" class="ct-head-group" title="Recently deleted — restore a client within 30 days"><span class="ct-head-icon">🗑️</span><span class="ct-head-label">Deleted</span></button>
+      <button type="button" id="ct-dup-btn" class="ct-head-group" title="Scan the whole roster for likely duplicate clients"><span class="ct-head-icon">🔍</span><span class="ct-head-label">Duplicates</span></button>
+      <button type="button" id="ct-outreach-queue-btn" class="ct-head-group" hidden title="Resume drafting outreach to the rest of your selected clients"><span class="ct-head-icon">📋</span><span class="ct-head-label">Outreach</span></button>
       <span class="ct-head-divider"></span>
       <button type="button" id="ct-close" aria-label="Close">✕</button>
     </div>
@@ -16694,6 +16785,7 @@ ${bodyHtml}
     <button type="button" class="ct-view-tab active" data-view="urgency">📅 Follow-up</button>
     <button type="button" class="ct-view-tab" data-view="all">📇 All Clients</button>
     <button type="button" class="ct-view-tab" data-view="sales">💰 Sales</button>
+    <button type="button" class="ct-view-tab" data-view="priority">⭐ Priority</button>
   </div>
   <button type="button" id="ct-bulk-toggle" hidden>☑️ Select</button>
   <button type="button" id="ct-sales-csv-btn" hidden title="Export what's currently shown in the Sales tab as a CSV file (opens in Excel)">📈 Export CSV</button>
@@ -16756,6 +16848,10 @@ ${bodyHtml}
       <div>
         <label for="ct-f-tags">Tags</label>
         <input type="text" id="ct-f-tags" placeholder="referral, repeat client, VIP...">
+      </div>
+      <div>
+        <label for="ct-f-leadsource">Lead source</label>
+        <input type="text" id="ct-f-leadsource" placeholder="Referred by Amanda Jackson, Instagram ad...">
       </div>
       <div class="ct-field-full">
         <label for="ct-f-itinerary">Itinerary <button type="button" id="ct-match-btn">🎯 Match Itinerary</button></label>
@@ -16935,6 +17031,7 @@ ${bodyHtml}
         <textarea id="ct-f-notes" readonly></textarea>
       </div>
     </div>
+    <div id="ct-dup-warning" hidden></div>
     <div id="ct-form-actions">
       <button type="button" id="ct-cancel-btn">Cancel</button>
       <button type="button" id="ct-save-btn">Save client</button>
@@ -17002,6 +17099,28 @@ ${bodyHtml}
       <p>Deleted clients stay here for 30 days before they're gone for good.</p>
     </div>
     <div id="ct-trash-body"></div>
+  </div>
+</div>
+
+<div id="ct-dup-overlay">
+  <div id="ct-dup-modal">
+    <button type="button" id="ct-dup-close" aria-label="Close">✕</button>
+    <div id="ct-dup-head">
+      <h3>🔍 Possible Duplicates</h3>
+      <p>Clients that share an exact name, email, or phone number — a retroactive check for anything created before this existed, or missed by a screenshot import.</p>
+    </div>
+    <div id="ct-dup-body"></div>
+  </div>
+</div>
+
+<div id="ct-outreach-overlay">
+  <div id="ct-outreach-modal">
+    <button type="button" id="ct-outreach-close" aria-label="Close">✕</button>
+    <div id="ct-outreach-head">
+      <h3>✉️ Outreach Queue</h3>
+      <p>Opens the Trip Assistant one client at a time so each draft still gets reviewed and sent individually — nothing goes out automatically.</p>
+    </div>
+    <div id="ct-outreach-body"></div>
   </div>
 </div>
 
@@ -17099,8 +17218,116 @@ ${bodyHtml}
   // (see ctSyncTravelersFromDom/ctRenderTravelerFormRows below). Not
   // persisted itself; ctHandleSave reads it into the saved client record.
   let ctFormTravelers = [];
+  // Duplicate-detection warning state (Sep 2026) — set once the DE
+  // explicitly chooses "Save as new anyway" on a flagged match, so the
+  // save that follows doesn't just re-flag the same match again. Reset
+  // whenever a form session starts or ends (ctOpenForm/ctCloseForm) so a
+  // stale acknowledgment from a PREVIOUS client's save can never silently
+  // suppress a real warning on this one.
+  let ctDupAcknowledged = false;
 
   function ctUid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  // Duplicate detection (Sep 2026) — direct request, once the roster
+  // started heading into "hundreds": nothing stopped the same person
+  // being tracked twice, a real risk once TMT-screenshot imports and
+  // manual entry both add clients independently. Deliberately HIGH-
+  // CONFIDENCE ONLY, no fuzzy/Levenshtein-style name scoring — an exact
+  // normalized name match, an exact email match, or an exact (digits-
+  // only) phone match are all things a DE would immediately recognize as
+  // "that's the same person," with no real risk of a false positive from
+  // two different people who happen to share a common first name. A
+  // near-miss name ("Tom" vs "Tommy") is deliberately NOT flagged — a
+  // wrong guess here would train the DE to ignore the warning entirely,
+  // which is worse than occasionally missing a real duplicate.
+  function ctNormalizeForMatch(s) { return (s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+  function ctNormalizePhoneForMatch(s) { return (s || '').replace(/\D/g, ''); }
+  function ctFindPossibleDuplicates(candidate, excludeId) {
+    const name = ctNormalizeForMatch(candidate.name);
+    if (!name) return [];
+    const email = ctNormalizeForMatch(candidate.email);
+    const phone = ctNormalizePhoneForMatch(candidate.phone);
+    const results = [];
+    ctClients.forEach(c => {
+      if (c.id === excludeId) return;
+      const reasons = [];
+      if (ctNormalizeForMatch(c.name) === name) reasons.push('same name');
+      if (email && ctNormalizeForMatch(c.email) === email) reasons.push('same email');
+      // Real phone numbers run 7+ digits — guards against two blank/
+      // short values both normalizing to '' (or a stray "1") and
+      // matching each other by accident.
+      if (phone && phone.length >= 7 && ctNormalizePhoneForMatch(c.phone) === phone) reasons.push('same phone');
+      if (reasons.length) results.push({ client: c, reasons });
+    });
+    return results;
+  }
+  // Groups the WHOLE roster into duplicate clusters for the manual scan
+  // tool (ctOpenDuplicatesModal) — same exact-match rule as above, just
+  // applied pairwise across everyone rather than one candidate at a time.
+  function ctFindAllDuplicateGroups() {
+    const grouped = new Set();
+    const groups = [];
+    ctClients.forEach(c => {
+      if (grouped.has(c.id)) return;
+      const matches = ctFindPossibleDuplicates(c, c.id).map(d => d.client).filter(m => !grouped.has(m.id));
+      if (matches.length) {
+        const group = [c, ...matches];
+        group.forEach(g => grouped.add(g.id));
+        groups.push(group);
+      }
+    });
+    return groups;
+  }
+  // Combines two client records into one — `base` wins on every scalar
+  // field unless it's empty, in which case `incoming`'s value fills the
+  // gap; every list-shaped field (notes, tags, travelers, drafts, status
+  // histories, follow-ups) is UNIONED rather than overwritten, so merging
+  // never actually loses real history from either side. Pure — never
+  // touches ctClients itself; callers decide what to do with the result.
+  function ctMergeRecordData(base, incoming) {
+    const merged = { ...base };
+    const scalarFields = ['status', 'leadTemp', 'salesStatus', 'saleAmount', 'destination', 'leadSource',
+      'itineraryId', 'tmtLink', 'tmtUpdated', 'phone', 'email', 'lastContact',
+      'passportName', 'passportDob', 'passportNationality', 'passportNumber', 'passportExpiry',
+      'travelerAges', 'travelDates', 'flexibleDates', 'budget', 'specialOccasion', 'homeState',
+      'tripVision', 'pace', 'pastTrips', 'hotelStyle', 'hotelView', 'hotelLocation',
+      'elevatorProximity', 'floorPreference', 'bedding', 'roomCategory', 'allergies', 'loyaltyNumber',
+      'privateTransfer', 'train', 'rentalCar', 'cuisinePreferences', 'dressCode', 'specialReservations',
+      'dietaryRestrictions', 'travelInsurance', 'mobilityNeeds'];
+    scalarFields.forEach(f => {
+      const baseEmpty = base[f] === undefined || base[f] === null || base[f] === '' || (f === 'saleAmount' && !base[f]);
+      if (baseEmpty && incoming[f]) merged[f] = incoming[f];
+    });
+    if (incoming.notes && incoming.notes !== base.notes) {
+      merged.notes = (base.notes ? base.notes + '\n' : '') + incoming.notes;
+    }
+    const seenTagsLower = new Set();
+    merged.tags = [...(base.tags || []), ...(incoming.tags || [])].filter(t => {
+      const lower = t.toLowerCase();
+      if (seenTagsLower.has(lower)) return false;
+      seenTagsLower.add(lower);
+      return true;
+    });
+    merged.travelers = [...(base.travelers || []), ...(incoming.travelers || [])];
+    merged.drafts = [...(base.drafts || []), ...(incoming.drafts || [])]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 20);
+    merged.statusHistory = [...(base.statusHistory || []), ...(incoming.statusHistory || [])]
+      .sort((a, b) => new Date(a.changedAt) - new Date(b.changedAt));
+    merged.salesStatusHistory = [...(base.salesStatusHistory || []), ...(incoming.salesStatusHistory || [])]
+      .sort((a, b) => new Date(a.changedAt) - new Date(b.changedAt));
+    // Legacy single-date follow-ups on either side get synthesized into
+    // the real {id,date,note,done} shape by ctFollowUpsFor before the
+    // union — re-stamping any 'legacy' id with a fresh one so two
+    // legacy entries (one from each side) can't collide under the same
+    // literal id once merged into one array.
+    merged.followUps = ctFollowUpsFor(base).concat(ctFollowUpsFor(incoming))
+      .map(f => ({ ...f, id: f.id === 'legacy' ? ctUid() : f.id }));
+    ctSyncNextFollowUp(merged);
+    merged.createdAt = (base.createdAt && incoming.createdAt)
+      ? (new Date(base.createdAt) < new Date(incoming.createdAt) ? base.createdAt : incoming.createdAt)
+      : (base.createdAt || incoming.createdAt || merged.createdAt);
+    return merged;
+  }
 
   function ctEscapeHtml(s) {
     return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -17506,6 +17733,21 @@ ${bodyHtml}
     });
     const topDestinations = Object.values(destMap).sort((a, b) => (b.value - a.value) || (b.count - a.count)).slice(0, 5);
 
+    // Top lead sources among booked clients, same grouping shape as Top
+    // Destinations just above — a free-typed field (see leadSource's own
+    // comment: no fixed vocabulary this file can assume for "where did
+    // this lead come from"), grouped by the exact string, which is all
+    // Top Destinations does either. Answers the one question win rate
+    // alone couldn't: which sources actually convert.
+    const sourceMap = {};
+    booked.forEach(c => {
+      const key = (c.leadSource || '').trim() || 'Unspecified';
+      if (!sourceMap[key]) sourceMap[key] = { source: key, count: 0, value: 0 };
+      sourceMap[key].count++;
+      sourceMap[key].value += ctParseCurrency(c.saleAmount);
+    });
+    const topLeadSources = Object.values(sourceMap).sort((a, b) => (b.value - a.value) || (b.count - a.count)).slice(0, 5);
+
     // At-risk: the exact same staleness rule the Sales tab badges and the
     // Daily Brief already use (__ctGetStaleSalesLeads) — one definition
     // of "stalled," not a second one just for this dashboard.
@@ -17528,7 +17770,7 @@ ${bodyHtml}
     return {
       totalPipelineValue, totalBookedValue, openCount: open.length, bookedCount: booked.length,
       winRate, avgDaysToBook, funnel, avgDaysInStage, months, thisMonth, lastMonth,
-      topDestinations, atRisk, activity: activity.slice(0, 8),
+      topDestinations, topLeadSources, atRisk, activity: activity.slice(0, 8),
     };
   }
 
@@ -18144,6 +18386,8 @@ text. If you genuinely can't find any client or task information at all, respond
 
   function ctOpenForm(client) {
     ctEditingId = client ? client.id : null;
+    ctDupAcknowledged = false;
+    ctHideDuplicateWarning();
     document.getElementById('ct-form-title').textContent = client ? 'Edit client' : 'Add client';
     document.getElementById('ct-f-name').value = client ? client.name : '';
     document.getElementById('ct-f-status').value = client ? client.status : 'Inquiry';
@@ -18152,6 +18396,7 @@ text. If you genuinely can't find any client or task information at all, respond
     document.getElementById('ct-f-saleamount').value = client ? ctFormatCurrency(client.saleAmount) : '';
     document.getElementById('ct-f-tags').value = client && Array.isArray(client.tags) ? client.tags.join(', ') : '';
     document.getElementById('ct-f-destination').value = client ? (client.destination || '') : '';
+    document.getElementById('ct-f-leadsource').value = client ? (client.leadSource || '') : '';
     document.getElementById('ct-f-itinerary').value = client ? (client.itineraryId || '') : '';
     document.getElementById('ct-f-tmtlink').value = client ? (client.tmtLink || '') : '';
     document.getElementById('ct-f-tmtupdated').checked = client ? !!client.tmtUpdated : false;
@@ -18285,6 +18530,8 @@ text. If you genuinely can't find any client or task information at all, respond
     });
     ctEditingId = null;
     ctIsQualifyingCall = false;
+    ctDupAcknowledged = false;
+    ctHideDuplicateWarning();
   }
 
   // "[Sep 1, 2026 · 3:45 PM] " prefix for a new call-log entry. Kept as a
@@ -18307,12 +18554,14 @@ text. If you genuinely can't find any client or task information at all, respond
     return notes.split('\n').find(l => l.trim()) || '';
   }
 
-  function ctHandleSave() {
+  // Extracted (Sep 2026) from ctHandleSave() so the duplicate-detection
+  // check below can read the same "what would this save actually
+  // contain" shape BEFORE committing it — checking on a half-built data
+  // object would risk drifting out of sync with what the save itself
+  // ends up writing. ctHandleSave() is now just this call plus the
+  // name-required guard and the actual create/update logic.
+  function ctCollectFormData() {
     const name = document.getElementById('ct-f-name').value.trim();
-    if (!name) {
-      document.getElementById('ct-err-name').style.display = 'block';
-      return;
-    }
     // Notes are append-only now — every call adds a new dated line rather
     // than overwriting whatever was typed on the last call (the original
     // bug this was built to fix: a second call's notes silently replaced
@@ -18352,7 +18601,7 @@ text. If you genuinely can't find any client or task information at all, respond
       seenTagsLower.add(lower);
       return true;
     });
-    const data = {
+    return {
       name,
       status: document.getElementById('ct-f-status').value,
       leadTemp: document.getElementById('ct-f-leadtemp').value,
@@ -18360,6 +18609,7 @@ text. If you genuinely can't find any client or task information at all, respond
       saleAmount: ctParseCurrency(document.getElementById('ct-f-saleamount').value),
       tags,
       destination: document.getElementById('ct-f-destination').value.trim(),
+      leadSource: document.getElementById('ct-f-leadsource').value.trim(),
       itineraryId: document.getElementById('ct-f-itinerary').value,
       tmtLink: document.getElementById('ct-f-tmtlink').value.trim(),
       tmtUpdated: document.getElementById('ct-f-tmtupdated').checked,
@@ -18402,6 +18652,27 @@ text. If you genuinely can't find any client or task information at all, respond
       travelInsurance: document.getElementById('ct-f-insurance').value,
       mobilityNeeds: document.getElementById('ct-f-mobility').value.trim()
     };
+  }
+
+  function ctHandleSave() {
+    const data = ctCollectFormData();
+    if (!data.name) {
+      document.getElementById('ct-err-name').style.display = 'block';
+      return;
+    }
+    // Duplicate detection (Sep 2026) — direct request: catch the same
+    // person being tracked twice before it happens, not after. Checked
+    // against everyone EXCEPT the record currently being edited (so
+    // editing a client never flags itself), and skipped once the DE has
+    // already seen the warning and explicitly chosen to proceed
+    // (ctDupAcknowledged) — this save call re-runs after that choice, and
+    // re-flagging the same match a second time would just be noise.
+    if (!ctDupAcknowledged) {
+      const dupes = ctFindPossibleDuplicates(data, ctEditingId);
+      if (dupes.length) { ctShowDuplicateWarning(dupes); return; }
+    }
+    ctDupAcknowledged = false;
+    ctHideDuplicateWarning();
     // Captured before ctCloseForm() below, which resets both of these —
     // a fresh Qualifying Call save should land the DE on the new
     // client's own profile (where "✉️ Draft outreach" already lives)
@@ -18536,6 +18807,136 @@ text. If you genuinely can't find any client or task information at all, respond
     setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
+  // Save-time duplicate warning (Sep 2026) — a banner right above Save/
+  // Cancel, not a blocking browser confirm(), so the DE can still read
+  // every candidate's name/reason before deciding. Two ways out: merge
+  // into one of the listed matches (ctMergeFormIntoExisting), or "Save
+  // as new anyway" (sets ctDupAcknowledged and re-runs ctHandleSave,
+  // which then skips the check this one time).
+  function ctShowDuplicateWarning(dupes) {
+    const el = document.getElementById('ct-dup-warning');
+    el.innerHTML = `
+      <p class="ct-dup-intro">⚠️ This looks like it might already be tracked:</p>
+      ${dupes.map(d => `
+      <div class="ct-dup-row">
+        <span class="ct-dup-name">${ctEscapeHtml(d.client.name)}</span>
+        <span class="ct-dup-reason">(${d.reasons.join(', ')})</span>
+        <button type="button" class="ct-dup-merge-btn" data-dup-merge="${ctEscapeHtml(d.client.id)}">Merge into this record</button>
+      </div>`).join('')}
+      <button type="button" id="ct-dup-save-anyway">Save as new anyway</button>
+    `;
+    el.hidden = false;
+    el.querySelectorAll('[data-dup-merge]').forEach(btn => {
+      btn.addEventListener('click', () => ctMergeFormIntoExisting(btn.dataset.dupMerge));
+    });
+    document.getElementById('ct-dup-save-anyway').addEventListener('click', () => {
+      ctDupAcknowledged = true;
+      ctHandleSave();
+    });
+    el.scrollIntoView({ block: 'nearest' });
+  }
+  function ctHideDuplicateWarning() {
+    const el = document.getElementById('ct-dup-warning');
+    if (el) { el.hidden = true; el.innerHTML = ''; }
+  }
+  // Folds the currently-typed form data into an EXISTING client record
+  // (ctMergeRecordData) instead of creating a new one — the "Merge into
+  // this record" action from the save-time warning above. If the form
+  // was editing a different, already-real record (ctEditingId set,
+  // distinct from targetId), that original record is trashed once its
+  // data has been folded in — never dropped outright, matching this
+  // panel's standing "delete always goes through the 30-day trash"
+  // rule, even for a merge the DE themselves triggered.
+  function ctMergeFormIntoExisting(targetId) {
+    const targetIdx = ctClients.findIndex(c => c.id === targetId);
+    if (targetIdx === -1) return;
+    const data = ctCollectFormData();
+    const nowIso = new Date().toISOString();
+    const incoming = ctEditingId
+      ? { ...(ctClients.find(c => c.id === ctEditingId) || {}), ...data }
+      : { ...data, id: ctUid(), createdAt: nowIso, statusHistory: data.status ? [{ status: data.status, changedAt: nowIso }] : [], salesStatusHistory: data.salesStatus ? [{ salesStatus: data.salesStatus, changedAt: nowIso }] : [] };
+    const merged = ctMergeRecordData(ctClients[targetIdx], incoming);
+    ctClients[targetIdx] = merged;
+    if (ctEditingId && ctEditingId !== targetId) {
+      const origIdx = ctClients.findIndex(c => c.id === ctEditingId);
+      if (origIdx > -1) {
+        ctTrash.unshift({ ...ctClients[origIdx], deletedAt: nowIso });
+        ctSaveTrash();
+        ctClients = ctClients.filter(c => c.id !== ctEditingId);
+      }
+    }
+    ctDupAcknowledged = false;
+    ctCloseForm();
+    ctSaveData();
+    ctRender();
+    ctOpenDetail(targetId);
+    ctSetStatus(`Merged into ${merged.name}.`);
+  }
+
+  // Manual "🔍 Duplicates" scan (Sep 2026) — a retroactive cleanup pass
+  // over the whole roster, for duplicates that predate this feature or
+  // that a TMT import's own fuzzy client-name matching missed. Same
+  // exact-match rule as the save-time check, just applied roster-wide.
+  function ctBuildDuplicatesHtml() {
+    const groups = ctFindAllDuplicateGroups();
+    if (!groups.length) return '<p class="ct-dup-empty">No likely duplicates found — nice and clean.</p>';
+    return groups.map(group => {
+      const primary = group[0];
+      return `<div class="ct-dup-group">
+        <p class="ct-dup-group-title">Possible duplicates (${group.length})</p>
+        ${group.map(c => `
+        <div class="ct-dup-scan-row">
+          <div>
+            <span class="ct-dup-scan-name">${ctEscapeHtml(c.name)}</span>
+            <span class="ct-dup-scan-meta">${[c.email, c.phone, c.destination].filter(Boolean).map(ctEscapeHtml).join(' · ')}</span>
+          </div>
+          ${c.id !== primary.id
+            ? `<button type="button" class="ct-dup-scan-merge" data-scan-merge-into="${ctEscapeHtml(primary.id)}" data-scan-merge-from="${ctEscapeHtml(c.id)}">Merge into ${ctEscapeHtml(primary.name)}</button>`
+            : '<span class="ct-dup-scan-keep">Kept as primary</span>'}
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+  function ctRenderDuplicatesModal() {
+    const body = document.getElementById('ct-dup-body');
+    if (!body) return;
+    body.innerHTML = ctBuildDuplicatesHtml();
+    body.querySelectorAll('[data-scan-merge-into]').forEach(btn => {
+      btn.addEventListener('click', () => ctMergeExistingRecords(btn.dataset.scanMergeInto, btn.dataset.scanMergeFrom));
+    });
+  }
+  function ctOpenDuplicatesModal() {
+    ctRenderDuplicatesModal();
+    const overlay = document.getElementById('ct-dup-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseDuplicatesModal() {
+    const overlay = document.getElementById('ct-dup-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
+  // Merges two EXISTING records found by the scan above (as opposed to
+  // ctMergeFormIntoExisting, which folds in whatever's currently typed
+  // into the open form) — the source record is trashed, not dropped,
+  // same as every other delete in this panel.
+  function ctMergeExistingRecords(targetId, sourceId) {
+    const targetIdx = ctClients.findIndex(c => c.id === targetId);
+    const source = ctClients.find(c => c.id === sourceId);
+    if (targetIdx === -1 || !source) return;
+    const merged = ctMergeRecordData(ctClients[targetIdx], source);
+    ctClients[targetIdx] = merged;
+    ctTrash.unshift({ ...source, deletedAt: new Date().toISOString() });
+    ctSaveTrash();
+    ctClients = ctClients.filter(c => c.id !== sourceId);
+    ctSaveData();
+    ctRender();
+    ctRenderDuplicatesModal();
+    if (ctDetailId === sourceId) ctCloseDetail();
+    if (ctDetailId === targetId) ctRenderDetail();
+    ctSetStatus(`Merged into ${merged.name}.`);
+  }
+
   function ctGroupClients(list) {
     const groups = { overdue: [], soon: [], later: [], noDate: [], closed: [] };
     list.forEach(c => {
@@ -18666,6 +19067,93 @@ text. If you genuinely can't find any client or task information at all, respond
     taSendBtn.click();
   }
 
+  // Bulk outreach queue (Sep 2026) — the Smart Priority view's own bulk
+  // action. "Draft only, DE confirms/sends" still holds: this never
+  // auto-sends anything on its own — each row's own "Draft outreach"
+  // button drives the exact same single-client ctDraftOutreach() flow
+  // (open Trip Assistant, prefill, send to the model, DE reviews/sends
+  // the actual draft from there) one client at a time, exactly as if the
+  // DE had clicked "✉️ Draft outreach" from each client's own profile in
+  // sequence. The queue's whole reason to exist is letting the DE step
+  // through several top-priority leads without re-selecting them one by
+  // one, not a way to skip that per-client review.
+  let ctOutreachQueue = [];
+  let ctOutreachQueueDone = new Set();
+
+  // Called two ways: with a real array of ids (starting a FRESH queue,
+  // from the Priority view's "✉️ Draft outreach for N" bulk-bar button)
+  // or with no usable array at all (the header "📋 Outreach" button's own
+  // click — its listener is wired directly to this function, so `ids` is
+  // really the click Event there; Array.isArray(ids) is false for that,
+  // which is exactly what makes it fall through to RESUMING whatever
+  // queue is already in progress instead of silently wiping it).
+  function ctOpenBulkOutreachQueue(ids) {
+    if (Array.isArray(ids) && ids.length) {
+      ctOutreachQueue = ids.slice();
+      ctOutreachQueueDone = new Set();
+      ctBulkMode = false;
+      ctBulkSelected = new Set();
+      ctSyncBulkToggleUI();
+      ctRender();
+    }
+    if (!ctOutreachQueue.length) return;
+    ctRenderBulkOutreachQueue();
+    const overlay = document.getElementById('ct-outreach-overlay');
+    overlay.classList.add('open');
+    requestAnimationFrame(() => overlay.classList.add('shown'));
+  }
+  function ctCloseBulkOutreachQueue() {
+    const overlay = document.getElementById('ct-outreach-overlay');
+    overlay.classList.remove('shown');
+    setTimeout(() => overlay.classList.remove('open'), 180);
+  }
+  // Hides the header "📋 Outreach" button once nothing's left to resume
+  // — a queue that's either empty or fully drafted has nothing to
+  // reopen. Called on every render of the queue itself, and right after
+  // a row is marked done, so the button's visibility always matches
+  // real remaining state.
+  function ctSyncOutreachQueueBtn() {
+    const btn = document.getElementById('ct-outreach-queue-btn');
+    if (!btn) return;
+    const remaining = ctOutreachQueue.filter(id => !ctOutreachQueueDone.has(id)).length;
+    btn.hidden = remaining === 0;
+  }
+  function ctRenderBulkOutreachQueue() {
+    const head = document.getElementById('ct-outreach-head');
+    const body = document.getElementById('ct-outreach-body');
+    const remaining = ctOutreachQueue.filter(id => !ctOutreachQueueDone.has(id)).length;
+    head.innerHTML = `<h3>✉️ Draft outreach queue</h3><p>${remaining} of ${ctOutreachQueue.length} left — draft one at a time, review and send each from Trip Assistant before moving to the next.</p>`;
+    const rows = ctOutreachQueue.map(id => {
+      const c = ctClients.find(cl => cl.id === id);
+      if (!c) return '';
+      const done = ctOutreachQueueDone.has(id);
+      return `
+      <div class="ct-outreach-row${done ? ' done' : ''}">
+        <span class="ct-outreach-row-name">${done ? '✓ ' : ''}${ctEscapeHtml(c.name)}</span>
+        <button type="button" class="ct-outreach-row-btn" data-outreach-draft="${id}"${done ? ' disabled' : ''}>${done ? 'Drafted' : '✉️ Draft outreach'}</button>
+      </div>`;
+    }).join('');
+    body.innerHTML = rows || `<div class="ct-empty"><p>Nothing left in the queue.</p></div>`;
+    body.querySelectorAll('[data-outreach-draft]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.outreachDraft;
+        const c = ctClients.find(cl => cl.id === id);
+        if (!c) return;
+        ctOutreachQueueDone.add(id);
+        // ctDraftOutreach() itself closes #ct-overlay (the Client
+        // Tracker's own full-screen backdrop) to open Trip Assistant —
+        // but the outreach queue is a SEPARATE, higher-z-index overlay
+        // (#ct-outreach-overlay, z-index 10500 vs #ct-overlay's 10000),
+        // so it has to be closed explicitly here first or it would sit
+        // on top of Trip Assistant once that opens underneath it.
+        ctCloseBulkOutreachQueue();
+        ctSyncOutreachQueueBtn();
+        ctDraftOutreach(c);
+      });
+    });
+    ctSyncOutreachQueueBtn();
+  }
+
   // Deliberately minimal — name, status, and the one line that actually
   // drives the grouping (last contact / next follow-up). Everything
   // else (destination, itinerary, TMT link, phone, email, notes,
@@ -18707,11 +19195,24 @@ text. If you genuinely can't find any client or task information at all, respond
     const bulkCheckbox = (opts && opts.bulkSelect)
       ? `<input type="checkbox" class="ct-bulk-check" data-bulk-check="${c.id}"${ctBulkSelected.has(c.id) ? ' checked' : ''} title="Select for bulk status change">`
       : '';
+    // Smart Priority (Sep 2026) — opts.showPriority, "⭐ Priority" view
+    // only. ctComputeLeadScore() is the one scoring function; this card
+    // just renders whatever it returns. A null score (Closed clients are
+    // excluded from scoring entirely) never reaches here since the
+    // Priority view itself filters those out before calling ctCardHTML.
+    let priorityBadge = '';
+    if (opts && opts.showPriority) {
+      const scored = ctComputeLeadScore(c);
+      if (scored) {
+        priorityBadge = `<span class="ct-priority-badge" title="${ctEscapeHtml(scored.reasons.join(', ') || 'baseline priority')}">⭐ ${scored.score}</span>`;
+      }
+    }
 
     return `
       <div class="ct-card ${isOverdue ? 'overdue' : ''} ${c.status === 'Closed' ? 'closed' : ''}" data-open="${c.id}">
         <div class="ct-name-row">
           ${bulkCheckbox}
+          ${priorityBadge}
           <span class="ct-client-name">${ctEscapeHtml(c.name)}</span>
           ${statusMarkup}
           ${c.leadTemp ? `<span class="ct-flag temp ${ctTempClass(c.leadTemp)}">${ctEscapeHtml(c.leadTemp)}</span>` : ''}
@@ -18975,6 +19476,45 @@ text. If you genuinely can't find any client or task information at all, respond
     setTimeout(() => overlay.classList.remove('open'), 180);
   }
 
+  // Smart Priority view (Sep 2026) — direct request: the three existing
+  // views (urgency/status/sales) each sort by exactly one axis; this
+  // answers "who do I actually call first today" by combining lead
+  // temperature, follow-up urgency, and open deal value/staleness into
+  // one score. Deliberately excludes Closed clients entirely (returns
+  // null) — nothing left to prioritize once a relationship is closed out.
+  // Reuses the exact same staleness rules already established elsewhere
+  // in this panel (ctIsSalesStale for a stalled deal, the same 5-day
+  // hot-lead-no-contact threshold ctBuildTaskCallout below already uses)
+  // rather than inventing new thresholds just for this ranking.
+  function ctComputeLeadScore(client) {
+    if (client.status === 'Closed') return null;
+    let score = 0;
+    const reasons = [];
+    const tempScores = { 'Hot Lead': 40, 'Warm Lead': 25, 'Check Back Later': 10, 'Cold Lead': 0 };
+    score += client.leadTemp && tempScores[client.leadTemp] !== undefined ? tempScores[client.leadTemp] : 5;
+    if (client.leadTemp === 'Hot Lead') reasons.push('🔥 hot lead');
+    else if (client.leadTemp === 'Warm Lead') reasons.push('warm lead');
+    const diff = client.nextFollowUp ? ctDaysBetween(client.nextFollowUp) : null;
+    if (diff !== null && diff < 0) {
+      score += 30;
+      reasons.push(`overdue ${Math.abs(diff)}d`);
+    } else if (diff !== null && diff <= 7) {
+      score += 20;
+      reasons.push(`due in ${diff}d`);
+    } else if (!client.nextFollowUp && client.leadTemp === 'Hot Lead' && client.lastContact) {
+      const daysSince = Math.floor((new Date(ctTodayISO()) - new Date(client.lastContact)) / 86400000);
+      if (daysSince >= 5) { score += 15; reasons.push(`no contact ${daysSince}d`); }
+    }
+    if (client.salesStatus && client.salesStatus !== 'Booked') {
+      if (client.saleAmount) {
+        score += Math.min(20, client.saleAmount / 1000);
+        reasons.push(`${ctFormatCurrency(client.saleAmount)} deal`);
+      }
+      if (ctIsSalesStale(client)) { score += 15; reasons.push('stalled deal'); }
+    }
+    return { score: Math.round(score), reasons };
+  }
+
   // Direct response to feedback that the wide profile modal left half its
   // width blank: this fills that space with the answer to "why does this
   // client need me right now," instead of just showing what's already on
@@ -19035,6 +19575,7 @@ text. If you genuinely can't find any client or task information at all, respond
 
     const tripRows = [];
     if (c.destination) tripRows.push(`<div class="ct-profile-row">🌍 ${ctEscapeHtml(c.destination)}</div>`);
+    if (c.leadSource) tripRows.push(`<div class="ct-profile-row">🧲 ${ctEscapeHtml(c.leadSource)}</div>`);
     const itinerary = ctFindItinerary(c.itineraryId);
     if (itinerary) {
       const href = ctSafeHref(itinerary.link);
@@ -19528,13 +20069,13 @@ text. If you genuinely can't find any client or task information at all, respond
   function ctExportSalesCsv() {
     const rows = ctComputeSalesExportRows();
     if (!rows.length) { ctSetStatus('Nothing to export — no clients match the current view.'); return; }
-    const headers = ['Name', 'Status', 'Sales Status', 'Sale Amount', 'Lead Temperature', 'Destination', 'Itinerary', 'Phone', 'Email', 'Last Contact', 'Next Follow-up', 'Tags'];
+    const headers = ['Name', 'Status', 'Sales Status', 'Sale Amount', 'Lead Temperature', 'Lead Source', 'Destination', 'Itinerary', 'Phone', 'Email', 'Last Contact', 'Next Follow-up', 'Tags'];
     const lines = [headers.join(',')];
     rows.forEach(c => {
       const itinerary = c.itineraryId ? ctFindItinerary(c.itineraryId) : null;
       lines.push([
         c.name, c.status || '', c.salesStatus || '', c.saleAmount ? ctParseCurrency(c.saleAmount) : '',
-        c.leadTemp || '', c.destination || '', itinerary ? itinerary.title : '', c.phone || '', c.email || '',
+        c.leadTemp || '', c.leadSource || '', c.destination || '', itinerary ? itinerary.title : '', c.phone || '', c.email || '',
         c.lastContact || '', c.nextFollowUp || '', Array.isArray(c.tags) ? c.tags.join('; ') : ''
       ].map(ctCsvEscape).join(','));
     });
@@ -19715,6 +20256,7 @@ text. If you genuinely can't find any client or task information at all, respond
       || (c.phone || '').toLowerCase().includes(search)
       || (c.email || '').toLowerCase().includes(search)
       || (c.tmtLink || '').toLowerCase().includes(search)
+      || (c.leadSource || '').toLowerCase().includes(search)
       || (Array.isArray(c.tags) && c.tags.some(t => t.toLowerCase().includes(search)))
       || (itinerary ? itinerary.title.toLowerCase().includes(search) : false);
     const matchesStatus = !statusFilter || c.status === statusFilter;
@@ -19763,16 +20305,31 @@ text. If you genuinely can't find any client or task information at all, respond
       return;
     }
 
-    // Two grouping modes, same filtered list either way — ctListView
+    // Three grouping modes, same filtered list either way — ctListView
     // decides which. "all" (the Sep 2026 "All Clients" view) passes
     // { statusSelect: true } so every card renders a live status dropdown
-    // instead of a static badge; the default "urgency" view is untouched.
+    // instead of a static badge; "priority" (Smart Priority, Sep 2026)
+    // scores every non-Closed client via ctComputeLeadScore and sorts
+    // highest-first — a single flat queue, not grouped, since the whole
+    // point is "who's most worth chasing right now," not a bucketed view;
+    // the default "urgency" view is untouched.
     let sections, cardOpts;
     if (ctListView === 'all') {
       const statusGroups = ctGroupByStatus(filtered);
       sections = CT_STATUSES.map(s => [s, s, statusGroups[s]]);
       if (statusGroups['Other'].length) sections.push(['Other', 'Other', statusGroups['Other']]);
       cardOpts = { statusSelect: true, bulkSelect: ctBulkMode };
+    } else if (ctListView === 'priority') {
+      const scored = filtered
+        .map(c => ({ c, s: ctComputeLeadScore(c) }))
+        .filter(x => x.s !== null)
+        .sort((a, b) => b.s.score - a.s.score || a.c.name.localeCompare(b.c.name));
+      if (!scored.length) {
+        ctSetListHtml(list, `<div class="ct-empty"><p class="ct-empty-big">Nothing to prioritize</p><p>Everyone matching the current search/filter is Closed.</p></div>`);
+        return;
+      }
+      sections = [['priority', 'Priority queue', scored.map(x => x.c)]];
+      cardOpts = { showPriority: true, bulkSelect: ctBulkMode };
     } else {
       const groups = ctGroupClients(filtered);
       sections = [
@@ -19798,6 +20355,19 @@ text. If you genuinely can't find any client or task information at all, respond
         <span>${ctBulkSelected.size} selected</span>
         <select id="ct-bulk-status">${CT_STATUSES.map(s => `<option value="${ctEscapeHtml(s)}">${ctEscapeHtml(s)}</option>`).join('')}</select>
         <button type="button" id="ct-bulk-apply">Apply to ${ctBulkSelected.size}</button>
+        <button type="button" id="ct-bulk-clear-btn">Clear</button>
+      </div>`;
+    } else if (ctListView === 'priority' && ctBulkMode && ctBulkSelected.size > 0) {
+      // Bulk outreach (Sep 2026) — the Priority view's own bulk action is
+      // drafting outreach for several top-scored leads at once, not a
+      // status change (that's what the "All Clients" bulk bar is for).
+      // "Draft only, DE confirms/sends" still holds here — this opens a
+      // step-through review queue (ctOpenBulkOutreachQueue), never an
+      // automatic multi-send blast.
+      bulkBarHtml = `
+      <div id="ct-bulk-bar">
+        <span>${ctBulkSelected.size} selected</span>
+        <button type="button" id="ct-bulk-outreach-btn">✉️ Draft outreach for ${ctBulkSelected.size}</button>
         <button type="button" id="ct-bulk-clear-btn">Clear</button>
       </div>`;
     }
@@ -19830,6 +20400,12 @@ text. If you genuinely can't find any client or task information at all, respond
     });
     const bulkClearBtn = document.getElementById('ct-bulk-clear-btn');
     if (bulkClearBtn) bulkClearBtn.addEventListener('click', () => { ctBulkSelected.clear(); ctRender(); });
+    // Bulk outreach (Sep 2026, "Priority" view only) — opens the
+    // step-through review queue for whoever's currently selected.
+    const bulkOutreachBtn = document.getElementById('ct-bulk-outreach-btn');
+    if (bulkOutreachBtn) bulkOutreachBtn.addEventListener('click', () => {
+      ctOpenBulkOutreachQueue(Array.from(ctBulkSelected));
+    });
 
     // Inline status dropdown (Sep 2026, "All Clients" view only) —
     // stopPropagation on the click too, not just change: without it,
@@ -20061,6 +20637,15 @@ text. If you genuinely can't find any client or task information at all, respond
       </div>`;
     }).join('') : '<p class="ct-stats-empty">No booked trips yet.</p>';
 
+    const sourceHtml = a.topLeadSources.length ? a.topLeadSources.map(s => {
+      const max = a.topLeadSources[0].value || 1;
+      return `<div class="ct-an-bar-row">
+        <div class="ct-an-bar-label">${ctEscapeHtml(s.source)}</div>
+        <div class="ct-an-bar-track"><div class="ct-an-bar-fill booked" style="width:${Math.max(3, Math.round((s.value / max) * 100))}%"></div></div>
+        <div class="ct-an-bar-value">${ctFormatCurrency(s.value) || '$0'} · ${s.count}</div>
+      </div>`;
+    }).join('') : '<p class="ct-stats-empty">No booked trips yet.</p>';
+
     const atRiskHtml = a.atRisk.length ? (a.atRisk.slice(0, 6).map(c => `
       <div class="ct-an-list-row ct-an-risk-row" data-an-open-client="${c.id}">
         <span>${ctEscapeHtml(c.name)} <em>(${ctEscapeHtml(c.salesStatus)})</em></span>
@@ -20086,6 +20671,8 @@ text. If you genuinely can't find any client or task information at all, respond
       ${momHtml}
       <p class="ct-stats-section-title">Top Destinations (Booked)</p>
       <div class="ct-an-bars">${destHtml}</div>
+      <p class="ct-stats-section-title">Top Lead Sources (Booked)</p>
+      <div class="ct-an-bars">${sourceHtml}</div>
       <p class="ct-stats-section-title">⏳ At-Risk Deals</p>
       <div class="ct-an-list">${atRiskHtml}</div>
       <p class="ct-stats-section-title">Recent Pipeline Activity</p>
@@ -20245,6 +20832,16 @@ text. If you genuinely can't find any client or task information at all, respond
   document.getElementById('ct-trash-close').addEventListener('click', ctCloseTrash);
   document.getElementById('ct-trash-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'ct-trash-overlay') ctCloseTrash();
+  });
+  document.getElementById('ct-dup-btn').addEventListener('click', ctOpenDuplicatesModal);
+  document.getElementById('ct-dup-close').addEventListener('click', ctCloseDuplicatesModal);
+  document.getElementById('ct-dup-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-dup-overlay') ctCloseDuplicatesModal();
+  });
+  document.getElementById('ct-outreach-queue-btn').addEventListener('click', ctOpenBulkOutreachQueue);
+  document.getElementById('ct-outreach-close').addEventListener('click', ctCloseBulkOutreachQueue);
+  document.getElementById('ct-outreach-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ct-outreach-overlay') ctCloseBulkOutreachQueue();
   });
   document.getElementById('ct-timeline-close').addEventListener('click', ctCloseTimeline);
   document.getElementById('ct-timeline-overlay').addEventListener('click', (e) => {
@@ -20500,7 +21097,7 @@ text. If you genuinely can't find any client or task information at all, respond
   });
   const ctBulkToggleBtn = document.getElementById('ct-bulk-toggle');
   function ctSyncBulkToggleUI() {
-    ctBulkToggleBtn.hidden = ctListView !== 'all' && ctListView !== 'sales';
+    ctBulkToggleBtn.hidden = ctListView !== 'all' && ctListView !== 'sales' && ctListView !== 'priority';
     ctBulkToggleBtn.classList.toggle('active', ctBulkMode);
     ctBulkToggleBtn.textContent = ctBulkMode ? '✕ Cancel select' : '☑️ Select';
   }
@@ -20509,10 +21106,11 @@ text. If you genuinely can't find any client or task information at all, respond
       ctCloseForm();
       ctListView = btn.dataset.view;
       document.querySelectorAll('.ct-view-tab').forEach(b => b.classList.toggle('active', b === btn));
-      // Bulk select only makes sense in "All Clients"/"Sales" — leaving
-      // either drops both the mode and whatever was selected, rather than
-      // letting a stale selection silently carry over to a later visit.
-      if (ctListView !== 'all' && ctListView !== 'sales') { ctBulkMode = false; ctBulkSelected = new Set(); }
+      // Bulk select only makes sense in "All Clients"/"Sales"/"Priority" —
+      // leaving any of them drops both the mode and whatever was selected,
+      // rather than letting a stale selection silently carry over to a
+      // later visit.
+      if (ctListView !== 'all' && ctListView !== 'sales' && ctListView !== 'priority') { ctBulkMode = false; ctBulkSelected = new Set(); }
       // The sales-tile filter (and its column sort) only makes sense
       // inside the Sales tab itself — leaving either clears it so it
       // can't silently keep hiding clients or reordering the table the
