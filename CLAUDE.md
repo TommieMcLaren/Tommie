@@ -6552,3 +6552,126 @@ guide before this pass (confirmed via a zero-match grep first).
   a DE spot-check before quoting anything from this section to a
   client, given how much reconciliation work the raw PDF extraction
   needed to get right.
+
+## Porto promoted from a compact summary to a full city section, built from a third official PDF (Sep 2026, unverified live)
+
+A third PDF ("porto_en.pdf") arrived immediately after the Azores build,
+with no accompanying instruction — same pattern as the previous two:
+treated as source material to build out against this guide's established
+structure. Unlike Lisbon (a fresh `<h4>` promoted to `<h3>`) and the
+Azores (a genuinely new destination), **Porto already existed** as a
+compact `<h4 id="porto-city">` block (six short paragraphs: Why clients
+love it / Getting there / Signature sites / Food &amp; culture / Best
+time to visit / Hotels) from earlier Portugal work — this PDF was rich
+enough to justify promoting it to the same full `<h3>` treatment Lisbon
+and the Azores already have, rather than just patching the compact
+version.
+
+- **Kept the exact same `id="porto-city"`** when promoting the tag from
+  `<h4>` to `<h3>` — deliberately, not by accident. A live JS color-map
+  object (`'porto-city': '#722f37'`, feeding the interactive route map's
+  city-coloring) references this id by string, and ids are what
+  `getElementById`/CSS/anchors key off, not tag names — so changing the
+  tag while preserving the id kept that reference (and any other latent
+  one) working with zero JS changes needed. This is the opposite lesson
+  from the `17-lisbon`→`p1-lisbon` duplicate-id fix earlier in this
+  build-out: that bug was fixed by CHANGING an id; this one was kept
+  correct by deliberately NOT changing an id that didn't need to.
+- **Adapted the subsection list for a real city (unlike the Azores),
+  closer to Lisbon's own shape** — Airport, Getting Around, Best Time to
+  Visit, Key Attractions, Day Trips, Food &amp; Culture, Bars &amp;
+  Nightlife, Shopping, Practical Info &amp; Quick Facts, Hotels. All the
+  old compact section's real content (the "tripeiros" nickname, the
+  francesinha, the Port wine style differences, the Ribeira/Livraria
+  Lello/Dom Luís I Bridge highlights) survives inside the new structure —
+  nothing was thrown away, just expanded into the same real-venue,
+  real-hours, real-address shape Lisbon and the Azores already use.
+- **17 Key Attractions rows** — Ribeira, Porto Cathedral, Clérigos Tower,
+  Livraria Lello, Dom Luís I Bridge, São Bento Railway Station, Bolhão
+  Market, Port Wine Caves at Vila Nova de Gaia (folding in Taylor's, once
+  a phone/website mismatch was resolved — see below), Stock Exchange
+  Palace, Monument Church of St Francis, Church of Santa Clara, Soares
+  dos Reis National Museum, Serralves Museum of Contemporary Art, Estádio
+  do Dragão, Portuguese Centre of Photography, Jardins do Palácio de
+  Cristal, and the Tower of Dom Pedro Pitões — the last one doubling as a
+  useful cross-reference, since it turns out to literally BE the Porto
+  Tourism Office building named separately in the Practical Info table.
+- **A real resolved mismatch, caught by domain-name cross-checking**:
+  a phone number and `www.taylor.pt` sat next to an unrelated address
+  block (`Rua do Carmo 17` — actually Garrafeira do Carmo, a bottle shop,
+  confirmed by its own domain `garrafeiracarmo.com` appearing elsewhere)
+  in the raw extraction. Since Porto's phone numbers all share one area
+  code ((0)22), the area-code cross-check that resolved the Azores PDF's
+  jumbling doesn't work here — instead, the domain name itself
+  (`taylor.pt`, unmistakably Taylor's Port) was the deciding signal,
+  paired with Taylor's own real address (Rua do Choupelo 250, Vila Nova
+  de Gaia — already confirmed separately in the raw text) to reconstruct
+  the correct entry and leave Garrafeira do Carmo's own listing without
+  a phone number rather than assign it someone else's.
+- **`QB_RESTAURANTS.Porto`** — a new city key, 10 entries (7 restaurants,
+  3 cafés): Chez Lapin, ODE Porto Wine House, Yeatman's Restaurant (2
+  Michelin stars, 2017 — the one `stars` value set to 1 in this
+  session's Portugal data, matching how Madrid/Barcelona already encode
+  a Michelin star count), Mauritânia, Cafeína, Mal Cozinhado, Praia Da
+  Luz (a restaurant/beachside-café hybrid — the PDF listed it twice,
+  once under Dining and once again under Bars &amp; Nightlife with
+  identical address/phone; added once), Café Majestic, Café Guarany, and
+  Tavi — Confeitaria da Foz (positioned under the PDF's "BARS &amp;
+  NIGHTLIFE" heading in the raw text, but its own body text is
+  unambiguously café-shaped — "gorgeous cafe and restaurant serving
+  sweet and savoury pastries" — so classified by content, not by section
+  heading, same discipline the Lisbon pass already established for
+  Pôr Do Sol/Canto Da Doca in the Azores build). **Not added to
+  `QB_CITY_ORDER`** — confirmed it still only lists the 10 Spain cities,
+  so Porto joins Lisbon and the Azores in the same deliberate deferral,
+  not a new inconsistency.
+- **9 Bars &amp; Nightlife venues** built as a guide-prose table
+  (Plano B, The Wall Bar, Baixa Bar, Hot Five Jazz &amp; Blues Club, Pipa
+  Velha Petisqueira, Passos Manuel, Bar Labirintho, Café Candelabro,
+  Lais de Guia) — Café Candelabro is explicitly a café-winebar-bookshop
+  hybrid but was kept here rather than in Dining, since its own body
+  text foregrounds the winebar/bohemian-bar identity over the café one
+  (the reverse judgment call from Tavi above, made the same way — by
+  what the venue's own description actually emphasizes).
+- **7 Shopping venues plus the 3 open-air markets already named in
+  prose** (Mercado do Bolhão cross-referenced to its own Key Attractions
+  entry rather than duplicated, Mercado Porto Belo, Vandoma Fleamarket) —
+  Centro Comercial Via Catarina, Arcádia, A Pérola do Bolhão, Portosigns,
+  Casa Da Guitarra, Garrafeira do Carmo, Mercado Bom Sucesso — plus a
+  jewellery note (David Rosas, Pedro A Baptista) matching the "worth
+  knowing, not a full listing" bullet-note pattern this guide already
+  uses for things like Lisbon's surfing mention.
+- **A genuinely stale search-index entry found and fixed, not just
+  content added elsewhere.** This file has an internal `SEARCH_INDEX`
+  array (used by the guide's own in-page search) with a `"porto-city"`
+  entry whose `text` field was still a compressed summary of the OLD
+  six-paragraph compact section — confirmed Lisbon and the Azores have
+  NO search-index entries at all (a pre-existing, accepted gap for both,
+  not something this pass needs to fix), but Porto's entry existed and
+  would have been actively misleading once the real page content moved
+  far past it. Rewrote the `text` field to name the real new content
+  (all 17 attractions, the day trips, the dining/nightlife/shopping
+  sections' existence, the festival names) at the same "compressed
+  summary, not full page text" density the field already used — a
+  targeted fix for a real regression this promotion would otherwise have
+  quietly caused, not a new feature.
+- Verified via this project's established non-script-content discipline:
+  full tag-balance recount (div/table/tr/td/th/thead/tbody/ul/li/h3/h4
+  all exactly even after the new section), a file-wide duplicate-`id`
+  sweep (zero new duplicates — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids are unchanged, and `porto-city` itself
+  confirmed to still resolve to exactly one element), a
+  `QB_RESTAURANTS` re-extract-and-`JSON.parse` confirming the new
+  `Porto` key (10 entries) alongside the untouched `Azores` (13) and
+  `Lisbon` (21) keys, and all 17 `<script>` blocks re-verified via
+  `new Function()` parsing (unaffected — pure HTML/table/data/search-
+  index-string content, no script logic touched).
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this section's specific facts (venue hours/addresses/phone
+  numbers, the festival names, the Taylor's/Garrafeira do Carmo
+  reconciliation specifically) have been checked against a live source
+  beyond the PDF text and the domain-name cross-check described above.
+  Whether the promoted `<h3>` Porto section now visually/structurally
+  matches Lisbon and the Azores as intended, and whether the interactive
+  map's `porto-city` color-coding still renders correctly with the tag
+  change, haven't been seen in a real browser from this environment.
