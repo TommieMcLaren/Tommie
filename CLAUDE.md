@@ -6039,3 +6039,126 @@ together rather than one at a time.
   "must be a live claude.ai artifact" requirement no longer applies. Never
   put a real key in a git commit, a chat message, or anywhere other than
   that Settings input.
+
+## Portugal build-out begins: Lisbon, treated the same way as a Spain city (Sep 2026, unverified live)
+
+Direct request: "I am going to switch to adding in the Portugal section, I wanted
+treated the exact same as the Spain section with how the information is being
+built. Maps, restaurants, city highlights, hotels and anything else." Confirmed
+up front this would be a unified Spain+Portugal map/city system (not two
+separate ones — see below) and that content would arrive sporadically,
+section by section, pasted directly (mostly as raw text, some as screenshots),
+to be placed diligently rather than assumed.
+
+- **Lisbon promoted to a full top-level `<h3>` city section**, mirroring
+  Madrid/Barcelona's exact structure and subsection order: pronunciation flip
+  (`Lisboa`, `pt-PT`), Orientation, Key Neighborhoods table, Airport (official
+  name/IATA/terminals/facilities), Airport→City Center Options table, Getting
+  Around table, a Bonus (Tram 28), Brief History (`<ol>`, condensed from the
+  DE's own 5-era paste — Roman/Phoenician founding, Moorish rule, the Age of
+  Discovery, the 1755 earthquake, the Carnation Revolution — exam-tagged on
+  the earthquake since it directly explains the Baixa's grid layout already
+  documented above it), Climate & Best Time to Visit, Key Attractions (an
+  11-row table, not the media-gallery flip-card format Madrid uses — see
+  below for why), Food & Culture, Events & Festivals, Nightlife, Day Trips
+  (Sintra/Cascais & Estoril/Óbidos), and Hotels. Previously Lisbon was a
+  single `<h4>` paragraph block nested inside "Portugal — Key Locales
+  Overview" alongside Porto/Sintra/Douro Valley/Algarve; those four stay
+  there, unchanged, until their own richer content arrives and they get the
+  same promotion — the Key Locales Overview intro paragraph now just notes
+  Lisbon's full write-up is below.
+- **Key Attractions deliberately built as a table, not Madrid's media-gallery
+  flip-cards.** Madrid's cards use real Wikimedia Commons image URLs; this
+  environment has no network access (confirmed by an actual failed fetch —
+  see below) and no way to verify a guessed Commons filename would resolve.
+  A broken image in a client-facing sales tool is worse than no image, so
+  Key Attractions here is Attraction/Why it matters/Practical info (address,
+  hours, website) instead — same information, no unverified image risk.
+  Worth building the real flip-cards later if/when real image URLs are
+  sourced and can be checked.
+- **`QB_RESTAURANTS.Lisbon`** — 20 real entries (12 restaurants, 8 cafés),
+  added in the exact same `{name, vkind, stars, addr, price, blurb}` shape
+  Spain's cities use, live in the Quote Builder immediately (no other code
+  changes needed — `QB_RESTAURANTS[city] || []` already handles a new key
+  safely everywhere it's read). Verified by extracting and `JSON.parse`-ing
+  the live object out of the file after each edit, not just eyeballing it.
+  **Price tier (€–€€€€) and `vkind` (fine/classic/tapas/lunch/cafe) were
+  inferred from how the DE described each place** (venue type, positioning,
+  cuisine style) — none were explicitly given as exact figures. Flagged to
+  the DE directly rather than silently presented as confirmed; worth a
+  spot-check before quoting off any of them, same discipline this file
+  already applies to unconfirmed specifics elsewhere.
+- **Bars/nightclubs deliberately kept as guide-prose only, not added to
+  `QB_RESTAURANTS`.** Spain's own data has no equivalent structured
+  "nightlife venue" QB category either (nightlife only ever appears as a
+  `tags` value on a bookable `QB_TOURS` experience, like a flamenco show) —
+  injecting bars/clubs into the restaurant picker's `vkind` list would put
+  a nightclub in the same dropdown a DE uses to pick a client's dinner
+  spot, a real UI mismatch. Built as its own "Nightlife" table instead,
+  matching the Key Attractions table's shape.
+- **Passport & visa content was pasted for Portugal but deliberately NOT
+  turned into a new section.** It read as generic Schengen boilerplate
+  (matching Spain's own Section 1.2 almost exactly), but its ETIAS framing
+  — "as of 2025... citizens... are required to have an ETA" — directly
+  conflicts with Spain's own already-verified section, which explicitly
+  states ETIAS is **not yet in effect** as of Aug 2026 (2027 now more
+  likely). Since Portugal is Schengen and the guide already cross-
+  references Spain's section for identical rules ("Portugal — Must-Know
+  Numbers & Rules" table), duplicating a Portugal-specific version with
+  the older/conflicting ETIAS claim would have introduced a real
+  contradiction into the guide rather than resolved one. Left the existing
+  cross-reference as-is and flagged the conflict to the DE directly instead
+  of silently picking a version.
+- **Confirmed, not assumed: this environment cannot reach
+  kensingtontours.com or any other live site.** Asked directly whether
+  Spain's own `KT_LIVE_ITINERARIES` data had been pulled the same way —
+  checked via `git log -S` rather than guessing, and confirmed it hadn't:
+  the very first commit in this repo is a bulk import of the whole file
+  from the original claude.ai chat-based development phase, itineraries
+  included. A live `WebFetch` attempt against the Portugal tours page in
+  this session returned `EGRESS_BLOCKED` for `kensingtontours.com`
+  specifically — a real, first-time-encountered limitation for this
+  project, not a regression from prior working behavior. Portugal's own
+  live-itinerary listings still need to be pasted in by the DE the same
+  way everything else in this section was.
+- **The interactive map's real coordinate system, verified properly rather
+  than guessed at.** `qbRouteMapSvg()`'s city pins come from
+  `TRIP_PLANNER_PINS` — hand-placed x/y points inside a 560×520 SVG,
+  plotted against a hand-traced `QB_LANDMASS_PATH` polygon the code's own
+  comment describes as "real Spain outline (traced from Natural Earth
+  geographic data)... cities placed at their true relative positions."
+  Fit a least-squares affine transform from real (lng, lat) → (x, y) using
+  7 of Spain's own known cities (Madrid, Barcelona, Seville, Bilbao,
+  Valencia, Granada, Marbella) against their actual `TRIP_PLANNER_PINS`
+  coordinates — the fit came back essentially exact (≤0.1px residual on
+  every point), confirming this really is a precise geographic projection,
+  not an artist's approximation. Applied that same transform to Lisbon,
+  Porto, Sintra, and Faro's real coordinates, then ran a point-in-polygon
+  test against the actual `QB_LANDMASS_PATH` — **all four land outside the
+  currently-drawn shape**, confirming the polygon traces Spain's political
+  border specifically, not the whole Iberian Peninsula's coastline.
+  Extending it to include Portugal is a real, doable next step now that
+  the exact transform is known (any new Portugal reference point's real
+  lat/lng converts straight to the right x/y), but it's real path-surgery
+  worth doing as its own careful, verifiable pass — not squeezed in
+  alongside a large content-integration turn — so it's deliberately not
+  done yet. **Confirmed with the DE directly**: wait until more Portugal
+  city data is in before extending the shape, and this specific Lisbon
+  batch was committed as its own checkpoint rather than held for a larger
+  combined commit later.
+- Verified via the project's established discipline: all 17 `<script>`
+  blocks parse (`new Function`), `QB_RESTAURANTS` re-extracted and
+  `JSON.parse`-d successfully after each edit (not just visually
+  eyeballed), the full 39-file pre-existing Node execution-harness
+  regression suite re-run against freshly re-extracted source with zero
+  failures, and div/table/th tag balance held exactly (span/button's
+  pre-existing, previously-documented false-positive gaps unchanged, no
+  new imbalance).
+- **Unverified live, same caveat as everything else in this file**: none
+  of the new Lisbon content (Airport/transit facts, restaurant hours/
+  addresses, event dates) has been checked against a live source from
+  this environment — it's transcribed faithfully from what the DE pasted,
+  not independently confirmed. The inferred restaurant price tiers/
+  categories especially are worth a real spot-check. Next: Porto, Sintra,
+  Douro Valley, and Algarve each need the same full-section treatment
+  Lisbon just got, and the map extension is still pending more city data.
