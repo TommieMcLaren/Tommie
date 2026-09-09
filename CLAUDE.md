@@ -7644,3 +7644,134 @@ standing "diligently place what's given, never guess" discipline.
   time these sections are reviewed. More installments are expected in
   both the Popular Attractions (4 more) and Top Tours (4 more) lesson
   series — place them the same way as they arrive.
+
+## Portugal cleanup pass: pronunciation flip-cards + a real interactive-map extension, scoped honestly (Sep 2026, unverified live)
+
+Direct request: "clean up these sections. Use the Spain section as your
+blueprint. So proper subsections, everything neatly laid out, tap to
+flip sections, pronunciation voice. Interactive map. Make sure
+everything is working as it should. I will upload more information
+tomorrow." Four distinct asks bundled together — worked through each
+one, but deliberately did NOT treat all four as equally buildable
+tonight; one of them (attraction-level "tap to flip" cards with real
+photos) carries a real risk this build-out has flagged and avoided
+since its very first entry, so it's called out explicitly below rather
+than silently built or silently skipped.
+
+- **Pronunciation voice / "tap to flip" — the safely-buildable half of
+  that ask, built for real.** Checked directly and found Lisbon already
+  had its own `.title-pron-wrap` city-name flip-card (built during the
+  original Lisbon promotion) — Porto and the Azores, both since promoted
+  to full `<h3>` sections, did NOT (confirmed via grep, zero matches).
+  Added the identical flip-card to both — `<button class="speak-btn"
+  data-text="Porto" data-lang="pt-PT">`/"POR-too" for Porto, `"Açores"`/
+  "ah-SOR-esh" for the Azores — plus one for the Madeira stub
+  ("Madeira"/"muh-DAY-ruh") for consistency even though that section is
+  still a deliberately partial placeholder. **These genuinely work with
+  zero JS changes** — confirmed by reading the wiring code directly:
+  `document.querySelectorAll('.speak-btn').forEach(...)` runs in a
+  later `<script>` block that queries the WHOLE document after
+  everything above it has already been parsed (this file's own
+  document-order execution model, the same one that caused and then
+  fixed the itinerary-modal DOM-lookup bug earlier this session) — so
+  new buttons added to earlier HTML are picked up automatically, no
+  export or extra wiring needed.
+- **The interactive map — deferred since the very first Lisbon commit
+  ("wait until more Portugal city data is in"), and now built for
+  real.** The affine transform from earlier this session (fit from 12
+  Spain pins' real lat/lng → their real x/y positions, ≤1px residual on
+  11 of 12 points) was recomputed fresh in this pass (nothing from the
+  earlier analysis was saved to a file) and applied to four real
+  Portugal cities: Lisbon (41.5, 326.1), Porto (62.1, 182.4), Sintra
+  (31.8, 321.3), and Faro (89.5, 426.5) — the four with genuine guide
+  depth behind them (full `<h3>` sections for the first two, a
+  richly-documented day trip for Sintra matching Toledo's existing role
+  under Madrid, and Faro as the Algarve's real named airport gateway,
+  matching Bilbao/San Sebastián's role as a non-`<h3>` satellite pin).
+  Added all four to `TRIP_PLANNER_PINS`, plus four road connections
+  (Lisbon–Seville, matching the real "Epic Iberian Journey" itinerary's
+  route; Lisbon–Sintra; Lisbon–Porto; Lisbon–Faro) to
+  `TRIP_PLANNER_ROADS`.
+- **`QB_LANDMASS_PATH` extended with a westward Portugal bulge** —
+  real "path-surgery," done for the first time after two sessions of
+  explicitly deferring it. The old western boundary (the stretch of
+  points tracing Spain's actual Portugal border, ~x=104–130) was
+  replaced with 13 new points bulging out to ~x=24–56, built from the
+  four cities' own projected coordinates plus reasonable coastal
+  padding (Cabo da Roca near Sintra, the Algarve's southwestern tip
+  near Sagres, etc.) — **explicitly a first-pass approximation, not a
+  traced coastline the way Spain's own shape is** (that one comes from
+  real Natural Earth geographic data; this one is hand-built from four
+  anchor points). Verified geometrically, not just visually assumed: a
+  real point-in-polygon test (ray-casting) run in Node against the
+  extracted path confirms all four new pins — Lisbon, Porto, Sintra,
+  Faro — land genuinely INSIDE the new landmass shape, not floating
+  outside it.
+- **"Proper subsections, everything neatly laid out" — already
+  substantially true, checked rather than assumed.** Lisbon, Porto, and
+  the Azores (the three full-`<h3>` Portugal destinations) already
+  follow a consistent subsection pattern matching Spain's own city
+  blueprint (Orientation → Airport/Getting There → Key Attractions →
+  Food & Culture → Day Trips/practicalities → Hotels, adapted per
+  destination's real shape — the Azores' own archipelago-specific
+  subsections in place of a single-city "Key Neighborhoods" table are a
+  deliberate, already-documented adaptation, not an inconsistency).
+  Sintra, Douro Valley, Algarve, and Madeira remain intentionally
+  compact `<h4>` stubs, exactly as flagged in every prior entry — not
+  broken, just still waiting on the richer source material a full
+  promotion needs, per the DE's own paced "Lesson X of N" delivery.
+- **Deliberately NOT built: real photo-based "tap to flip" cards for
+  individual attractions (Spain's `.media-card`/`card-flip-front`
+  pattern with a real Wikimedia Commons `<img>`).** This is the one
+  piece of the request not treated as done tonight, and it's called out
+  here rather than silently skipped. This build-out's very first entry
+  established why: this environment has no network access to verify a
+  guessed Commons file-path URL would actually resolve, and a broken
+  image in a client-facing sales tool is worse than no image — which is
+  exactly why Portugal's Key Attractions have been tables (Attraction/
+  Why it matters/Practical info) instead of Madrid's photo cards from
+  the start, a decision restated and held every time it came up since.
+  Nothing about tonight's request changes that constraint — building
+  ~50+ real flip-cards across Lisbon/Azores/Porto with guessed image
+  URLs would risk exactly the failure mode this guide has avoided on
+  purpose. The pronunciation flip-cards built above use the *same* tap-
+  to-flip mechanic (their JS/CSS is even the same shared `.title-pron`/
+  `.pron-mini` classes Spain's photo cards use for their own
+  pronunciation badges) but never need an image, so they were safe to
+  build broadly; the photo-card conversion is a separate, larger
+  decision worth putting to the DE directly rather than guessing at —
+  either source real, verified image URLs and do it properly, or
+  accept the table format as final for Portugal.
+- Verified via this project's established non-script-content discipline
+  plus one new geometric check specific to this pass: all 17 `<script>`
+  blocks re-verified via `new Function()` parsing (confirms the new
+  `TRIP_PLANNER_PINS`/`TRIP_PLANNER_ROADS`/`QB_LANDMASS_PATH` array/
+  string literals are syntactically valid, not just visually plausible),
+  a full script-excluded tag-balance recount (div 1601→1622, matching
+  the three new title-pron-wrap blocks' own internally-balanced markup
+  exactly; every other tracked tag unchanged), the duplicate-id sweep
+  (unchanged from baseline — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids; no new `id` attributes were added by the map
+  changes, and the title-pron blocks reuse Lisbon's exact existing CSS
+  classes rather than inventing new ids), and the Node ray-casting
+  point-in-polygon test described above (all four new pins confirmed
+  genuinely inside the extended landmass shape).
+- **Unverified live, and this is the item most worth a real look**: the
+  Portugal landmass bulge's actual visual shape in a real browser — it's
+  built from four anchor points plus estimated coastal padding, not a
+  traced coastline, so it may look noticeably cruder than Spain's own
+  smoother shape up close, even though the geometry checks out
+  correctly (pins land inside it). Also unverified: whether the three
+  new pronunciation flip-cards' phonetics read naturally when spoken by
+  a real browser's `pt-PT` voice (no `pt-PT` voice may even be
+  installed in every browser — same caveat this file's voice-picker
+  work already documents generally), and whether the four new map pins/
+  roads look proportionate against the existing Spain pins once actually
+  rendered. Test next: open the Interactive Trip Planner Map and confirm
+  Lisbon/Porto/Sintra/Faro appear as real clickable pins sitting on
+  visible landmass (not floating in blank ocean), tap each new
+  pronunciation card in Porto/Azores/Madeira and confirm the flip and
+  the spoken audio both work, and take a general look at whether the
+  Portugal bulge's shape looks reasonable at a glance — flag anything
+  that looks visually wrong so it can be adjusted against real feedback
+  rather than guessed at twice.
