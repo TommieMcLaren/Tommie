@@ -6979,3 +6979,70 @@ cards, same exact shape as Lisbon/Porto's Lesson 1 cards).
   checked outside this environment. Test next: read the Locale Planning
   Quick Reference table in a real browser and confirm the four rows scan
   cleanly together now that it's grown past two entries.
+
+## Azores Locale Planning Quick Reference: Faial, São Miguel, Terceira (Sep 2026, unverified live)
+
+Direct continuation of the Key Locales lesson series — this batch covers
+the Azores specifically (Faial, Terceira, then São Miguel arrived
+mid-turn as a follow-up), the same nights/alternatives/add-ons card shape
+as every locale in this series so far.
+
+- **Given its own quick-reference table inside the Azores section, not
+  folded into the mainland one.** The Azores' own `<h3 id="p2-azores">`
+  section already states explicitly that it's "a genuinely different
+  sell... worth positioning that way to clients rather than folding it
+  into a standard Lisbon-Porto-Algarve itinerary" — mixing archipelago
+  islands into the mainland `Locale Planning Quick Reference` table under
+  `portugal-key-locales-overview` would have quietly contradicted that.
+  Added a new, parallel `<h4 id="locale-planning-quick-reference-
+  azores">Locale Planning Quick Reference</h4>` right after the existing
+  "The Islands — One Location, Nine Unique Worlds" table (the natural
+  spot — same placement logic as the mainland version sitting right after
+  its own section's overview), with three rows: Faial (3 nights;
+  alternatives Pico for hiking or São Jorge for coastlines; add-on a Pico
+  day trip), São Miguel (4 nights; alternatives other Azores islands or
+  Madeira; add-on combining with Terceira or Faial for island hopping),
+  and Terceira (3 nights; alternative São Miguel for a more "well-rounded"
+  stay; add-on Faial or São Jorge for continued exploration).
+- **São Miguel's alternative — "other Azores islands, or Madeira" — is
+  the second cross-Portugal-region itinerary fact in this lesson series**
+  (after Albufeira's "extend into Seville, Spain" in the previous entry),
+  and specifically the first one connecting the Azores to Madeira, a
+  region this guide still has zero built-out content for (flagged as a
+  real gap in both the DMCs-in-Portugal entry and the mainland Key
+  Locales entry above). Transcribed as given — not expanded into
+  anything about Madeira itself, since nothing about Madeira has actually
+  arrived yet.
+- **A real, useful new fact folded into the existing "The Islands" table
+  rather than only living in the new quick-reference row**: Terceira's
+  "Lilac Island" nickname (from this batch's own description paragraph)
+  wasn't in the guide anywhere before — checked via grep to confirm, then
+  added directly into Terceira's existing Character cell in "The Islands
+  — One Location, Nine Unique Worlds" (built during the original Azores
+  PDF pass), alongside its already-documented Angra do Heroísmo/UNESCO
+  fact, rather than only appearing once in the new table's own prose.
+  São Miguel's new blurb (hot springs, tea plantations, dramatic cliffs)
+  was judged additive detail on an already-adequately-descriptive existing
+  row, not corrective — left the existing "The Islands" row for São
+  Miguel unchanged rather than editing a row that wasn't wrong.
+- **Only the three islands this lesson actually covered got rows** —
+  Santa Maria, Pico, São Jorge, Graciosa, Flores, and Corvo (all already
+  named in "The Islands" table from the earlier PDF-sourced pass) still
+  have no Locale Planning Quick Reference row, since no nights/
+  alternatives/add-ons data has arrived for them yet. Same "don't guess,
+  place diligently as it arrives" discipline as every other quick-
+  reference table in this lesson series.
+- Verified via this project's established non-script-content discipline:
+  all 17 `<script>` blocks re-verified via `new Function()` parsing
+  (unaffected — pure HTML), a full script-excluded tag-balance recount
+  (div/th/thead/tbody/ul/li/h3 all held exactly even; table 143→144 and
+  h4 205→206, matching the one new table and one new `<h4>` added, both
+  internally balanced), and the duplicate-id sweep (unchanged from
+  baseline — the new id, `locale-planning-quick-reference-azores`, is
+  genuinely new and non-colliding).
+- **Unverified live**: whether "4 nights for São Miguel, 3 each for Faial
+  and Terceira" matches real client itineraries, and whether having two
+  same-named "Locale Planning Quick Reference" sections in one guide (one
+  under mainland Portugal, one under the Azores) reads as a clear,
+  intentional parallel structure or as confusingly repeated in a real
+  browser — neither has been checked outside this environment.
