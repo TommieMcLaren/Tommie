@@ -6788,3 +6788,61 @@ resolved the one genuine ambiguity the screenshots left open.
   re-confirmed. Whether the DMC comparison table reads clearly against
   Spain's own parallel section, and whether the Lusanova portal
   credentials are still current, are both worth a DE spot-check.
+
+## Two real KT practice-exam screenshots confirm the Portugal DMC content, added to Quiz Mode (Sep 2026, unverified live)
+
+Right after the DMCs-in-Portugal section shipped, the DE sent two
+screenshots of an official KT practice-quiz UI (numbered "01/03"/"02/03",
+multiple-choice with a marked correct answer) — no accompanying text, same
+"treat this as source material" pattern as the PDF uploads earlier in this
+build-out.
+
+- **Read as independent confirmation first, not just new content.** Both
+  questions' correct answers line up exactly with what the DMC section
+  already states: Q1 ("last-minute Portugal trip for a family of 7, multi-
+  city, needs a driver AND guide throughout") is answered "Use Explore
+  Portugal OR Lusanova for the entire trip" — the marked-wrong distractor
+  option ("use Lusanova for touring and Explore Portugal for transfers")
+  is exactly the "mixing them" trap the guide's own Key Rule already warns
+  against. Q2 ("confirm hotel availability over a weekend for a price-
+  conscious client") is answered "Use Dynamic to search for rates and book
+  instantly" — matches the guide's own "Dynamic rates offer instant
+  booking... especially valuable over weekends, since hotel availability
+  is often a challenge in Portugal" line word-for-word in substance. No
+  content correction was needed — this was a genuine independent check
+  that the DMC section built from the xlsx/screenshots/pasted text got it
+  right, not a new source correcting an error.
+- **Found this guide's own Quiz Mode is a fixed flashcard deck
+  (`QUIZ_CARDS`), not the multiple-choice format in the screenshots** —
+  confirmed by reading the actual quiz code (`startQuiz`/`showQuizCard`)
+  before assuming anything: `QUIZ_CARDS` is a static JS array of
+  `{section_id, section_title, fact}` objects, shown one at a time as
+  "What's the key fact here?" / reveal / Got it / Review again. The
+  screenshots are from a *different*, official KT-made multiple-choice
+  quiz tool, not this guide's own feature — so there was no live quiz UI
+  to directly cross-check, only the underlying facts.
+- **Added two new `QUIZ_CARDS` entries for `portugal-dmcs`**, mirroring
+  the exact pattern the existing three `116-dmcs-in-spain` entries already
+  establish (the Key Rule, the "cannot be mixed" fact, and the DENIR-
+  naming trap) — one card for the "cannot be mixed, even for a large
+  multi-city trip needing both a driver and guide" scenario Q1 tested, one
+  for the "Dynamic = instant weekend booking" scenario Q2 tested. Both
+  worded as scenario-shaped exam-likely facts (matching how the Spain
+  cards phrase theirs), not just restating the section's prose verbatim.
+- Verified via this project's established non-script-content discipline
+  (this was one JS array-literal edit inside an existing `<script>` block,
+  so both syntax parsing and the script-excluded HTML tag-balance check
+  applied): all 17 `<script>` blocks re-verified via `new Function()`
+  parsing (confirms `QUIZ_CARDS`' array literal is still syntactically
+  valid — the two new objects didn't break the array), a full tag-balance
+  recount with `<script>` content excluded (div/table/tr/td/th/thead/
+  tbody/ul/li/h3/h4 all exactly even, unaffected — pure JS data, no HTML
+  markup touched), and the duplicate-id sweep (unchanged from baseline —
+  no `id` attributes were touched by this edit at all).
+- **Unverified live**: whether Quiz Mode actually surfaces these two new
+  cards in a real shuffle/session, and whether the phrasing reads clearly
+  as a flashcard prompt-then-reveal (versus the multiple-choice format the
+  screenshots themselves used) — hasn't been seen in a real browser from
+  this environment. Test next: open 🧠 Quiz from the study-tools row and
+  click through enough cards to confirm one of the two new Portugal DMC
+  facts appears and reveals correctly.
