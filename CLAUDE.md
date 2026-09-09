@@ -6424,3 +6424,131 @@ replacement for it.
   reads as a natural fit for this guide (versus feeling like a bolted-on
   new pattern, given it has no Spain-city precedent) is also genuinely
   unverified — worth a look next time the Lisbon section is reviewed.
+
+## The Azores — a brand-new Portugal destination, built from a second official PDF (Sep 2026, unverified live)
+
+The DE uploaded a second official-looking PDF ("azores_en.pdf," 17 pages)
+with no accompanying instruction beyond the file itself — read the same
+way the Lisbon PDF was: as source material to build a new, full
+destination section from, matching this guide's established structure as
+closely as the content shape allows. Unlike the Lisbon PDF, this wasn't
+enriching an existing section — the Azores didn't exist anywhere in this
+guide before this pass (confirmed via a zero-match grep first).
+
+- **PDF extraction worked cleanly this time** — the `pdfminer.six` +
+  `cffi`/`cryptography` fix from the Lisbon PDF session carried over
+  (already installed in this environment), so no repeat troubleshooting
+  was needed.
+- **The same jumbled-column extraction artifact from the Lisbon PDF
+  showed up again, worse** — this PDF's address blocks were frequently
+  positioned next to the WRONG venue heading, to the point where several
+  initial name→address pairings, on first read, would have been outright
+  wrong (e.g. an address block sitting right after "Tony's Restaurant"
+  in the raw text turned out — confirmed by its own website domain,
+  `restaurantecais20.pt` — to actually belong to Cais 20 Restaurant).
+  **A new, more reliable cross-check was used this pass, worth reusing
+  on future Portugal PDFs**: the Azores' own Practical Info section gives
+  three real telephone area codes by island group (São Miguel &amp;
+  Santa Maria: 296 · Terceira, Graciosa &amp; São Jorge: 295 · Pico,
+  Faial, Flores &amp; Corvo: 292) — cross-referencing every phone number
+  against which island its stated address claims, on top of matching
+  domain names/emails to venue names and matching body-text place-name
+  mentions (e.g. "Angra do Heroísmo Bay," "Furnas," "the island of
+  Faial") against known island geography, resolved every dining/nightlife/
+  shopping venue with real confidence. One fact ("Aguas Quentes, cauldrons
+  of boiling sulphurous water... rivers leading to a tranquil waterfall")
+  couldn't be confidently attributed to any specific named attraction
+  after this process and was left out entirely rather than guessed onto
+  the nearest heading — same "don't guess" discipline as the Escape Hunt
+  Experience omission from the Lisbon pass.
+- **Structured as a new top-level `<h3 id="p2-azores">`**, positioned
+  right after Lisbon's `<h4 id="hotels-lisbon">` and before Porto's
+  compact `<h4 id="porto-city">` block — giving the Azores the same full
+  "city-level" treatment Lisbon got (this PDF was just as rich a source
+  as Lisbon's), rather than the lighter Porto/Sintra/Douro-Valley/Algarve
+  format those four still have pending their own richer source material.
+  Continues the `p`-prefixed id sequence established for Portugal
+  (`p1-lisbon`, now `p2-azores`) specifically to avoid ever colliding
+  with Spain's `1`-prefixed city ids, per the duplicate-id bug found and
+  fixed in the first Lisbon pass.
+- **Adapted the subsection list for an archipelago rather than copying
+  Lisbon's city subsections verbatim** — no single "Key Neighborhoods"
+  table makes sense for nine separate islands, so it became **"The
+  Islands — One Location, Nine Unique Worlds"** (a table of all 9
+  islands' character, matching the PDF's own framing line), a real
+  **Airports** table (5 islands have their own international airports:
+  PDL/HOR/TER/SMA/PIX), and an **Inter-Island Travel &amp; Getting
+  Around** section (SATA domestic flights, Atlanticoline/Transmaçor
+  ferries, which islands have bus/taxi/rental cars, two named rent-a-car
+  companies, per-island taxi phone numbers) — none of which exist in any
+  form for Lisbon, since Lisbon is a single city with no inter-location
+  transport question to answer.
+- **Key Attractions**: 13 rows, each explicitly tagged with its island
+  (Whale Watching, Pico's Volcanic Landscape/UNESCO vineyard landscape,
+  Lagoa das Sete Cidades, Lagoa do Fogo, Capelinhos Volcano + its
+  Interpretation Center, Algar do Carvão, Furna do Enxofre, Rocha dos
+  Bordões, Caldeirão, Fajã da Caldeira do Santo Cristo, Museu Carlos
+  Machado, Santana Astronomical Observatory) plus a "worth knowing" scuba
+  diving note — every one resolved via the area-code/domain/place-name
+  cross-check described above, not positional guesswork.
+- **`QB_RESTAURANTS.Azores`** — a genuinely new city key (the Quote
+  Builder already handles a missing key safely everywhere via
+  `QB_RESTAURANTS[city] || []`, same as when Lisbon was first added) —
+  13 entries (8 restaurants, 5 cafés), each `addr` naming the specific
+  island so a DE building a quote can tell at a glance which island a
+  recommendation is actually on. Same disclosed caveat as Lisbon's
+  restaurant data: `vkind`/price tier were inferred from how each place
+  was described, not given as exact figures — worth a spot-check before
+  quoting. **Not added to `QB_CITY_ORDER`** — same deliberate deferral as
+  Lisbon, consistent behavior rather than a new inconsistency.
+- **Bars &amp; Nightlife and Shopping built as guide-prose tables**,
+  matching Lisbon's pattern exactly (not folded into `QB_RESTAURANTS`,
+  same reasoning as Lisbon's nightlife section — a UI mismatch with the
+  restaurant/dinner picker). Peter Café Sport's own real "if you sail to
+  Horta and you don't visit Peter's, you have not actually been to
+  Horta" line was kept verbatim — a genuinely well-known, quotable fact
+  worth a DE having ready for a Faial-bound client.
+- **Food &amp; Culture**: led with Cozido das Furnas (the volcanic-heat-
+  cooked stew near Furnas Lake, ~5–6 hours, needs advance booking) as the
+  single most distinctive, client-differentiating fact in the whole
+  section — a genuinely unique experience with no mainland-Portugal
+  equivalent, flagged as worth building into any São Miguel itinerary.
+- **A new `<h4 id="practical-info-azores">` table**, matching the pattern
+  just established for Lisbon (population, electricity, emergency
+  number, phone codes, shop/pharmacy hours, tourist info line, local
+  newspapers) rather than inventing a third variant — now a real,
+  repeatable pattern across two Portugal destinations.
+- **Passport &amp; Visa**: same cross-reference-to-Spain's-section
+  treatment as Lisbon, for the identical reason — this PDF repeats the
+  same "ETIAS required starting late 2025" framing that conflicts with
+  the guide's own verified "not yet in effect as of Aug 2026" section,
+  so no new, second conflicting passport/visa section was created.
+- **Deliberately not built**: a "Best Time to Visit" or "Brief History"
+  subsection — unlike the Lisbon PDF, this source material contained no
+  explicit seasonal-recommendation or historical-era content to draw
+  from, and the Azores' actual climate (Atlantic, wetter/cooler
+  year-round than mainland Portugal) is different enough from Lisbon's
+  that reusing Lisbon's own climate guidance would have been a real
+  guess dressed up as fact — left out entirely rather than fabricated,
+  consistent with this project's own "don't guess" discipline stated
+  everywhere else in this file.
+- Verified via this project's established non-script-content discipline:
+  full tag-balance recount (div/table/tr/td/th/thead/tbody/ul/li/h3/h4
+  all exactly even after the new section), a file-wide duplicate-`id`
+  sweep (zero new duplicates — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids are unchanged), a `QB_RESTAURANTS`
+  re-extract-and-`JSON.parse` confirming both the new `Azores` key (13
+  entries) and the untouched `Lisbon` key (still 21) are well-formed,
+  and all 17 `<script>` blocks re-verified via `new Function()` parsing
+  (unaffected — pure HTML/table/data content, no script logic touched).
+- **Unverified live, same caveat as the rest of this Portugal build-out,
+  and unusually so given how much cross-referencing this pass needed**:
+  none of this section's specific facts (venue hours/addresses/phone
+  numbers, the area-code-to-island-group mapping itself, the airport
+  distances, the ferry season dates) have been checked against a live
+  source beyond the PDF text and the area-code cross-validation
+  described above — transcribed and reconciled, not independently
+  re-confirmed. The venue-to-address resolutions specifically are worth
+  a DE spot-check before quoting anything from this section to a
+  client, given how much reconciliation work the raw PDF extraction
+  needed to get right.
