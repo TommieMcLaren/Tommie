@@ -7925,3 +7925,140 @@ the important data."
   More Job Aid xlsx sheets and more image-flip-card conversions (Porto,
   the Azores) are natural next installments whenever more time/material
   arrives.
+
+## Full-file health check, round two — the Weather section specifically checked, everything came back clean (Sep 2026)
+
+Direct request: "run a full scan. Make sure you are including the weather
+section as well" — the same battery of checks used in the earlier "Full-
+file health check (Sep 2026)" entry, re-run after this session's large
+Portugal batch (Hotels xlsx, Popular Attractions xlsx cross-check, Top
+Tours xlsx, the Lisbon flip-card conversion, the map extension), with the
+Weather section explicitly named as something not to skip.
+
+- **Script structure re-verified from scratch, not assumed.** The file
+  now has 17 real `<script>` tags total: 1 external (`leaflet@1.9.4`,
+  `src=`), 10 tiny self-contained city-map IIFEs (Madrid/Barcelona/
+  Valencia/Seville/Granada/Córdoba/Marbella/Toledo/San Sebastián/Bilbao —
+  each a single-line `<script>` immediately after that city's `.city-map-
+  wrap` div), and 6 large logic blocks. A raw `<script` substring count
+  first came back 21, 4 over the real total — all 4 were prose comments
+  that literally contain the text `<script>` as an example (e.g. "...a
+  separate `<script>` tag..."), the exact same false-positive shape this
+  file's own history already documents for `<button>`/`<span>`/`<table>`/
+  `<details>` mentions in comments — confirmed by reading each of the 4
+  lines directly, not just assumed. All 16 real inline (non-`src`) script
+  blocks extracted and `node --check`ed individually: all pass.
+- **Tag balance recount, script content excluded first** (the
+  established discipline — the file's own `SEARCH_INDEX` array contains
+  literal un-terminated `<h3`/`<h4` substrings in its `"text"` fields
+  that create phantom mismatches otherwise): div/table/tr/td/th/thead/
+  tbody/ul/li/h3/h4/p/button/span/select/label/details/summary/a/strong/
+  em all came back exactly balanced — including span and button, which
+  have historically carried a permanent 1-off/2-off gap from prose
+  comments describing this exact false-positive class; those comments
+  live inside `<script>` blocks, so excluding script content this pass
+  excluded the false positives right along with them, and there's
+  nothing left unbalanced to explain away.
+- **Duplicate-id sweep**: 782 total `id` attributes, 776 unique — the
+  duplicates are exactly the same 4 pre-existing, unrelated Client
+  Tracker bulk-action-bar ids this file's history has flagged every time
+  this check has run (`ct-bulk-bar` ×3, `ct-bulk-status` ×2, `ct-bulk-
+  apply` ×2, `ct-bulk-clear-btn` ×3) — zero new duplicates from this
+  session's Portugal work, confirming the `p`-prefixed/`-portugal`-
+  suffixed id conventions established throughout this build-out held.
+- **`getElementById` cross-check**: all 331 distinct string-literal ids
+  requested via `document.getElementById(...)` resolve to a real
+  `id="..."` somewhere in the document. Zero misses.
+- **Orphaned-reference sweep**: 31 bare camelCase-call candidates
+  surfaced by the regex sweep, all resolved as false positives on
+  inspection — most were real functions my sweep's own definition-
+  pattern list didn't recognize (one-line arrow functions like `const
+  cellsOf = row => ...` with no `function`/`async`/parenthesized-param
+  keyword my regex was looking for, and object-literal method shorthand
+  like `getResult() {`), and two (`renderDrafts`, `wireDraftButtons`)
+  are the exact functions this file's own history already documents as
+  found-dead-and-removed — they only surface here because the fix's own
+  commit message is quoted verbatim inside a code comment
+  ("...called `renderDrafts()`/`wireDraftButtons()`, which don't exist
+  anywhere in this file...") — confirmed via a direct grep that these
+  two names have exactly those 2 occurrences, both inside that one
+  comment, zero real calls.
+- **Cross-IIFE `window.__ta*`/`window.__ct*`/`window.__dt*` export
+  audit**: 20 real exports defined; 19 have at least one real call site
+  elsewhere. The one exception, `window.__dtOpenPanel = dtOpenOverlay`
+  (Daily Tasks), has never been called from anywhere in the file —
+  genuinely unused scaffolding, not a bug (nothing breaks by it existing
+  unused), pre-existing from an earlier session's Daily Tasks build, not
+  introduced by this session's Portugal work. Flagged here rather than
+  removed, since removing an export nobody asked about wasn't in scope
+  for a health-check pass — worth wiring up (e.g. a future "open Daily
+  Tasks" voice command, matching the existing "open Amanda Jackson's
+  lead card" pattern) or removing, whichever comes up first.
+- **The Weather section, checked specifically as asked, not just
+  assumed fine because nothing recently touched it.** Spain's
+  `<h3 id="114-spain-weather-by-locale">` (~line 6466) is structurally
+  intact: 6 real flip-cards (`#weather-city-cards`, Madrid/Barcelona/
+  Valencia/Seville/Granada/Córdoba) with annual-avg/summer-high/winter-
+  low/rain-season/shoulder-season figures, followed by a real sortable
+  comparison table (`#spain-weather-at-a-glance-sortable-comparison`).
+  Confirmed the "click column headers to sort" claim in the section's
+  own intro text is real, not aspirational: `makeSortableTable()` (~line
+  23088) wires real click-to-sort listeners onto every `<th>`, and a
+  separate loop at line 23120 explicitly finds this exact heading id,
+  walks forward through its siblings (a `<p>`, then the `<table>` — 2
+  hops, well inside the function's own 5-hop search limit) and confirms
+  it's a real `<table>` before wiring it — genuinely functional, not
+  dead code. Also found and traced two separate JS data layers that back
+  this section and feed OTHER features from it: `SPAIN_WEATHER` (~line
+  10582 — summer-high/winter-low/rainiest-month/shoulder-season per
+  city, explicitly commented as "pulled from this guide's own Spain
+  Weather at a Glance table," feeding `qbWeatherWarnings()`, the
+  function that adds a heat/cold warning banner to both the Quote
+  Builder's draft itinerary AND the Trip Assistant's scenario drafts —
+  confirmed via the comment stating both consumers share this one
+  source so they can't disagree) and `window.__WX` (~line 12398 — full
+  monthly high-temp/rain-%/season-code arrays, feeding a separate
+  seasonal-caveat note inside the itinerary-recommendation engine's own
+  `RULES`/`SIGNALS` matcher). Both layers came back internally
+  consistent with the HTML section itself (the 6 cities with precise
+  data in `SPAIN_WEATHER` match the 6 flip-cards/table rows exactly; the
+  4 cities with only qualitative "shoulder" notes — Marbella/Toledo/San
+  Sebastián/Bilbao — correctly have no card/table row, matching the
+  section's own scope) and the sortable-table wiring — no drift, no
+  stale data found anywhere in this section.
+- **One real, worth-disclosing gap found in the Weather section's own
+  data layers, not a bug — flagged rather than silently left implicit or
+  silently "fixed" without being asked.** Both `SPAIN_WEATHER` and
+  `window.__WX` are keyed only by the 10 `QB_CITY_ORDER` Spain cities —
+  zero entries exist for any Portugal city (Lisbon, Porto, the Azores,
+  etc.), consistent with the many already-documented, deliberate
+  decisions elsewhere in this file to keep Portugal out of
+  `QB_CITY_ORDER` for now. This is **not a crash risk** — both
+  `qbWeatherWarnings()` and the `__WX`-based seasonal-caveat logic guard
+  every lookup with `if (w && ...)` / equivalent, so a missing Portugal
+  entry just silently produces zero warnings rather than throwing — but
+  it does mean that if a Portugal city is ever explicitly quoted through
+  the Quote Builder (via `qbExplicitStops`, the path the Trip Assistant
+  uses when a scenario names explicit cities — this is possible today
+  even though the normal city-dropdown auto-pick path stays Spain-only),
+  the resulting draft would silently carry no summer-heat or winter-cold
+  warning for that city, unlike every Spain city. Worth a real Portugal
+  weather-data pass (a `PORTUGAL_WEATHER` object mirroring `SPAIN_WEATHER`'s
+  shape, likely fed by the same per-city "Climate & Best Time to Visit"
+  prose already built for Lisbon/Porto/the Azores this session) once
+  Portugal's own build-out reaches the point where quoting a Portugal-
+  only or mixed Spain+Portugal trip through the Quote Builder is a real,
+  expected use case — not built speculatively here, since it wasn't
+  what was asked and the current behavior fails safe (silent, not
+  broken).
+- **Net result: no real bugs found this pass.** Unlike the two earlier
+  full-file health checks this file's history documents (which each
+  found and fixed a real, previously-undiscovered bug —
+  `ITIN_STOPWORDS`/`runSearchGuideTool`'s wrong field access, and
+  `extractClientName`'s comma-vs-period gap), this scan came back clean:
+  every check (syntax, tag balance, duplicate ids, `getElementById`
+  cross-reference, orphaned-reference sweep, cross-IIFE export audit)
+  confirmed correct, and the Weather section specifically holds up under
+  direct inspection of both its HTML and its two backing JS data layers.
+  The one finding worth acting on later is the Portugal-weather-data gap
+  above — a scope gap, not a defect.
