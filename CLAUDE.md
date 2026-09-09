@@ -6675,3 +6675,116 @@ version.
   matches Lisbon and the Azores as intended, and whether the interactive
   map's `porto-city` color-coding still renders correctly with the tag
   change, haven't been seen in a real browser from this environment.
+
+## DMCs in Portugal — filled from the official Job Aid, no more guessing (Sep 2026, unverified live)
+
+The Portugal section has had a placeholder `<h3 id="portugal-dmcs">` stub
+since it was first scaffolded, explicitly flagged (both there and in the
+Portugal "Must-Know Numbers & Rules" table) as "unconfirmed — confirm the
+correct vendor(s) via TMT/Job Aid before quoting." This pass replaces that
+placeholder with real, sourced content — a mix of a pasted "Local DMCs /
+Lesson 1 of 4" write-up, several screenshots of the underlying Job Aid
+slides, and finally the official `Job_Aid_Portugal.xlsx` itself, which
+resolved the one genuine ambiguity the screenshots left open.
+
+- **The screenshots initially left a real attribution question
+  unresolved, and the xlsx settled it rather than requiring a guess.**
+  Two DMC cards (Explore Portugal, Lusanova) each showed a "Communication"
+  subsection; a third screenshot titled "Individual Strengths and
+  Considerations" (large-group rates, full customization, no last-minute
+  high-season bookings) had no DMC name attached to it, so which DMC it
+  belonged to was genuinely ambiguous from the images alone. The
+  `5 - DMCs` sheet in the xlsx Job Aid answered this directly: Explore
+  Portugal and Lusanova have **identical** Strengths/Considerations/
+  Customization text in the source table — the "Individual Strengths"
+  screenshot applies to both equally, not one specific DMC. The only real
+  difference between the two vendors is their Communication row (Explore
+  Portugal: email only, no online portal; Lusanova: email plus a real
+  online portal for hotel rates/availability) — confirmed by the
+  screenshots and the xlsx agreeing exactly.
+- **Built to mirror `<h3 id="116-dmcs-in-spain">DMCs IN SPAIN</h3>`'s
+  established structure** (checked directly before writing anything, per
+  this build-out's own standing discipline): an Overview, an
+  exam-tagged "must select one, cannot be mixed" key rule, then a real
+  DMC/Strengths/Considerations/Customization/Communication comparison
+  table — same five columns Spain's own Liberty Spain/Spaintop table
+  uses. The `Considerations` column also carries two facts from the xlsx
+  that weren't visible in any screenshot: Portugal DMCs need **full
+  passport details to book train tickets**, and neither allows an
+  "optional" itinerary change within 30 days of travel (on top of the
+  already-screenshotted 30-day high-season booking cutoff).
+- **The Lusanova portal login is included, sourced from the xlsx's own
+  `5 - Tariff or Portal` sheet** (`KensingtonTours` / `kensington`) —
+  treated the same way this guide already treats any other real,
+  DE-facing operational credential from an official KT source document,
+  not customer PII; flagged with a note to confirm it's still current in
+  TMT/Teams before relying on it, the same "shared vendor login can
+  rotate" caveat any such credential deserves.
+- **Dynamic vs. Kensington Contracted rate types were NOT re-documented
+  from scratch** — a general `<h3 id="vendors-and-sourcing-rates">`
+  section already exists (company-wide, not Spain-specific — confirmed by
+  reading it directly before deciding this) covering exactly this
+  distinction. The new Portugal DMC section links to it and adds only the
+  two Portugal-specific facts from the DE's own pasted "Lesson 1" text:
+  Dynamic rates' instant-booking advantage matters more here because
+  Portugal hotel availability is often tight (especially weekends), and
+  Kensington Contracted rates are separately worth checking too — not a
+  duplicate rate-type explainer, just the destination-specific color the
+  general section can't provide.
+- **The stale cross-reference fixed too, not just the section it pointed
+  to.** The Portugal "Must-Know Numbers & Rules" table had a
+  `⚠️ DMC — unconfirmed` row pointing at "Section 'DMCs in Portugal'
+  below" — updated to name the two real DMCs now that they're actually
+  documented, while still honestly flagging that tour/tariff-level
+  pricing itself isn't in this guide yet (confirm rates in TMT), since
+  the xlsx's DMC sheet documents vendor comparison, not pricing.
+- **A false-positive tag-balance alarm investigated and correctly ruled
+  out, not worked around by editing content that didn't need it.** This
+  edit's own verification pass initially showed h3/h4 counts off by
+  several (81/78 and 223/221) — investigated rather than dismissed, and
+  traced to the pre-existing `SEARCH_INDEX` JS array: several of its
+  `"text"` field values end mid-tag with a literal, un-terminated `<h3`
+  or `<h4` substring (an artifact of however that index's text was
+  originally extracted from the real page, unrelated to Portugal or this
+  session's own edits — the same false-positive shape this file's own
+  history already documents for `<button>`/`<span>`/`<table>`/`<details>`
+  mentions inside prose comments, just not this exact spot before). A
+  regex tag-count that doesn't exclude `<script>` content picks these up
+  as if they were real opening tags. Re-run excluding all `<script>...
+  </script>` blocks: h3 77/77, h4 204/204, and every other tracked tag
+  exactly balanced — confirming the real rendered markup is fine and this
+  was a pre-existing quirk in search-index data, not something this
+  edit broke. Worth remembering for any future balance check on this
+  file: exclude script content first, or a `SEARCH_INDEX` string can
+  produce a phantom mismatch that has nothing to do with the actual page.
+- Verified via this project's established non-script-content discipline:
+  the corrected (script-excluded) tag-balance recount above, a file-wide
+  duplicate-`id` sweep (zero new duplicates — the same 4 pre-existing,
+  unrelated Client Tracker bulk-action ids are unchanged; this edit added
+  no new `id` attributes at all, only a table/list/paragraph and a link
+  to the already-existing `#vendors-and-sourcing-rates` anchor), and all
+  17 `<script>` blocks re-verified via `new Function()` parsing
+  (unaffected — pure HTML/table content, no script logic touched).
+- **The xlsx Job Aid is much bigger than just the DMCs sheet — flagged
+  here rather than acted on speculatively.** `Job_Aid_Portugal.xlsx` also
+  contains `6 - Top Itineraries`, `7 - Arrivals and Transfers`,
+  `8 - Top Tours`, `8 - Popular Attractions`, `Pronounciation`, and
+  `9 - Top Hotels` sheets — real, substantial source material (the Tours
+  and Hotels sheets alone are each ~25–32K characters of raw extracted
+  data) that hasn't been read or placed into the guide yet. Its `KEY`
+  sheet also names two Portugal regions/destinations this guide hasn't
+  touched at all yet: **Madeira** (alongside the already-partially-built
+  Porto & North / Lisbon & Central / South & Algarve / Azores groupings).
+  Deliberately not acted on in this same pass — the DE has been working
+  through this material as a paced "Lesson X of 4" sequence, and jumping
+  ahead to Tours/Attractions/Hotels/Transfers/Pronunciation without being
+  asked would get ahead of that pacing rather than diligently follow it.
+  Raw sheet dumps are saved at
+  `scratchpad/xlsx_*.txt` for when those lessons/sections come up.
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this section's facts have been checked against a live source
+  beyond the Job Aid xlsx/screenshots/pasted text themselves — transcribed
+  faithfully from official KT source material, not independently
+  re-confirmed. Whether the DMC comparison table reads clearly against
+  Spain's own parallel section, and whether the Lusanova portal
+  credentials are still current, are both worth a DE spot-check.
