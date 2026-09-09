@@ -7775,3 +7775,153 @@ than silently built or silently skipped.
   Portugal bulge's shape looks reasonable at a glance — flag anything
   that looks visually wrong so it can be adjusted against real feedback
   rather than guessed at twice.
+
+## Not client-facing — a real image-sourcing method unlocked, plus a full pass through the Job Aid xlsx (Sep 2026, unverified live)
+
+Direct correction: "This is not a client facing tool. So use pictures and
+information you can gather from wikipedia, google etc." This overturns
+the standing reasoning behind every earlier "no unverified images" call
+in this build-out (Lisbon's original Key Attractions table, the Azores
+PDF pass, etc.) — those were all reasoned from "client-facing sales
+tool," which this session confirmed is not the actual constraint. Also:
+"Continue going through the Portugal Guide excel file and extract all
+the important data."
+
+- **A real, higher-confidence image-sourcing method, tested and confirmed
+  before relying on it.** `WebFetch` is still hard-blocked for
+  `en.wikipedia.org` and `commons.wikimedia.org` specifically (confirmed
+  by testing both directly — `EGRESS_BLOCKED`), so a Commons image URL
+  still can't be fetched-and-rendered to double-check from this
+  environment. But `WebSearch` genuinely works, and a
+  `site:commons.wikimedia.org "<name>"` query reliably returns real,
+  currently-indexed Commons **File:** page titles — not a guess at a
+  filename pattern, an actual confirmed-to-exist file. Every image URL
+  added this session used a filename pulled directly from a real search
+  hit, built as `https://commons.wikimedia.org/wiki/Special:FilePath/
+  <exact filename>` — the same URL shape Madrid's own existing flip-cards
+  already use. This is meaningfully more reliable than blind guessing,
+  though it still isn't a render-and-confirm check — flagged as the one
+  remaining unverified piece below.
+- **Lisbon's 19-row Key Attractions table rebuilt as real tap-to-flip
+  photo cards**, matching Madrid's `.media-gallery`/`.media-card`
+  structure exactly (front: real Commons photo + "Tap to flip" caption;
+  back: title, a 📍 Map button, the enriched practical/considerations
+  text already built this session, and a Learn More link to Wikipedia,
+  the venue's own site, or — for two viewpoints with no standalone
+  Wikipedia article — their real Commons category page). All 19 images
+  were sourced via the method above: São Jorge Castle, Jerónimos
+  Monastery, Belém Tower, Carmo Convent, Cristo Rei, Church of São Roque,
+  Parque das Nações, National Tile Museum, Fronteira Palace, São Pedro de
+  Alcântara, Miradouro das Portas do Sol, Praça do Comércio, Lisbon Zoo,
+  Lisbon Oceanarium, the Gulbenkian Foundation, National Museum of
+  Ancient Art, Museum of the Orient, Pavilion of Knowledge, and Monsanto
+  Forest Park. **Deliberately did not add individual pronunciation
+  flip-badges (`.pron-mini`) to all 19 cards** — the city-level
+  pronunciation cards (Lisbon/Porto/Azores/Madeira) already answer the
+  "pronunciation voice" ask, and 19 more one-off Portuguese phonetic
+  guesses, unsourced from any authoritative pronunciation reference,
+  would have been a second, less-confident layer of guessing stacked on
+  top of an already-large batch of new content — worth adding later
+  specifically sourced from the real "Pronounciation" xlsx sheet's own
+  word list (see below) rather than improvised here.
+- **A real, thorough pass through the previously-unread "9 - Top Hotels"
+  xlsx sheet** — genuinely the highest-value single piece of data still
+  missing from this guide. Built full Hotels sections (replacing the
+  "⚠️ No Kensington-preferred property list confirmed yet" placeholders)
+  for Lisbon (5 real hotels, plus the source's own detailed neighborhood-
+  selection guidance), Porto (4 hotels, plus the Rua das Flores/Ribeira
+  congestion-charge hotel list cross-referenced to the charge already
+  documented under Arrivals &amp; Transfers), and the Azores (5 hotels
+  across São Miguel/Terceira/Faial, plus the Furnas/Rabo de Peixe
+  pickup-supplement note). Added shorter hotel paragraphs to Douro
+  Valley, Algarve, and Madeira's still-compact write-ups from the same
+  source, rather than leaving genuinely real hotel data out just because
+  those locales haven't been promoted to full sections yet.
+- **A real cross-check pass through "8 - Popular Attractions"** — this
+  sheet is the actual source behind the earlier "Popular Attractions"
+  lesson-screenshot content, and turned out to carry substantially richer
+  booking-logic detail (KT way of visiting, qualifying considerations,
+  quoting alerts, managing-expectations language) than the screenshots
+  alone conveyed. Enriched, in place, rather than duplicated: Jerónimos
+  Monastery (private-guide requirement), Belém Tower (river-cruise
+  pairing, interior/exterior mobility split), St. George's Castle
+  (elevator), Fado (the "don't eat during the first song" etiquette, plus
+  a real late-start timing warning), Tile Painting Workshop (per-venue
+  capacity), Óbidos (the real Fátima/Nazaré combo-tour product), Pena
+  Palace (shuttle-ticket/first-entry-time booking logic, the Monday-
+  closure trap), Port wine cellars (a genuine Fado + dinner-in-cellar
+  product), Douro Valley (the real touring-variety list — honey/olive-oil
+  tastings, hiking, cruises), Aveiro (Vista Alegre named specifically),
+  Whale Watching (transfers NOT included in the base cost — a real
+  quoting gap this closes), Évora (its own vineyard day-trip product, the
+  Chapel-of-Bones-plus-Cathedral combo), and Madeira (the Monte &amp; Wine
+  Lodge tour, a genuine alternative/pairing to the Toboggan Ride). Two
+  genuinely new rows added, not just enrichment: **Furnas** as its own
+  Azores Key Attractions entry (previously only known as the Cozido
+  location, not documented as a bookable full-day tour with its own
+  mobility/staining considerations), and **Coimbra** as a real Day Trips
+  from Porto row (the Biblioteca Joanina, previously only named generically
+  as a day-trip-worthy town with zero actual attraction detail).
+- **A full, real "8 - Top Tours" xlsx pass — the previously-placeholder
+  "PORTUGAL — TOP TOURS (Job Aid)" section now has actual tours in it.**
+  16 real, named, bookable Kensington tours transcribed by locale —
+  Albufeira (3), the Azores (2), Lisbon (5), Lisbon/Cascais (1),
+  Lisbon/Évora (1), Porto (2), Porto/Douro (1) — each with its real tour
+  category, KT level, duration, a genuine "wow moment" line, KT value
+  (why book this with Kensington specifically), and the real qualifying/
+  quoting/expectations-management alerts, mirroring Spain's own "Tour
+  Category | KT Level noted per tour" bullet format exactly (checked
+  directly before writing, matching this build-out's own standing
+  discipline). This is a substantial, previously-completely-missing
+  piece of real booking knowledge, not a light touch-up.
+- **Deliberately not yet done, named here rather than silently
+  skipped**: Porto's and the Azores' own Key Attractions tables were NOT
+  converted to photo flip-cards this pass — Lisbon alone (19 real
+  attractions, each individually searched and sourced) was already a
+  large, careful undertaking, and stretching the same discipline across
+  Porto (17 rows) and the Azores (13+ rows) in the same pass risked
+  rushing the sourcing quality that made Lisbon's conversion trustworthy
+  in the first place. The exact same method (confirmed via
+  `site:commons.wikimedia.org` search, never guessed) is ready to reuse
+  directly for both the next time this comes up. The "6 - Top
+  Itineraries" and "7 - Arrivals and Transfers" xlsx sheets were not
+  re-read this pass either — both were already the direct source behind
+  earlier lesson-screenshot content built out extensively this session,
+  and a fresh read turned up nothing this session's own time was better
+  spent re-confirming versus moving forward with the two sheets
+  (Attractions, Hotels) that had never been touched at all. The
+  "Pronounciation" sheet (just a checklist of words needing a
+  pronunciation demonstration — Alentejo, Coimbra, Cascais, Jerónimos
+  Monastery, Óbidos, Quinta da Regaleira, Moliceiro boat, Sete Cidades,
+  Funchal, Terceira, Almendres Cromlech, and more — with no actual
+  phonetics provided) is worth a real pass later specifically to source
+  authoritative pronunciations for the individual attraction/hotel
+  flip-cards' pron-mini badges, rather than improvising 19+ phonetic
+  guesses as part of this already-large batch.
+- Verified via this project's established non-script-content discipline:
+  all 17 `<script>` blocks re-verified via `new Function()` parsing after
+  every edit in this batch (unaffected — pure HTML/table/card content, no
+  script logic touched), a full script-excluded tag-balance recount after
+  the final edit (div/table/tr/td/th/thead/tbody/ul/li/h3/h4/p all exactly
+  even; `<img>` counted separately as the void element it is, not held to
+  an open/close balance), and the duplicate-id sweep (unchanged from
+  baseline — the same 4 pre-existing, unrelated Client Tracker bulk-action
+  ids; this batch added zero new `id` attributes).
+- **Unverified live, and this is a real, stated limitation, not a
+  formality**: none of the 19 Commons image URLs has actually been
+  rendered and looked at from this environment — `WebFetch` being blocked
+  for `commons.wikimedia.org` means the confirmation stops at "a search
+  result really points to a File: page with this exact name," not "this
+  URL definitely renders a real photo in a browser." A wrong Commons
+  redirect quirk, a since-deleted file, or an encoding mismatch in one of
+  the accented filenames could still show a broken image for any single
+  card despite the sourcing discipline above being real, not guessed.
+  Test next, in priority order: open the Lisbon Key Attractions gallery
+  in a real browser and scan for any broken image icons (the single most
+  useful thing to check first); confirm the Hotels tables read clearly
+  for Lisbon/Porto/Azores; and confirm the new Top Tours bullets render
+  correctly given their dash-prefixed inline-paragraph format (copied
+  exactly from Madrid's own established, if slightly unusual, pattern).
+  More Job Aid xlsx sheets and more image-flip-card conversions (Porto,
+  the Azores) are natural next installments whenever more time/material
+  arrives.
