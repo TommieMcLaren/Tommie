@@ -6162,3 +6162,149 @@ to be placed diligently rather than assumed.
   categories especially are worth a real spot-check. Next: Porto, Sintra,
   Douro Valley, and Algarve each need the same full-section treatment
   Lisbon just got, and the map extension is still pending more city data.
+
+## Lisbon build-out continues: Shopping, Currency & Practical Money Tips, Culture & Etiquette, Insider Travel Tips — plus a real duplicate-id bug fixed (Sep 2026, unverified live)
+
+Direct continuation of the Lisbon build-out above, from a further batch of
+sporadically-pasted content (per the DE's own "diligent" instruction):
+"Neighborhoods Worth Exploring" (flip-card-style neighborhood descriptions),
+"Currency," "Culture and Etiquette" (Lesson 6 of 9), "Travel Tips" (Lesson 7
+of 9), and a "Shopping, Neighborhoods, and Currency" (Lesson 5 of 9) batch
+whose Shopping half arrived first and was placed in the same pass.
+
+- **A real bug found and fixed before any new content was added**: Lisbon's
+  own `<h3 id="17-lisbon">` (from the original Lisbon promotion, see above)
+  collided with Valencia's pre-existing `<h3 id="17-valencia">` — Spain's
+  city sections are numbered `1`+sequential-index (`15-madrid`,
+  `16-barcelona`, `17-valencia`, `18-seville`, ... `121-qualifying-
+  questions`), and Lisbon's promotion from a plain `<h4>` to a full `<h3>`
+  reused the literal string "17" without checking it against that existing
+  sequence. A duplicate `id` means `<a href="#17-valencia">`-style anchors
+  and any `getElementById`/`querySelector('#...')` lookup can only ever
+  reach the FIRST matching element in the document (Valencia, which comes
+  first) — Lisbon's own id was silently unreachable by anchor the whole
+  time this session, though nothing in this file's live JS actually tried
+  to jump to it yet (confirmed via grep — only Valencia's id has real
+  callers, at the food/wine city-jump feature and the interactive map's
+  color-by-city lookup). Fixed by renaming Lisbon's id to `p1-lisbon` — a
+  fresh `p`-prefixed sequence for Portugal's own cities, guaranteed to
+  never collide with Spain's `1`-prefixed numbers as Portugal grows.
+  Verified via a full duplicate-id sweep across every `id="..."` in the
+  file: zero Lisbon-related duplicates remain (the sweep did surface four
+  pre-existing, unrelated duplicate ids in the Client Tracker's bulk-action
+  bar — `ct-bulk-bar`/`ct-bulk-status`/`ct-bulk-apply`/`ct-bulk-clear-btn`
+  — confirmed pre-existing and untouched by this session's work, not
+  something introduced here; flagged for a future pass, not fixed now
+  since it's outside this batch's scope).
+- **Key Neighborhoods table enriched, not duplicated.** The newly-pasted
+  "Neighborhoods Worth Exploring" flip-card content (Alfama, Bairro Alto,
+  Chiado, Belém, LX Factory) overlaps with the Key Neighborhoods table
+  already built in the previous Lisbon pass — rather than adding a second,
+  redundant neighborhoods section, the existing table was updated in place:
+  the combined "Bairro Alto & Chiado" row was split into two real rows
+  (the new content described them distinctly enough to warrant it — Bairro
+  Alto's "bohemian by day, nightlife hub after dark" character specifically
+  contradicts the prior row's flatter "quiet by day" phrasing, so the newer,
+  more specific pasted description won), and a new **LX Factory** row was
+  added (a genuinely new neighborhood not in the original table — a
+  converted industrial complex, street-art hub, artistic studios/quirky
+  shops/trendy eateries). Baixa and Avenidas Novas were left untouched —
+  neither was mentioned in the new paste, so there was nothing to reconcile.
+  Same reasoning as Key Attractions' table-not-flip-card decision (see
+  above): the "Click to flip" flip-card format in the DE's source material
+  implies real photos, which this network-less environment has no way to
+  source or verify — enriching the existing table's text captures the same
+  information without the unverified-image risk.
+- **Shopping** (`<h4 id="shopping-lisbon">`) — mirrors Madrid's/Barcelona's
+  established Shopping structure (a "Key Shopping Spots" table with
+  Spot/Notes/Hours columns and a 📍 `venue-map-link` Google-Maps-search
+  icon per row, same `class="venue-map-link"` markup Madrid's own Shopping
+  table already uses). A short cross-reference line replaces what would
+  otherwise be a duplicate "Shopping Districts" table — the pasted content's
+  own Baixa/Chiado neighborhood recaps added nothing the Key Neighborhoods
+  table above didn't already cover, so rather than re-describe those two
+  areas a second time, the section just points back to it. Seven real
+  venues from the paste: El Corte Inglés, Fátima Lopes, Fábrica Sant'Anna,
+  Centro Colombo, Centro Amoreiras, A Vida Portuguesa, and the Feira da
+  Ladra flea market (given the same ⚠️ pickpocket-risk caution Madrid's own
+  El Rastro flea market entry carries, since both are the same kind of
+  venue with the same real risk). No Currency-specific content had
+  actually arrived yet when Shopping was built (despite the "Lesson 5 of 9:
+  Shopping, Neighborhoods, and Currency" title implying all three) — it
+  landed in a later message and was placed separately, see below.
+- **Currency & Practical Money Tips** (`<h4 id="currency-practical-money-
+  tips-lisbon">`) — built as Lisbon's own full section, matching Madrid's
+  complete version (Currency/Credit Cards/Exchange Rates & Payment/Tipping
+  as separate `<ul>` blocks) rather than Barcelona's short "same as
+  Madrid, see that section" cross-reference — the DE's pasted Lisbon
+  content was itself full, original prose covering all four of those exact
+  topics, not a one-line "same as Spain" note, so condensing it into a
+  cross-reference the way Barcelona's does would have thrown away real
+  content the DE specifically provided. The substance matches Spain's own
+  guidance almost exactly (same currency, same card-issuer travel-notice
+  tip, same cash-only-shops caveat) since Portugal shares the Euro and the
+  same practical realities — expected, not a copy-paste error.
+- **Culture & Etiquette** (`<h4 id="culture-etiquette-lisbon">`) — the
+  single largest addition this pass, matching Madrid's/Barcelona's full
+  structure exactly: topical `<p><strong>Topic</strong></p><ul>` blocks
+  (Fado, Food & Wine, Sports, Street Art — pulled from the "Lesson 6 of 9"
+  paste's own section headers), a General Etiquette table (Topic/Key
+  Points, built from the paste's own 7-point "Cultural Etiquette" numbered
+  list — Greetings, Dining, Respect for History & Traditions, Time &
+  Punctuality, Dress Code, Street Safety, Language), a Common Portuguese
+  Phrases table (Phrase/Pronunciation/Meaning, using the paste's own
+  flashcard pronunciations for Bom dia/Obrigado(a)/Por favor/Desculpe/
+  Quanto custa?/Onde fica...?), and a Traveler-Specific Notes list
+  (LGBTQ+/Solo Female Travelers/Traveling with Children, using the paste's
+  own real facts — Portugal's 2010 same-sex marriage legalization, Bairro
+  Alto/Príncipe Real as the LGBTQ+-friendly neighborhoods, Alfama/Bairro
+  Alto's stroller-unfriendly cobblestones vs. Parque das Nações' smooth
+  paths). The paste's own photo captions ("Museu Do Fado," "Pastéis de
+  Nata," "Douro," "Estádio da luz," "Cascais," a street-art photo caption)
+  were dropped — they're image labels from the DE's own source slides with
+  no standalone informational content once the real prose around them is
+  captured, same treatment the earlier Key Attractions pass already gave
+  to similar slide-caption fragments. The Bertrand Bookstore fact (world's
+  oldest continuously-operating bookshop, since 1732, in Chiado) was kept
+  and exam-tagged, matching this file's own "exam-likely" convention for
+  a specific, quotable, date-anchored fact — the same shape as Madrid's
+  own tapas-bar-etiquette and bullfighting-dates exam tags nearby it.
+- **Insider Travel Tips** (`<h4 id="insider-travel-tips-lisbon">`) —
+  matches Madrid's plain-`<ul>` structure exactly (no table, unlike the
+  sections above it). Five off-the-beaten-path picks from the "Lesson 7 of
+  9" paste (Alfama's quieter miradouros — Portas do Sol, Senhora do Monte;
+  Chapitô; Jardim Botto Machado; Rua Nova do Carvalho/"Pink Street";
+  Campo de Ourique Market) plus the paste's own "Bonus Tip" (GIRA bike
+  share, ~€0.10–0.15/min) — explicitly framed as the same kind of
+  eco-friendly short-trip option Madrid's own BiciMAD bullet already is,
+  since the two really are the same category of civic bike-share system.
+- Verified via this project's established non-script-content discipline
+  (this was pure HTML/table/list markup, no `<script>` content touched, so
+  the Node execution-harness regression suite doesn't apply here — the
+  Client Tracker/Trip Assistant/Daily Tasks logic none of this batch came
+  near): a full tag-balance recount across the whole file (div/table/tr/
+  td/th/thead/tbody/ul/li/h3/h4 all exactly even, opens === closes) and a
+  file-wide duplicate-`id` sweep (confirmed zero Lisbon-related duplicates
+  post-fix; the four pre-existing Client Tracker ones noted above are
+  unrelated and unchanged), plus all 17 `<script>` blocks re-verified via
+  `new Function()` syntax parsing (unaffected by this batch, checked
+  anyway since it's this project's own standing discipline after any edit
+  to the file).
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this batch's specific facts (venue hours/addresses, the exact
+  Portuguese phrase pronunciations, the GIRA per-minute pricing, the LGBTQ+
+  neighborhood names) have been checked against a live source from this
+  environment — transcribed faithfully from what the DE pasted, not
+  independently confirmed. The `venue-map-link` 📍 icons on the new
+  Shopping table haven't been clicked in a real browser to confirm the
+  Google Maps search queries resolve to the right real-world venues, and
+  the split Bairro Alto/Chiado neighborhood rows haven't been read back by
+  the DE to confirm the merge correctly reconciled the two source
+  descriptions. The "Lesson 5 of 9" title's "and Currency" half was
+  confirmed genuinely absent when Shopping itself was placed — it arrived
+  in its own later, separate message and was folded into the Currency &
+  Practical Money Tips section described above rather than treated as a
+  second, disconnected paste. Porto, Sintra, Douro Valley, and Algarve still
+  need this same full treatment, and the map's `QB_LANDMASS_PATH`
+  extension to include Portugal remains deferred per the DE's own earlier
+  "wait for more cities" choice.
