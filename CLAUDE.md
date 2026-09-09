@@ -7305,3 +7305,58 @@ tips, and upgrades for Portugal.
   real browser — neither checked outside this environment. Expect Lessons
   2–6 of this series to cover Trains/Private Transfers/other ground-
   services detail, matching Spain's own H4 breakdown.
+
+## Portugal Arrivals & Transfers: Trains module added (Sep 2026, unverified live)
+
+"Trains / Lesson 2 of 6," arriving right on schedule per the previous
+entry's own prediction — built as a second H4 inside the same
+`portugal-arrivals-transfers-job-aid` section, right before the Top
+Itineraries section, matching where Spain's own `trains-expanded-module-
+detail` H4 sits relative to its Flights H4.
+
+- **`<h4 id="trains-expanded-module-detail-portugal">Trains — Expanded
+  Module Detail</h4>`** — same Portugal-suffixed-id discipline as the
+  Flights H4, guarding against the exact same Spain-id-collision risk
+  (`trains-expanded-module-detail` already exists for Spain). Covers: The
+  Train Experience (Alfa Pendular/Intercidades trains; Conforto/first-
+  class vs. Turística/second-class, from the two carousel-slide
+  screenshots), Popular Routes (Lisbon↔Porto and Lisbon↔Faro at 2.5–3
+  hrs; the Porto↔Faro 5+ hr trap; station precision in Lisbon/Porto, each
+  with two named stations), Booking and Accessibility Considerations
+  (DMC-booked tickets, no porter service, mobility-assistance arranged in
+  advance, older-town drop-off limitations), and Rail Disruptions
+  (occasional strikes, confirm plans closer to travel, keep a backup
+  transfer plan).
+- **The Porto↔Faro rail trap explicitly cross-referenced to the Flights
+  module's own Ryanair rule, not left as a coincidental repeat.** Both
+  lessons independently name the same underlying fact from two angles —
+  Flights: "the only direct Porto-Faro flight is Ryanair, unbookable by
+  KT Air or the DMC"; Trains: "Porto-Faro is 5+ hours by train, not
+  time-effective, and flight options here are limited/low-cost-carrier."
+  Rather than present these as two disconnected facts a DE might not
+  connect, the Trains bullet explicitly says "ties to the Ryanair-only
+  Porto–Faro flight rule in the Flights module above" — the real
+  takeaway being that Porto↔Faro is a genuinely awkward route by every
+  mode (train too slow, the only direct flight is a carrier KT won't
+  book), which is worth a DE knowing as one coherent fact, not two
+  separately-memorized trivia points.
+- **The train-class images (Conforto/Turística interior photos) were
+  read for their caption facts, not treated as assets to embed** — same
+  standing rule as every other screenshot in this Portugal build-out;
+  the two class names and their one-line descriptions were transcribed,
+  the photos themselves were not recreated.
+- Verified via this project's established non-script-content discipline
+  (pure HTML — one new `<h4>`, an intro paragraph, four bullet lists, no
+  `<script>` content touched): all 17 `<script>` blocks re-verified via
+  `new Function()` parsing (unaffected), a full script-excluded
+  tag-balance recount (div/table/thead/tbody/th/h3 all held exactly even
+  — no new table or heading added, only one H4 and its lists; ul/li/h4
+  incremented by exactly this section's own new markup, internally
+  balanced), and the duplicate-id sweep (unchanged from baseline —
+  confirmed `trains-expanded-module-detail-portugal` doesn't collide with
+  Spain's existing `trains-expanded-module-detail`).
+- **Unverified live**: whether the Conforto/Turística class descriptions
+  and the two named stations per city read clearly as reference material
+  in a real browser — hasn't been seen outside this environment. Expect
+  Lessons 3–6 to cover Private Transfers and other ground-services
+  detail, continuing to match Spain's own H4 breakdown.
