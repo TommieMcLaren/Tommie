@@ -7046,3 +7046,90 @@ as every locale in this series so far.
   under mainland Portugal, one under the Azores) reads as a clear,
   intentional parallel structure or as confusingly repeated in a real
   browser — neither has been checked outside this environment.
+
+## Portugal — Top Itineraries (Job Aid): three real KT itineraries, correctly kept out of KT_LIVE_ITINERARIES (Sep 2026, unverified live)
+
+"Top Itineraries / Lesson 2 of 5" — three named Kensington Portugal
+itineraries (Best of Lisbon, Porto & the Algarve; Portugal Island Gems —
+The Azores; Portugal Revealed: City to Coast), each with a KT tier, a
+locale/nights breakdown, included transfers, and a client-facing
+description, plus a map confirming geography already correct in the guide.
+
+- **Checked whether this belonged in `KT_LIVE_ITINERARIES` before writing
+  anything, and confirmed it doesn't — this was the real judgment call in
+  this pass, not just placement.** Read the actual consuming code first:
+  `KT_LIVE_ITINERARIES` entries are rendered with `` `Price: ${it.price}` ``
+  and `` `Link: ${it.link}` `` **unconditionally** (no null-guard) inside
+  the live `find_matching_itinerary` tool's official-results branch, and
+  the offline Quote Builder's route-planner UI does the same
+  (`` `${s.itin.duration} · from ${s.itin.price}` ``) — every existing
+  entry in that array carries a real kensingtontours.com price and link,
+  because it's populated from the live, bookable website (see Spain's own
+  parallel `119-spain-itineraries-live-website-listings` section, which
+  states exactly this). This lesson's three itineraries have neither a
+  price nor a public link — they're internal training-deck content, not
+  live site listings. Adding them to `KT_LIVE_ITINERARIES` with fabricated
+  placeholder values would have been dishonest; adding them with `null`
+  would have literally rendered "Price: null" / "Link: null" into the live
+  AI's tool output and the Quote Builder's own UI — a real, self-inflicted
+  bug, not just an aesthetic gap.
+- **Spain already has the exact right structural home for this, so it was
+  mirrored rather than invented**: `<h3 id="118-spain-top-itineraries-
+  job-aid">SPAIN — TOP ITINERARIES (Job Aid)</h3>` is explicitly Spain's
+  own training-deck itinerary content (Days/KT Level/Client Segment/
+  Locales & Nights/Why this combo/Add-ons/Key caveats), kept structurally
+  separate from `119-spain-itineraries-live-website-listings` (the real,
+  priced, linked section that actually feeds `KT_LIVE_ITINERARIES`) — the
+  two sections' own text states this relationship explicitly. Built the
+  new `<h3 id="portugal-top-itineraries-job-aid">PORTUGAL — TOP
+  ITINERARIES (Job Aid)</h3>` as the direct Portugal parallel, placed
+  right before the existing `portugal-tmt-itineraries` placeholder,
+  matching Spain's own Job-Aid-before-live-listings ordering.
+- **Table columns adapted to what this lesson actually gave, not forced
+  into Spain's exact column set.** Spain's Job Aid table has a "Client
+  Segment" and "Key caveats" column this Portugal lesson didn't provide
+  data for, and Portugal's own lesson gave an "Included transfers" field
+  Spain's table doesn't have — kept the columns that map to real given
+  data (Days/KT Level/Locales & Nights/Best for/Included transfers) rather
+  than either inventing Spain-shaped fields with no content or renaming
+  Portugal's real fields to force a cosmetic match.
+- **The Azores itinerary's routing-logic note (why it starts in São
+  Miguel and ends in Terceira) kept as its own exam-tagged callout**,
+  matching this file's established convention for a specific, quotable,
+  reasoning-carrying fact — mirrors the shape of Spain's own itinerary
+  "Route logic" bullets in its Job Aid detail paragraphs.
+- **The day-count/night-sum mismatches were left exactly as given, not
+  "corrected."** Best of Lisbon/Porto/Algarve sums to 10 nights across an
+  "11 Days" itinerary (consistent with a day trip or transit day not
+  broken out as its own overnight), and Portugal Revealed sums to exactly
+  7 nights for "7 Days" (no travel-day buffer) — transcribed faithfully
+  rather than second-guessed, since this file has no authority to decide
+  which convention Kensington's own itinerary titles use.
+- Verified via this project's established non-script-content discipline
+  (this was pure HTML — one new `<h3>`, one intro paragraph, one 5-row
+  comparison table, one exam-tagged callout, no `<script>` content
+  touched, and no changes to `KT_LIVE_ITINERARIES` or any consuming JS at
+  all despite the investigation): all 17 `<script>` blocks re-verified via
+  `new Function()` parsing (confirms `KT_LIVE_ITINERARIES` itself is
+  byte-for-byte unchanged, not just syntactically valid), a full
+  script-excluded tag-balance recount (div/th/thead/tbody/ul/li/h4 all
+  held exactly even; table 144→145, tr/td incremented by exactly the new
+  table's rows, h3 77→78, all internally balanced), and the duplicate-id
+  sweep (unchanged from baseline — the new id,
+  `portugal-top-itineraries-job-aid`, is genuinely new and non-colliding).
+- **Deliberately not built**: no attempt to guess a price or a
+  kensingtontours.com link for any of the three itineraries so they could
+  be added to `KT_LIVE_ITINERARIES`/surfaced by `find_matching_itinerary`
+  — that would require the same real live-website source Spain's own
+  Section 119 was built from, which this environment still can't reach
+  (`EGRESS_BLOCKED` for kensingtontours.com, confirmed earlier in this
+  Portugal build-out). If Portugal ever gets its own live-website-listings
+  pass, these three job-aid itineraries are the natural candidates to
+  cross-reference against real listings the way Spain's "Live-listing
+  equivalent" row already does.
+- **Unverified live**: whether the map's Douro Valley/Algarve/Azores pins
+  reveal anything beyond confirming geography already correct in the
+  guide (nothing new was found), and whether the new table's column
+  choices read clearly next to Spain's own differently-shaped Job Aid
+  table if a DE compares the two side by side — neither checked outside
+  this environment.
