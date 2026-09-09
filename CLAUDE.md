@@ -7432,3 +7432,63 @@ tip.
   Expect Lessons 4–6 (or whatever remains of this series) to round out
   Accessibility/Mobility or other ground-services detail, matching
   Spain's own H4 breakdown.
+
+## Private Transfers module completed: Transfer Tours + Selecting the Right Car (Sep 2026, unverified live)
+
+Direct continuation, arriving mid-turn while the driver-roles commit was
+still landing — the two remaining pieces of Spain's own Private Transfers
+H4 shape (Available Add-Ons, Selecting the Right Car) that this section
+didn't have yet, now filled in with real Portugal data.
+
+- **"Transfer Tours" added right after the driver-roles table**, the
+  Portugal equivalent of Spain's "Available Add-Ons → local guide met en
+  route" idea (Spain: a Seville→Granada transfer can stop for a Córdoba
+  day tour) but richer — Portugal names seven real waypoint towns/regions
+  (Coimbra, Aveiro, Nazaré, Fátima, Óbidos, Évora, the Alentejo wine
+  region) reachable as curated stops on the Lisbon↔Porto and
+  Lisbon↔Algarve routes, explicitly framed as a Premier/Luxe upsell.
+- **A real, useful cross-reference caught and made explicit, not left
+  implicit**: this lesson's own line — "drivers alone cannot provide
+  entry or explanation at tourist sites" — is the exact same fact as the
+  Tourism Driver definition documented in the previous commit (cannot
+  accompany clients into sites, provides context from outside only). The
+  new exam-tagged bullet says so directly ("ties directly to the Tourism
+  Driver vs. Driver-Guide distinction above"), so a DE reading this
+  section top-to-bottom sees the connection instead of two separately-
+  memorized facts that happen to say the same thing.
+- **"Selecting the Right Car" added as its own table**, matching Spain's
+  own section heading exactly but with Portugal's real, different fleet:
+  <strong>Mercedes Class GLE</strong> (sedan, 2 passengers, with Class S
+  as a luxury upgrade in some locales), <strong>Mercedes Class V</strong>
+  (minivan, 3–5 passengers), and a <strong>Basic Vehicle</strong> (e.g.
+  Ford) used for Algarve transfers. **Deliberately transcribed as given,
+  not "corrected" to match Spain's Class E/S/V naming** — Portugal's own
+  lesson names GLE, not E, and these are legitimately different
+  destinations' vehicle fleets/contracts, not a typo to reconcile.
+- **Two genuinely new, specific facts neither Spain's parallel section
+  nor Portugal's own earlier content had**: a 13-seater-van routing
+  restriction naming four specific regions (Douro Valley, parts of Évora,
+  Madeira, and the Azores) where narrow/winding roads make large vans
+  impossible, and — the most concrete, actionable new fact in this
+  batch — Porto's own municipal **congestion charge (€7.50–15)** for
+  vehicle drop-offs/tours at hotels on Rua das Flores or in Ribeira,
+  something a DE would need to actually flag to a client's cost
+  expectations, not just general color. Spain's own parallel fact (Gothic
+  Quarter drivers can't drop off directly at the hotel) only covers the
+  walking-distance inconvenience, not a real added cost — Portugal's
+  version is more specific and more consequential, kept as its own
+  distinct bullet rather than merged into the walking-distance note.
+- Verified via this project's established non-script-content discipline
+  (pure HTML — two new paragraphs/lists, one new table, no `<script>`
+  content touched): all 17 `<script>` blocks re-verified via
+  `new Function()` parsing (unaffected), a full script-excluded
+  tag-balance recount (div/thead/tbody/h3 all held exactly even;
+  table/tr/td/th/ul/li incremented by exactly this addition's own new
+  markup, internally balanced), and the duplicate-id sweep (unchanged
+  from baseline — no new `id` attributes were added by this edit).
+- **Unverified live**: whether the €7.50–15 Porto congestion-charge
+  figure and the four-region van restriction read as clearly actionable
+  to a DE mid-quote as intended, and whether the "Selecting the Right
+  Car" table's three rows (one with an em-dash passenger count for the
+  Basic Vehicle, since none was given) look reasonable in a real browser
+  — neither checked outside this environment.
