@@ -7235,3 +7235,73 @@ question, to a specific Azores island).
   trap phrasing reads clearly as a flashcard reveal rather than needing
   the full multiple-choice framing the screenshots themselves used —
   hasn't been seen in a real browser from this environment.
+
+## Portugal — Arrivals & Transfers (Job Aid): Flights module built, mirroring Spain's exact structure (Sep 2026, unverified live)
+
+"Flights / Lesson 1 of 6" — a genuinely new lesson SERIES (distinct from
+both "Local DMCs" and "Key Locales"/"Top Itineraries"), covering
+arrivals/M&Gs, private-transfer drive times, domestic flights, booking
+tips, and upgrades for Portugal.
+
+- **Found the exact Spain section to mirror before writing anything, not
+  assumed from the DMC/itinerary precedent alone.** Spain's own
+  `<h3 id="117-spain-arrivals-transfers-job-aid">SPAIN — ARRIVALS &amp;
+  TRANSFERS (Job Aid)</h3>` sits between DMCs (116) and Top Itineraries
+  (118) — exactly where this lesson's content belongs relative to the two
+  Portugal sections already built. Its own `<h4 id="flights-expanded-
+  module-detail">Flights — Expanded Module Detail</h4>` subsection has the
+  identical shape this lesson's paste follows almost point-for-point:
+  Arrivals, a private-transfer drive-time table, Domestic Flights,
+  booking tips/DMC capabilities, and a business-class upgrade tip — strong
+  independent confirmation this Portugal lesson is following the same
+  official KT training-material template Spain's own content came from.
+- **Built as a new `<h3 id="portugal-arrivals-transfers-job-aid">
+  PORTUGAL — ARRIVALS &amp; TRANSFERS (Job Aid)</h3>`**, inserted between
+  `portugal-dmcs` and `portugal-top-itineraries-job-aid` — the same 116→
+  117→118 ordering Spain uses, not appended at the end where it would've
+  broken that established sequence. Its own Flights H4 uses id
+  `flights-expanded-module-detail-portugal` — deliberately suffixed,
+  since Spain's own `flights-expanded-module-detail` id already exists
+  and a bare reuse would have been an immediate duplicate-id bug, the
+  exact class of mistake the `17-lisbon`/`17-valencia` collision earlier
+  in this build-out already taught a lesson about.
+- **The M&amp;G-location trap kept as its own exam-tagged callout, not
+  buried in a bullet list**: an airport arrival gets an airport M&amp;G,
+  but a client arriving overland from Spain (the lesson's own named
+  example: a private transfer from Seville to Albufeira) gets a
+  **Hotel M&amp;G instead** — a real, specific booking-logic distinction
+  worth flagging the same way Spain's own M&amp;G rule is exam-tagged in
+  its parallel section.
+- **The Ryanair/Porto-Faro fact kept as its own exam-tagged trap too**:
+  the ONE direct Porto↔Faro route is Ryanair-operated and must be
+  self-booked by the client — neither KT Air nor the DMC can book it,
+  the single Portugal domestic route where neither of the guide's usual
+  two booking channels apply. Paired with the separate, more general
+  Azores/Madeira "TAP or Azores Airlines only, not Ryanair, not bookable
+  by KT Air" rule as its own callout, since the two are related but
+  distinct facts (one about which CARRIER, one about which BOOKING
+  CHANNEL) that would be easy to conflate into one imprecise bullet.
+- **Deliberately did not build the Trains/Private-Transfers/Accessibility
+  H4s Spain's parallel section also has** — this lesson ("1 of 6")
+  covered only Flights; adding placeholder Portugal versions of Spain's
+  other H4s with no real source content would be exactly the kind of
+  guessing this Portugal build-out has avoided from the start. They're
+  the natural next installments in this 6-lesson series.
+- Verified via this project's established non-script-content discipline
+  (pure HTML — one new `<h3>`, one new `<h4>`, an intro paragraph, five
+  bullet lists, one 6-row table, no `<script>` content touched): all 17
+  `<script>` blocks re-verified via `new Function()` parsing (unaffected),
+  a full script-excluded tag-balance recount (div/thead/tbody/th all held
+  exactly even; table/tr/td/ul/li/h3/h4 all incremented by exactly this
+  section's own new markup, internally balanced), and the duplicate-id
+  sweep (unchanged from baseline — confirmed specifically that the new
+  `flights-expanded-module-detail-portugal` id does NOT collide with
+  Spain's existing `flights-expanded-module-detail`, the one real risk
+  this edit had to guard against).
+- **Unverified live**: whether the new section reads clearly as a
+  Portugal-specific parallel to Spain's own Arrivals & Transfers Job Aid
+  rather than a confusing near-duplicate section name, and whether the
+  drive-time table's six rows scan cleanly at actual column widths in a
+  real browser — neither checked outside this environment. Expect Lessons
+  2–6 of this series to cover Trains/Private Transfers/other ground-
+  services detail, matching Spain's own H4 breakdown.
