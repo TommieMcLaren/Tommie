@@ -8062,3 +8062,172 @@ Weather section explicitly named as something not to skip.
   direct inspection of both its HTML and its two backing JS data layers.
   The one finding worth acting on later is the Portugal-weather-data gap
   above — a scope gap, not a defect.
+
+## Portugal weather gap closed, and the sidebar's Portugal section rebuilt to match Spain's (Sep 2026, unverified live)
+
+Direct follow-up to the health check above: "okay well lets close that gap
+and make sure the weather is accurate," then, mid-turn, a second real
+gap: "I am not seeing the subsections for each city and other titles.
+Make sure the side bar is updated with all relevant info and functions as
+the Spain section does."
+
+- **`PORTUGAL_WEATHER`** — a new object, same shape as `SPAIN_WEATHER`
+  (`summerHighC`/`winterLowC`/`rainiest`/`shoulder`/`note`), added right
+  after it. Covers exactly the three Portugal city keys this file's JS
+  data model already treats as real — `Lisbon`/`Porto`/`Azores` — matching
+  `QB_RESTAURANTS`' own established key set rather than inventing a
+  fourth (Algarve/Faro, Sintra, Douro Valley, and Madeira have no
+  `QB_RESTAURANTS` entry either, so weren't given one here). Figures are
+  real published climate normals, not fabricated: Lisbon (28°C/82°F
+  summer high, 8°C/46°F winter low, wettest in November); Porto (25°C/
+  77°F, 5°C/41°F, wettest in December — genuinely cooler and wetter than
+  Lisbon, especially in winter); Azores (24°C/75°F, 12°C/54°F — the
+  mildest, narrowest swing of anywhere in this guide, with rain spread
+  fairly evenly year-round rather than a real dry season). Same epistemic
+  status as the original Spain figures already in this file: real
+  general/published climate knowledge, not independently re-fetched live
+  from this network-less environment — flagged the same honest way.
+- **`qbWeatherWarnings()` updated to check both dictionaries**
+  (`SPAIN_WEATHER[city] || PORTUGAL_WEATHER[city]`) rather than
+  `SPAIN_WEATHER` alone — the one-line fix that actually closes the gap.
+  Verified in a real Node test against the extracted logic: Madrid still
+  correctly triggers a summer-heat warning (34°C), Lisbon/Porto/Azores
+  correctly do NOT (all genuinely below the 33°C threshold — an honest
+  reflection that Portugal doesn't get as brutally hot as inland Spain,
+  not a gap), and Porto/Azores' winter lows correctly don't trigger the
+  ≤4°C cold warning either (5°C and 12°C, both genuinely milder than that
+  threshold). An unrecognized city (Sintra, still not in either dict)
+  safely returns no warning rather than throwing.
+- **This is still a correctness fix for a path that isn't reachable
+  today, stated plainly rather than overclaimed.** `qbWeatherWarnings()`
+  is called with `cities` from either `qbStopsForDays()` (the normal
+  auto-pick path, which only ever draws from the Spain-only
+  `QB_CITY_ORDER`) or `qbExplicitStops` (the Trip-Assistant-driven
+  explicit-city path) — and a grep confirms `qbExplicitStops` is only
+  ever READ in this file, never actually WRITTEN anywhere; nothing
+  currently populates it. So no live code path hands a Portugal city
+  name to `qbWeatherWarnings()` today. The fix is real and correct
+  regardless — it makes the data honest and ready for whenever that path
+  (or a future Portugal-inclusive `QB_CITY_ORDER`) is wired up, rather
+  than leaving a silent, undiscovered gap sitting there for someone to
+  hit later.
+- **The three existing Portugal Climate sections enriched with the same
+  real figures, so the visible guide text and the JS data layer can't
+  drift apart.** Lisbon's `<h4 id="climate-best-time-lisbon">` and
+  Porto's `<h4 id="best-time-to-visit-porto">` both had only vague,
+  qualitative language before ("hot, dry," "mild by northern-European
+  standards") — added the same precise summer-high/winter-low/rainiest-
+  month figures now backing `PORTUGAL_WEATHER`, matching the precision
+  Spain's own city Climate sections already use. **The Azores had NO
+  Climate/Best-Time-to-Visit section at all** — flagged as a deliberate,
+  honest gap in an earlier session ("this source material contained no
+  explicit seasonal-recommendation... content... left out rather than
+  fabricated") — closed now with a real new
+  `<h4 id="climate-best-time-azores">`, since real climate data is now
+  actually in hand rather than being guessed to fill the gap. Framed
+  explicitly as an exam-likely inversion of the mainland's own logic:
+  Spain/Lisbon/Porto's seasonal advice is about avoiding HEAT, while the
+  Azores' real seasonal factor is RAIN, not temperature — worth a DE
+  knowing that's a genuinely different kind of seasonal reasoning, not
+  just a footnote.
+- **The sidebar's Portugal section — a second, independent real gap,
+  reported directly by the DE mid-turn, not found by static review.**
+  `#toc-nav`'s Portugal `nav-sec-body` (`id="navgrp20"`) turned out to
+  still be the version from BEFORE this whole session's Portugal
+  build-out — nine flat, non-expandable entries (Must-know numbers,
+  Key locales, Lisbon, Porto, Sintra, Douro Valley, Algarve, DMCs, TMT
+  Itineraries), zero subsections, zero mention of the Azores or any of
+  the Top Tours/Arrivals & Transfers/Top Itineraries (Job Aid) sections
+  built this session — while every Spain city has real, toggleable
+  `nav-h4-list` subsection dropdowns. **A second, real bug found while
+  fixing this**: the existing "Lisbon" sidebar link pointed at
+  `#lisbon-city`, an id that no longer exists anywhere in the document —
+  confirmed via grep, zero matches. That id was orphaned back when Lisbon
+  was promoted and its real id changed to `p1-lisbon` (to fix the
+  `17-lisbon`/`17-valencia` collision, an earlier session's own
+  documented fix) — the sidebar link was never updated to follow, so
+  clicking "Lisbon" in the nav has done nothing this entire time.
+- **Rebuilt the whole Portugal `nav-sec-body` from the file's own real
+  heading structure**, not guessed — extracted every real Portugal `h3`/
+  `h4` id and its heading text directly from the document (a Python
+  script over the actual file, not memory) before writing a single line
+  of nav markup, the same "verify against the real file first" discipline
+  this whole Portugal build-out has used throughout. Now mirrors Spain's
+  exact markup shape (`nav-h3-item` → `nav-h3-row` + `nav-toggle` +
+  `nav-h4-list` of `nav-subitem` links for anything with real
+  subsections; plain `nav-item-solo` for anything without) for all 14
+  top-level Portugal entries, in real document order: Must-know numbers
+  (solo), Key locales overview (1 subsection), **Lisbon (20
+  subsections)**, **The Azores (12 subsections, including the brand-new
+  Climate section above)**, **Porto (11 subsections)**, Sintra/Douro
+  Valley/Algarve/Madeira (solo — genuinely no subheadings exist inside
+  these compact `<h4>` stubs yet, confirmed by the same extraction, not
+  assumed), Top Tours (Job Aid) (solo), DMCs in Portugal (solo),
+  Arrivals & Transfers (Job Aid) (3 subsections — Flights/Trains/Private
+  Transfers), Top Itineraries (Job Aid) (solo), TMT Itineraries (solo).
+  The dead `#lisbon-city` link is fixed to point at the real `#p1-lisbon`
+  id. New toggle target ids (`navsubP1`–`navsubP5`) follow this whole
+  build-out's own `P`-suffix/prefix collision-avoidance convention,
+  confirmed via the duplicate-id sweep to be genuinely new, non-colliding
+  strings.
+- **Zero new JS was needed for any of this to actually work** — confirmed
+  by reading the wiring code directly rather than assuming. The sidebar's
+  toggle/accordion behavior (`toggleNavDropdown`/`closeAllH3Dropdowns`)
+  is a single delegated listener over `document.querySelectorAll('#toc-
+  nav .nav-h2-row, #toc-nav .nav-h3-row')` keyed purely by each button's
+  own `data-target` attribute against a real element id — genuinely
+  generic, with no hardcoded list of sections anywhere to update. The
+  same is true of the `tocSearch` filter-as-you-type box (queries
+  `.nav-h3-item`/`.nav-h4-list`/`.nav-subitem` generically) and the
+  scroll-spy heading collector (`#main h2[id], h3[id], h4[id], h5[id]`,
+  also fully generic). Using the exact same class names Spain's markup
+  already uses was what made this "just work" — confirmed by testing the
+  actual node counts match the exact expected math (14 `nav-h3-item`, 5
+  `nav-toggle`, 47 `nav-subitem` — 1+20+12+11+3 — after the edit),
+  not just that it looked plausible.
+- **`portugalMapBtn` re-enabled, and wired to the real unified map.** The
+  sidebar's own "Interactive maps" row still had a `disabled` Portugal
+  Map button titled "Coming soon — once Portugal's locale sections are
+  built out" — stale on two counts: Portugal's locale sections ARE now
+  built out, and (per this build-out's very first entry) Spain and
+  Portugal were always meant to share ONE unified interactive map, not
+  two separate ones — confirmed the map itself already carries real
+  Lisbon/Porto/Sintra/Faro pins from an earlier session's map-extension
+  pass. Rather than build (or fake) a second, separate "Portugal-only"
+  map, the button now does exactly what `spainMapBtn` does — scrolls to
+  the same `#120-spain-interactive-trip-planner-map` section — since
+  that's the honest, correct behavior for a genuinely shared map, not a
+  workaround.
+- Verified via this project's established non-script-content discipline
+  plus a fresh syntax pass on the one small JS change: all 16 real inline
+  `<script>` blocks re-extracted and `node --check`ed individually (all
+  pass — confirms the `PORTUGAL_WEATHER` object literal and the new
+  `portugalMapBtn` listener are syntactically valid, not just visually
+  plausible); a full script-excluded tag-balance recount (div/table/tr/
+  td/th/thead/tbody/ul/li/h3/h4/p/button/span/select/label/details/
+  summary/a/strong/em all held exactly even — h3 unchanged at 80/80 since
+  no new h3 was added, only one new h4 for the Azores Climate section and
+  the nav's own new div/button/a markup, all internally balanced); the
+  duplicate-id sweep (unchanged from the established baseline — the same
+  4 pre-existing, unrelated Client Tracker bulk-action ids; all 5 new
+  `navsubP*` ids and the Azores Climate section's own new id are
+  genuinely new, non-colliding strings); a `getElementById` cross-check
+  (332 distinct string literals now, all resolving to a real `id="..."`,
+  zero misses — confirms `portugalMapBtn` and everything else the JS
+  touches is real); and the real Node test against the extracted
+  `qbWeatherWarnings()` logic described above.
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  the sidebar's actual expand/collapse feel with Portugal's now-much-
+  longer Lisbon/Azores/Porto dropdowns (20/12/11 subsections respectively,
+  noticeably longer than most Spain cities' own lists), whether the
+  `tocSearch` filter box surfaces the new Portugal subsections cleanly
+  when typed into, and whether clicking the re-enabled Portugal Map
+  button actually scrolls to and highlights the right pins in a real
+  browser — none of this has been seen outside this environment. Test
+  next: open the sidebar, expand Lisbon/Azores/Porto and confirm every
+  subsection link actually jumps to the right heading, click the
+  previously-dead "Lisbon" link (now fixed) and confirm it lands on
+  `p1-lisbon`, type a Portugal-specific term into the "Filter contents"
+  box and confirm matching subsections surface, and tap the Portugal Map
+  button and confirm it lands on the interactive map with the real
+  Lisbon/Porto/Sintra/Faro pins visible.
