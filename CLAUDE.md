@@ -7133,3 +7133,52 @@ description, plus a map confirming geography already correct in the guide.
   choices read clearly next to Spain's own differently-shaped Job Aid
   table if a DE compares the two side by side — neither checked outside
   this environment.
+
+## Portugal Top Itineraries: a Client Segment row filled in, the exact field deliberately left out the previous pass (Sep 2026, unverified live)
+
+Direct follow-up, arriving mid-turn while the section above was being
+committed: client-type fit for each of the three Portugal itineraries —
+framed by the DE as "client profiles don't rigidly fit... but it's useful
+to know which types of clients these itineraries are generally a good fit
+for," styled as tabs in the source material (one per itinerary).
+
+- **This is precisely the field the previous pass named as deliberately
+  missing, not a new ask.** The prior entry explicitly noted Spain's Job
+  Aid table has a "Client Segment" column this Portugal lesson hadn't
+  provided data for yet, and that Portugal's own table was built with only
+  the columns real data existed for. This message supplies exactly that
+  missing data — added as a new `<strong>Client Segment</strong>` row,
+  positioned right after "KT Level" and before "Locales & Nights," matching
+  Spain's own row ordering exactly (checked directly, not assumed from
+  memory) now that both tables carry the same field.
+- **Kept genuinely distinct from the existing "Best for" row**, not
+  merged or duplicated — "Best for" already captured trip STYLE (the
+  city/beach/wine/culture blend each itinerary offers); this new row
+  captures client TYPE (couples/honeymooners/retirees; active/nature
+  travelers; well-traveled repeat visitors) — the same who-vs-why split
+  Spain's own table already draws between its "Client Segment" and "Why
+  this combo" rows, so this isn't inventing a new distinction, just
+  filling in the Portugal side of one that already existed structurally.
+- **The DE's own framing caveat — profiles are directional, not rigid —
+  was preserved as a real sentence, not dropped as throat-clearing.**
+  Added as its own italic line right above the table: "Although client
+  profiles don't rigidly fit any one itinerary, it's useful to know which
+  types of clients each one is generally a good fit for" — the same
+  "directional, not a guarantee" honesty this file already applies
+  elsewhere (e.g. the Accessibility & Mobility section's own "this is a
+  call the hotel/DMC to confirm situation" caveat).
+- Verified via this project's established non-script-content discipline
+  (pure HTML — one new table row plus one new intro sentence, no
+  `<script>` content touched): all 17 `<script>` blocks re-verified via
+  `new Function()` parsing (unaffected), a full script-excluded
+  tag-balance recount (div/table/thead/tbody/th/ul/li/h3/h4 all held
+  exactly even — no new table or heading was added, only a row; tr/td
+  incremented by exactly the one new row's worth, internally balanced),
+  and the duplicate-id sweep (unchanged from baseline — no new `id`
+  attributes were added by this edit).
+- **Unverified live**: whether the new row reads clearly positioned
+  between KT Level and Locales & Nights in a real browser at the table's
+  actual column widths, and whether the client-segment framing (couples/
+  honeymooners/retirees vs. active/nature travelers vs. well-traveled
+  repeat visitors) matches how a DE would actually describe these three
+  itineraries to a colleague — neither checked outside this environment.
