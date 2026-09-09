@@ -7182,3 +7182,56 @@ for," styled as tabs in the source material (one per itinerary).
   honeymooners/retirees vs. active/nature travelers vs. well-traveled
   repeat visitors) matches how a DE would actually describe these three
   itineraries to a colleague — neither checked outside this environment.
+
+## Five real practice-exam scenarios confirm the Portugal itineraries content, added to Quiz Mode (Sep 2026, unverified live)
+
+Five more KT practice-quiz screenshots, same pattern as the earlier DMC
+ones — scenario-based multiple-choice questions matching a client
+description to one of the three Portugal Top Itineraries (or, for one
+question, to a specific Azores island).
+
+- **Read as confirmation first, again, not as new content to transcribe
+  wholesale.** Every marked-correct answer lines up exactly with the
+  Client Segment data just added: couple wanting beaches/culture/food →
+  Best of Lisbon, Porto & the Algarve; multigenerational family with mixed
+  beach/museum/food interests → the same itinerary; nature-lover/hiking
+  client wanting volcanic scenery and hot springs → **São Miguel in the
+  Azores specifically** (not "the Azores" generically, and not Lisbon/
+  Algarve/Porto — a real, useful distinction the quiz draws that the
+  guide's own Client Segment row doesn't spell out at the island level);
+  solo traveler avoiding crowds, wanting dramatic landscapes and outdoor
+  adventure → Portugal Island Gems – The Azores; and a well-traveled
+  repeat client with one week who's already done Lisbon and Porto,
+  wanting a deeper cultural trip → Portugal Revealed: City to Coast. No
+  content correction was needed anywhere.
+- **One real, worth-flagging apparent tension resolved by reading the
+  quiz's own framing, not by editing the guide.** Portugal Revealed:
+  City to Coast itself still includes 4 nights in Lisbon — at first
+  glance an odd recommendation for a client who "has already been to
+  Lisbon and Porto." Resolved by matching this against the itinerary's
+  own Client Segment text already in the guide ("well-traveled or repeat
+  visitors who want to dive deeper into Portugal's cultural and natural
+  offerings") — the quiz is testing recognition of that depth-for-repeat-
+  visitors framing, not a rule about avoiding previously-visited cities.
+  Captured as an explicit exam-likely trap in the new flashcard below
+  rather than left as a silent point of confusion for a future reader.
+- **Four new `QUIZ_CARDS` entries added for `portugal-top-itineraries-
+  job-aid`**, matching this lesson series' now-established pattern (the
+  DMC scenarios got the same treatment in the previous Quiz Mode entry):
+  the couple/family → Best of Lisbon/Porto/Algarve match, the São-Miguel-
+  specifically trap, the solo-traveler → Azores match, and the repeat-
+  visitor → Portugal Revealed trap (with its own "still includes Lisbon"
+  caveat spelled out in the card's own text, not left implicit).
+- Verified via this project's established non-script-content discipline
+  (one JS array-literal edit inside an existing `<script>` block, so both
+  syntax parsing and the script-excluded HTML tag-balance check applied):
+  all 17 `<script>` blocks re-verified via `new Function()` parsing
+  (confirms `QUIZ_CARDS`' array literal is still syntactically valid), a
+  full script-excluded tag-balance recount (unaffected — pure JS data, no
+  HTML markup touched), and the duplicate-id sweep (unchanged — no `id`
+  attributes were touched).
+- **Unverified live**: whether Quiz Mode actually surfaces these four new
+  cards in a real shuffle/session, and whether the "still includes Lisbon"
+  trap phrasing reads clearly as a flashcard reveal rather than needing
+  the full multiple-choice framing the screenshots themselves used —
+  hasn't been seen in a real browser from this environment.
