@@ -6308,3 +6308,119 @@ whose Shopping half arrived first and was placed in the same pass.
   need this same full treatment, and the map's `QB_LANDMASS_PATH`
   extension to include Portugal remains deferred per the DE's own earlier
   "wait for more cities" choice.
+
+## Lisbon build-out: cross-referenced against an official Lisbon PDF guide, real gaps filled (Sep 2026, unverified live)
+
+The DE uploaded a 33-page official-looking Lisbon destination PDF
+("lisbon_en.pdf") and said simply "this is the lisbon guide" — treated as
+source material to cross-check against everything already built, not a
+replacement for it.
+
+- **PDF text extraction needed a real fix, not a workaround.** This
+  environment's `pdftoppm`/`poppler-utils` binary (the tool this project's
+  own PDF-reading path normally uses) isn't installed, and `apt-get
+  install` failed (`404` from the package mirror — a real, first-time-
+  encountered gap in this environment, not a regression). Installed
+  `pdfminer.six` via `pip3` instead, which itself first failed on a
+  broken system `cryptography` package (`ModuleNotFoundError:
+  _cffi_backend`, a pyo3/rust binding mismatch between the apt-installed
+  and pip-installed copies) — fixed by `pip3 install --ignore-installed
+  cffi cryptography` to get a working pip-managed pair shadowing the
+  broken system one. Once that worked, extraction was clean text, not an
+  OCR guess.
+- **Cross-referenced every fact against what's already in the guide
+  before adding anything — the PDF's own text layout made this
+  necessary, not just prudent.** The extracted text interleaves
+  photo-caption paragraphs and address blocks in a jumbled column order
+  (a known PDF-extraction artifact from a two-column source layout) —
+  several `Address:` blocks in the raw extraction sit next to the WRONG
+  venue name once cross-checked (e.g. an address block that reads
+  correctly as Get Stoked/surfing's meeting point ended up positioned
+  right after the "Escape Hunt Experience" heading in the raw text).
+  Rather than trust positional adjacency, every fact added below was
+  verified against an address, phone number, or website that
+  unambiguously named the real venue (a website matching the venue's own
+  domain, an address matching a known real location) — anything that
+  couldn't be pinned down this way (Escape Hunt Experience's own address,
+  specifically) was left out rather than guessed at.
+- **Genuinely new content added, nothing already-correct overwritten:**
+  - **9 new Key Attractions rows**: Miradouro das Portas do Sol, Praça do
+    Comércio (Terreiro do Paço, with the Monument to King José I), Lisbon
+    Zoo, Lisbon Oceanarium, Gulbenkian Foundation, National Museum of
+    Ancient Art, Museum of the Orient, Pavilion of Knowledge, and
+    Monsanto Forest Park — none were in the table built in the prior
+    Lisbon pass. Lisbon Zoo's address (Praça Marechal Humberto Delgado)
+    looked wrong at first glance for a zoo — verified it's actually
+    correct (that's the real, official Jardim Zoológico de Lisboa
+    address) before trusting it, rather than dropping it on suspicion.
+  - **2 new Day Trips rows**: National Palace of Queluz (~15 min,
+    positioned as a quick add-on/alternative to Sintra) and a Setúbal
+    wine-region day trip (Moscatel de Setúbal, artisanal cheeses).
+  - **5 new Shopping rows**: Armazéns do Chiado, Luvaria Ulisses, Cork &
+    Co, Centro Vasco da Gama, and Freeport Lisboa Fashion Outlet (flagged
+    honestly as "a real trek outside the city," with the real shuttle
+    detail — two daily departures from Marquês de Pombal Square and
+    Martim Moniz — since that's the only thing that makes it practical to
+    suggest at all).
+  - **`QB_RESTAURANTS.Lisbon` gained one new entry, Ler Devagar** — a
+    bookshop-café inside LxFactory, listed in the PDF under BOTH its
+    Cafés and Shopping sections. Added once, as a `vkind: 'cafe'` Quote
+    Builder entry (matching how every other café in this list is
+    categorized), and cross-referenced from the Shopping table's own new
+    row rather than duplicated as a second, disconnected shopping entry.
+    JSON-parsed and re-counted after the edit (21 Lisbon entries total,
+    up from 20) to confirm the object is still well-formed, not just
+    eyeballed.
+  - **Airport → City Center Options enriched, not replaced**: the
+    existing Aerobus row now names its two real lines (Line 1 to Cais do
+    Sodré, Line 2 to Avenida José Malhoa, both ~7:30am–11pm, buses every
+    20–25 min) instead of just "a shuttle." The Getting Around table's
+    Taxi row now carries the real official tariff structure (€3.25 base
+    + €0.47/km + €14.80/hour waiting, nighttime a bit higher) and the
+    real named apps (Uber, Bolt, Free Now, Cabify) instead of just a
+    fare-range guess.
+  - **A new `<h4 id="practical-info-lisbon">Practical Info & Quick
+    Facts</h4>` table** — population, electricity (220V/50Hz, Type F),
+    the emergency number (112, same as Spain), phone country/area code,
+    shop hours, pharmacy rotation, the main post office, the Turismo de
+    Lisboa tourist-info office contact, and local newspapers.
+    **Deliberately checked for a Spain-city precedent before building
+    this, and found none** — Madrid/Barcelona have no equivalent
+    "quick facts" block, so this isn't mirroring an established pattern,
+    it's new structure. Checked it wouldn't duplicate the existing
+    "Portugal — Must-Know Numbers & Rules" table first (that table only
+    covers Schengen/currency/flight-time cross-references, nothing about
+    population, electricity, or a tourist office contact) before adding
+    it — placed right after Currency & Practical Money Tips, before
+    Culture & Etiquette, since it's the same cluster of "logistics a DE
+    might need mid-call" content.
+- **Deliberately NOT added**: two paid tour products mentioned only by
+  name and a booking link (Best of Lisbon Guided Walking Tour, Lisbon
+  Food & Wine Tour) and the Sunset Cruise on the Tagus — none carry the
+  kind of standalone, address-anchored fact this guide's other entries
+  are built from, and this file has no established "bookable tour
+  product" section to slot them into the way Madrid/Barcelona's
+  itinerary/tour data does; worth a "Tours & Activities" pass later if
+  wanted, not invented here on a guess. Bars/nightlife/restaurants/cafés
+  in the PDF all matched what was already in the guide exactly — zero
+  new entries needed there, a good independent confirmation the earlier
+  Lisbon batch got those right.
+- Verified via this project's established non-script-content discipline:
+  full tag-balance recount (div/table/tr/td/th/thead/tbody/ul/li/h3/h4
+  all exactly even after the new rows), a file-wide duplicate-`id` sweep
+  (zero new duplicates — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids from the previous entry are unchanged), a
+  `QB_RESTAURANTS` re-extract-and-`JSON.parse` after the Ler Devagar
+  addition, and all 17 `<script>` blocks re-verified via `new Function()`
+  parsing (unaffected — this batch was pure HTML/table/data content, no
+  script logic touched).
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this batch's specific facts (the new attractions' hours/
+  addresses, the Aerobus line numbers, the real taxi tariff, the
+  Freeport shuttle schedule, the tourist-office phone number) have been
+  checked against a live source from this environment beyond the PDF
+  itself — transcribed faithfully from the PDF's text, not independently
+  re-confirmed. Whether the new "Practical Info & Quick Facts" table
+  reads as a natural fit for this guide (versus feeling like a bolted-on
+  new pattern, given it has no Spain-city precedent) is also genuinely
+  unverified — worth a look next time the Lisbon section is reviewed.
