@@ -6923,3 +6923,59 @@ Alternatives, and Typical Add-Ons.
   quick-reference table's placement (right at the top of Key Locales
   Overview, before the full city write-ups) reads clearly at a glance in
   a real browser also hasn't been seen outside this environment.
+
+## Locale Planning Quick Reference: Albufeira and Cascais added (Sep 2026, unverified live)
+
+Direct continuation — "Key Locales / Lesson 2 of 5" by implication (the
+DE's own "Albufeira & Cascais" map screenshot plus two matching locale
+cards, same exact shape as Lisbon/Porto's Lesson 1 cards).
+
+- **Two new rows added to the existing `Locale Planning Quick Reference`
+  table** (built in the previous entry): Albufeira (3 nights; alternative
+  Cascais; add-ons: extend beach time or explore inland/coastal villages,
+  or extend into Seville, Spain) and Cascais (2 nights; alternatives the
+  Algarve for beachgoers or Évora for a wine alternative; add-ons: a
+  Sintra day trip or hiking the Sintra-Cascais Natural Park). Table
+  reordered alphabetically (Albufeira, Cascais, Lisbon, Porto) now that
+  it's not just a two-row list — easier to scan than arrival order once
+  it's genuinely a reference table, and nothing about the previous two
+  rows' content changed, only their position.
+- **A short comparison paragraph added under the table**, not a full
+  destination write-up — contrasts Albufeira (beach-resort/adventure base)
+  against Cascais (a quieter, relaxing coastal town, not primarily a
+  beach-resort base) directly, since the two are easy to conflate as "the
+  same kind of Portugal coastal stop" without a client-facing distinction
+  actually spelled out. Kept brief and cross-referencing rather than
+  duplicating the individual card blurbs already captured in the table's
+  Add-Ons/Alternatives cells.
+- **The "extend into Seville, Spain" add-on is worth flagging, not
+  quietly absorbed** — the first genuinely cross-border Spain+Portugal
+  itinerary fact to land in this Portugal build-out (matching the very
+  first instruction at the top of this whole build-out: "a unified
+  Spain+Portugal map/city system," confirmed up front, not two separate
+  ones). No corresponding note was added to Spain's own Andalusia/Seville
+  content pointing back the other way — that would be inventing a fact
+  this lesson didn't actually provide, not transcribing one; worth adding
+  if/when a future lesson states it from the Spain side too.
+- **Neither locale exists as its own full destination section yet** (only
+  Lisbon, the Azores, and Porto have been promoted to full `<h3>` write-
+  ups so far) — these two rows are deliberately scoped to what this
+  lesson actually gave (the quick-reference fields), not stretched into
+  a premature full section the source material doesn't support yet,
+  consistent with how Sintra/Douro Valley/Algarve are still waiting on
+  their own richer material.
+- Verified via this project's established non-script-content discipline:
+  all 17 `<script>` blocks re-verified via `new Function()` parsing
+  (unaffected — pure HTML), a full script-excluded tag-balance recount
+  (div/th/thead/tbody/ul/li/h3/h4 all held exactly even; table unchanged
+  at 143/143 since no new table was added, only rows to the existing one;
+  tr and td incremented by exactly the two new rows' worth, both
+  internally balanced), and the duplicate-id sweep (unchanged from
+  baseline — no new `id` attributes were added by this edit).
+- **Unverified live**: whether "3 nights for Albufeira, 2 for Cascais"
+  reads as the right recommendation against real client scenarios, and
+  whether the new comparison paragraph's Albufeira-vs-Cascais framing
+  actually helps a DE choose between them at a glance — neither has been
+  checked outside this environment. Test next: read the Locale Planning
+  Quick Reference table in a real browser and confirm the four rows scan
+  cleanly together now that it's grown past two entries.
