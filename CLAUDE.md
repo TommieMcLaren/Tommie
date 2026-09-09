@@ -6846,3 +6846,80 @@ build-out.
   this environment. Test next: open 🧠 Quiz from the study-tools row and
   click through enough cards to confirm one of the two new Portugal DMC
   facts appears and reveals correctly.
+
+## Portugal Key Locales: a nights/alternatives/add-ons quick-reference table (Sep 2026, unverified live)
+
+Direct continuation of the Portugal build-out, this time a "Key Locales /
+Lesson 1 of 5" paste — a Portugal-overview intro paragraph, a map
+screenshot pinning Lisbon and Porto, and two structured locale cards
+(Porto, Lisbon) each with a short description, a Recommended # of Nights,
+Alternatives, and Typical Add-Ons.
+
+- **Checked for a matching Spain pattern first, and found there isn't
+  one** — Spain's own `<h3 id="13-spain-key-locales-overview">` covers
+  regional structure and a site↔locale matching table, nothing shaped like
+  "how many nights / what else could substitute / what add-ons pair with
+  it." This is genuinely new structure, not a mirror of an existing
+  pattern — added as its own `<h4 id="locale-planning-quick-reference-
+  portugal">Locale Planning Quick Reference</h4>` table (Locale/
+  Recommended Nights/Alternatives/Typical Add-Ons) right inside the
+  existing `portugal-key-locales-overview` section, populated with the two
+  rows this lesson provided (Lisbon: 4 nights; Porto: 3 nights). Framed
+  explicitly as a fast itinerary-sketching reference distinct from the
+  full destination write-ups below it (orientation/hotels/attractions),
+  not a replacement for them.
+- **The map screenshot was read for its facts, not treated as an asset to
+  embed.** Same standing rule from the earlier Lisbon Key-Attractions
+  decision (real Wikimedia image URLs vs. this network-less environment's
+  inability to verify a guessed one) — a screenshot pinning Lisbon/Porto
+  on a map of Portugal confirms geography already correctly reflected in
+  this guide's prose (Porto north, Lisbon central-west coast), so nothing
+  needed correcting; no attempt was made to recreate or embed the image
+  itself.
+- **The existing intro paragraph was extended, not replaced**, to work in
+  the new framing without losing anything already there: kept the
+  original "four mainland/near-mainland areas" list (Lisbon/Porto/Sintra/
+  Algarve) and the Douro Valley/Azores notes verbatim, and added two new,
+  genuinely new facts from this lesson's own text — naming **Albufeira**
+  and **Cascais** specifically as the Algarve/coastal locales referenced
+  only generically before, and naming **Madeira** for the first time
+  anywhere in this guide's prose (previously only known from the xlsx
+  Job Aid's own `KEY` sheet region list, flagged but not yet acted on in
+  the DMCs-in-Portugal entry above). Madeira is explicitly flagged as "a
+  real KT-sold destination... don't treat its absence here as 'Kensington
+  doesn't sell it'" — stating plainly that the guide's own coverage gap
+  isn't a fact about what Kensington offers, matching this project's
+  standing "don't let an absence read as a false negative" discipline.
+- **Porto's UNESCO claim cross-checked against the guide's own existing
+  content before being accepted**, not assumed correct just because it
+  was pasted: confirmed via grep that Porto's Ribeira district (the
+  historic riverside quarter, already documented in Porto's own Key
+  Attractions table) is the real UNESCO-inscribed "Historic Centre of
+  Porto" — the new blurb's UNESCO claim is consistent with what's already
+  there, not a new fact needing its own citation.
+- Verified via this project's established non-script-content discipline
+  (pure HTML — one revised paragraph, one new `<h4>`, one new 2-row
+  table, no `<script>` content touched): all 17 `<script>` blocks
+  re-verified via `new Function()` parsing (unaffected), a full
+  script-excluded tag-balance recount (div/tr/td/th/thead/tbody/ul/li/h3
+  all held exactly even; table 142→143 and h4 204→205, matching the one
+  new table and one new `<h4>` added, both internally balanced), and the
+  duplicate-id sweep (unchanged from baseline — the two new ids,
+  `locale-planning-quick-reference-portugal` and nothing else, are both
+  genuinely new, non-colliding strings).
+- **Deliberately not built**: rows for Albufeira, Cascais, Sintra, the
+  Algarve generally, the Azores, or Madeira in the new quick-reference
+  table — this lesson only provided Nights/Alternatives/Add-Ons data for
+  Lisbon and Porto specifically ("Lesson 1 of 5" implies four more
+  installments likely cover the rest); adding placeholder or guessed rows
+  for the others would contradict this session's own "don't guess, place
+  diligently as it arrives" discipline stated from the very start of the
+  Portugal build-out.
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of the two nights/alternatives/add-ons figures have been checked
+  against a live source beyond the DE's own pasted lesson text — worth a
+  spot-check that "4 nights for Lisbon, 3 for Porto" reads as the right
+  recommendation once seen against real client scenarios. Whether the new
+  quick-reference table's placement (right at the top of Key Locales
+  Overview, before the full city write-ups) reads clearly at a glance in
+  a real browser also hasn't been seen outside this environment.
