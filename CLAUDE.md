@@ -7492,3 +7492,155 @@ didn't have yet, now filled in with real Portugal data.
   Car" table's three rows (one with an em-dash passenger count for the
   Basic Vehicle, since none was given) look reasonable in a real browser
   — neither checked outside this environment.
+
+## Popular Attractions lesson series: Azores practicalities + Terra Nostra Park, then a large multi-city drop (Madeira, Lisbon, Sintra, Évora, Porto, Douro Valley) plus a new Top Tours section (Sep 2026, unverified live)
+
+"Portugal's Popular Attractions / Lesson 1 of 5" opened with an Azores
+Overview slide (general travel-practicality notes) plus two attraction
+cards (Sete Cidades, Terra Nostra Park). Before that could be committed,
+a much larger batch of screenshots arrived mid-turn covering several
+destinations at once — Madeira (Toboggan Ride), Lisbon (Overview,
+St. George's Castle, Fado Evening Experience, Tile Painting Workshop),
+Sintra (Quinta da Regaleira), Évora (Chapel of Bones), Porto (Overview,
+Livraria Lello, Porto Cathedral, Aveiro & Moliceiro Boat Tour), and Douro
+Valley (Overview, a Douro Valley excursion card) — plus, separately,
+"Portugal's Top Tours / Lesson 2 of 5" with a Kensington Tour Levels
+framework. All of it placed in one pass, following this build-out's
+standing "diligently place what's given, never guess" discipline.
+
+- **Azores**: a new `<h4 id="planning-practicalities-azores">Planning &amp;
+  Practicalities</h4>` list captures the Overview slide's five general
+  facts (weather unpredictability/pack layers and waterproof gear;
+  rugged/muddy trails/sturdy footwear; remoteness → limited services on
+  smaller islands; whale-watching/geothermal-bathing reservations
+  advised in peak season; narrow winding roads → a smaller rental
+  vehicle, cross-referenced to the existing 13-seater van restriction
+  under Arrivals &amp; Transfers) — no such general-practicalities section
+  existed for the Azores before this (confirmed absent earlier this
+  session). The existing "Lagoa das Sete Cidades" Key Attractions row was
+  enriched in place (renamed to lead with "Sete Cidades," matching the
+  lesson card's own title) with the new activity-level/terrain-
+  communication considerations, rather than duplicated. **Terra Nostra
+  Park is a genuinely new row** — description (botanical beauty, a
+  naturally heated iron-rich mineral pool) plus its own considerations
+  (uneven paths near the pools; the mineral water can stain swimwear;
+  recommend dark-colored suits and water shoes) — since the existing
+  3-column table (Attraction/Why it matters/Practical info) has no
+  dedicated Considerations column, new cautions for both rows were folded
+  into "Why it matters"/"Practical info," matching the pattern already
+  established for São Jorge Castle elsewhere in this file.
+- **Madeira — the first real content this guide has ever had for it.**
+  Confirmed via the existing Key Locales Overview intro that Madeira "is
+  a real KT-sold destination... doesn't have its own section in this
+  guide yet" — this pass didn't try to fabricate a full destination
+  profile from one attraction card. Added a minimal, honestly-scoped
+  `<h4 id="madeira-region">🚡 MADEIRA</h4>` stub right after the Algarve
+  block: an explicit disclosure that this is partial content, a
+  "Getting there" line reusing the already-documented Funchal Airport
+  (FNC) transfer time rather than inventing new arrival detail, and the
+  one real signature experience given — the Toboggan Ride (a handcrafted
+  wicker sled down Monte's steep roads, steered by two traditionally
+  dressed drivers) — with its own considerations (not suitable for
+  mobility concerns; only offered in Monte).
+- **Lisbon**: enriched the existing "São Jorge Castle" Key Attractions
+  row with the new practical considerations (steep paths/stairs; entry
+  fees plus possible shuttle/guide costs; best visited early or late to
+  avoid crowds and heat), and added its English name inline since the
+  new lesson card used "St. George's Castle." Added a new
+  `<h4 id="experiences-lisbon">Experiences</h4>` table (Experience/What it
+  is/Considerations — a genuinely new column shape for this one section,
+  since these are bookable experiences rather than fixed sites) for the
+  two new cards: Fado Evening Experience (cross-referenced to the
+  existing Food &amp; Culture Fado paragraph rather than duplicating it) and
+  Tile Painting Workshop, each with the considerations given (limited
+  Sunday dinner availability / melancholic tone; multi-day tile firing /
+  minimum age or group size). Added a new **Évora** row to the existing
+  "Day Trips from Lisbon" table — Évora itself has no full section in
+  this guide (only named before as a Locale Planning alternative and a
+  Transfer Tours waypoint), so rather than build a premature full
+  destination profile, its one given attraction (Chapel of Bones —
+  Capela dos Ossos) became the row's own highlight, with the private-
+  guide/uneven-flooring/somber-tone considerations folded in.
+- **Sintra**: the existing Quinta da Regaleira mention (inside the
+  Sintra "Signature sites" paragraph) was enriched in place with the new
+  lesson's specific considerations — an extensive park with uneven
+  terrain and stairs throughout, not ideal for clients who prefer
+  minimal walking, recommend a slower pace and comfortable footwear —
+  rather than duplicated as a separate entry, since Sintra doesn't have
+  its own dedicated attractions table (a compact `<h4>` write-up, same as
+  Douro Valley/Algarve pre-promotion).
+- **Porto**: no `orientation-porto` H4 existed before this (only an
+  intro paragraph) — added one, mirroring Lisbon's own `orientation-
+  lisbon` structure, to hold the new Overview slide's practicalities
+  (hilly terrain/comfortable footwear, cross-referenced to the existing
+  Guindais Funicular note; variable weather/pack layers; river cruises
+  popular but may sell out in peak season; dining reservations
+  recommended at riverside spots). Enriched the existing "Porto
+  Cathedral" and "Livraria Lello" Key Attractions rows in place with
+  each card's new considerations (wheelchair accessible but a hillside
+  walk / possible entry fees; extremely popular with narrow staircases
+  and tight spaces / VIP skip-the-line tickets should be included in the
+  quote) rather than creating duplicate rows — both attractions already
+  existed with real hours/address/website data. Enriched the existing
+  "Aveiro" Day Trips row with the Moliceiro Boat Tour specifics (private/
+  shared options, boarding may be challenging for some, the Costa
+  Nova/oyster-farm/porcelain add-ons already named generically in the
+  lesson card).
+- **Douro Valley**: the existing `douro-valley-region` compact write-up
+  was enriched across all four of its paragraphs — Getting There gained
+  the narrow/winding-roads-private-driver-guide caution; Signature
+  Experiences gained the river-cruises-may-have-limited-winter-schedules
+  and tastings-need-reservations notes; Best Time to Visit gained the
+  summer-heat/rural-accommodation-rustic-charm color; and a new exam-
+  tagged closing note captures the separate Douro Valley excursion
+  card's own facts (a guided day tour typically bundles transportation
+  plus winery visits and runs a full ~9 hours; the winding roads may not
+  suit clients prone to motion sickness) — kept as its own paragraph
+  since it describes a specific bookable day-tour product, not the
+  region generally.
+- **A new `<h3 id="portugal-top-tours-job-aid">PORTUGAL — TOP TOURS (Job
+  Aid)</h3>` section**, mirroring Spain's own parallel
+  `113-spain-top-tours-by-locale-job-aid` structure (found by reading it
+  directly before writing anything — same "Tour Categories"/"KT Tour
+  Levels" framing this Portugal lesson turned out to match closely).
+  Placed right before `portugal-dmcs`, matching Spain's own tours-before-
+  DMCs-and-transfers ordering. Only the "Kensington Tour Levels" content
+  has arrived so far (Premier tours are the most popular/typically
+  private, sometimes with car transfers; price-conscious clients get a
+  Tourism Driver — cross-referenced to the real Portugal-specific role
+  already documented under Arrivals &amp; Transfers, not Spain's own
+  small-group-tour framing, since Portugal's lesson named a different
+  price-conscious option; Luxe clients get exclusive vineyard access,
+  private-hire of the historic Tram 28, and Michelin dining) — the intro
+  paragraph says explicitly that per-locale tour listings will be filled
+  in as they arrive, matching this build-out's established partial-fill
+  convention (e.g. the Locale Planning Quick Reference table's own
+  disclosure).
+- Verified via this project's established non-script-content discipline:
+  all 17 `<script>` blocks re-verified via `new Function()` parsing
+  (unaffected — this entire batch was pure HTML/table/list content, no
+  `<script>` logic touched), a full script-excluded tag-balance recount
+  (div/table/tr/td/th/thead/tbody/ul/li/h3/h4 all exactly even across the
+  whole file after every edit in this batch), and the duplicate-id sweep
+  (unchanged from baseline — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids; every new id added this pass —
+  `planning-practicalities-azores`, `madeira-region`,
+  `experiences-lisbon`, `orientation-porto`,
+  `portugal-top-tours-job-aid` — confirmed genuinely new and
+  non-colliding).
+- **Unverified live, same caveat as the rest of this Portugal build-out,
+  and an unusually large batch to land in one pass**: none of this
+  batch's specific facts (the Toboggan Ride's Monte-only availability,
+  the Fado/Tile-Painting-Workshop specifics, Porto Cathedral's wheelchair
+  accessibility claim, the Moliceiro boat add-ons, the ~9-hour Douro day
+  tour duration, the Tram 28 private-hire Luxe upsell) have been checked
+  against a live source beyond the lesson screenshots themselves —
+  transcribed faithfully, not independently confirmed. Whether folding
+  each new consideration into the existing table cells (rather than
+  adding a dedicated Considerations column, which several other Spain/
+  Portugal tables also lack) reads clearly in a real browser, and whether
+  the new Madeira stub's honesty-about-being-incomplete framing lands
+  right rather than reading as unfinished, are both worth a look next
+  time these sections are reviewed. More installments are expected in
+  both the Popular Attractions (4 more) and Top Tours (4 more) lesson
+  series — place them the same way as they arrive.
