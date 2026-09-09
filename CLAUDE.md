@@ -7360,3 +7360,75 @@ detail` H4 sits relative to its Flights H4.
   in a real browser — hasn't been seen outside this environment. Expect
   Lessons 3–6 to cover Private Transfers and other ground-services
   detail, continuing to match Spain's own H4 breakdown.
+
+## Portugal Arrivals & Transfers: Private Transfers/Drivers module — a real discrepancy found against this guide's own general table, flagged not silently resolved (Sep 2026, unverified live)
+
+Continues the same lesson series, arriving without an explicit "Lesson N
+of 6" label this time but clearly the next installment — "Drivers in
+Portugal," four driver/guide role screenshots (Tourism Driver, Driver +
+Guide, Driver-Guide, Assistant), each with a description, TMT label, and
+tip.
+
+- **Built as `<h4 id="private-transfers-expanded-module-detail-
+  portugal">Private Transfers — Expanded Module Detail</h4>`**, same
+  Portugal-suffixed-id discipline as Flights/Trains, placed as the third
+  H4 in `portugal-arrivals-transfers-job-aid` (right after Trains, right
+  before Top Itineraries) — matching where Spain's own
+  `private-transfers-expanded-module-detail` H4 sits in its own section.
+  Rendered as a Role/TMT Label/What's Included/Tip table rather than
+  Spain's Overview+Add-Ons+car-capacity-table shape, since this lesson
+  gave role-taxonomy detail Spain's own version doesn't have (four named
+  driver/guide roles with distinct TMT labels) and no car-class/passenger-
+  capacity data — adapted to the real data again, not forced into Spain's
+  exact shape.
+- **A genuine discrepancy found against this file's own existing
+  content, and flagged rather than silently picked one side of.** This
+  guide's pre-existing, general (company-wide, not Spain- or Portugal-
+  specific) `<h3 id="driverguide-combinations-exam-likely-know-these-
+  distinctions">Driver/Guide Combinations</h3>` table lists "Vehicle/
+  Driver-Guide (Vehicle/Tourism Driver)" as ONE combined row — treating
+  those two TMT labels as equivalent, both meaning "one person does
+  both roles." This Portugal lesson draws a real, explicit distinction
+  between them instead: a **Tourism Driver** handles transportation ONLY
+  and cannot accompany clients into sites at all (not even basic guiding
+  — TMT label `Vehicle/Tourism Driver`), while a **Driver-Guide** is one
+  person who genuinely DOES provide basic guiding alongside driving (TMT
+  label `Vehicle/Driver-Guide`) — two different service levels, not
+  synonyms. Rather than edit the general table (which may still be a
+  reasonable simplified framework for other destinations, and this file
+  has no authority to declare it simply wrong company-wide off one
+  destination's training deck), added an explicit exam-tagged callout
+  in the new Portugal section naming the discrepancy directly and stating
+  the Portugal-specific rule to actually use. Matches this build-out's
+  own established discipline for a real conflict (see the ETIAS-framing
+  conflict flagged rather than silently resolved in the earlier Lisbon
+  PDF pass).
+- **The Tourism Driver tip's English-language caveat cross-checked
+  against Spain's own parallel fact, and found consistent, not
+  contradictory** — Spain's Private Transfers H4 states "Spain's driver
+  fleet typically does not speak conversational English... not acting as
+  tour guides, just ensuring on-time point A→B transport" as its own
+  exam-tagged fact; Portugal's new tip says essentially the same thing
+  for transfer-only drivers specifically. No correction needed — this is
+  the same real-world pattern repeating across both destinations, not a
+  coincidence worth flagging as new.
+- Verified via this project's established non-script-content discipline
+  (pure HTML — one new `<h4>`, two paragraphs, one 4-row table, one
+  exam-tagged callout, no `<script>` content touched): all 17 `<script>`
+  blocks re-verified via `new Function()` parsing (unaffected), a full
+  script-excluded tag-balance recount (div/thead/tbody/h3 all held
+  exactly even; table/tr/td/th/h4 incremented by exactly this section's
+  own new markup, internally balanced), and the duplicate-id sweep
+  (unchanged from baseline — confirmed `private-transfers-expanded-
+  module-detail-portugal` doesn't collide with Spain's existing
+  `private-transfers-expanded-module-detail`).
+- **Unverified live**: whether the Tourism-Driver-vs-Driver-Guide
+  distinction actually matters in practice the way this pass assumed
+  (i.e., whether DEs booking Portugal ground services need to know this
+  nuance, or whether it's a training-deck-level detail that rarely
+  changes a real booking decision) — worth a DE spot-check. The four-
+  role table's readability against the general Driver/Guide Combinations
+  table elsewhere in the guide also hasn't been seen in a real browser.
+  Expect Lessons 4–6 (or whatever remains of this series) to round out
+  Accessibility/Mobility or other ground-services detail, matching
+  Spain's own H4 breakdown.
