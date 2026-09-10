@@ -8324,3 +8324,81 @@ more detailed like Spain, use landscapes and land marks on the map."
   longer overlap, and that the coastline's new detail (the Algarve
   sweep, the Lisbon inlet, the Porto notch) reads as a plausible map
   rather than jagged or odd at actual rendered size.
+
+## Interactive map: a real country border added, and the map enlarged/centered to use the space it was wasting (Sep 2026, unverified live)
+
+Direct follow-up, from a screenshot of the just-fixed map: "we need to
+see the border between the two countries. You can centered and largen
+the map as well, a lot of wasted space on the right hand side. More
+detail and realism."
+
+- **A real Spain–Portugal border line, not implied by color alone.**
+  The landmass is (deliberately, per this build-out's very first entry)
+  one single merged polygon — Spain and Portugal were always meant to
+  share one map, not two — so there was never an internal edge between
+  the two countries' fills for a viewer to actually see. Added
+  `TRIP_PLANNER_BORDER`, a new 7-point line (`[56,155]` near the north
+  coast down to `[125,425]` near the Algarve/Guadiana area) rendered as
+  its own stroked-only `<path class="tp-border">` — no fill, drawn right
+  after the landmass/island shapes so it sits under the rivers/roads/
+  pins rather than competing with them. Styled as a warm brown dashed
+  line (`#8a5a2b`, `stroke-dasharray: 3 4`), visually distinct from both
+  the white-dashed highways and the blue rivers, plus its own new legend
+  entry ("Spain–Portugal border").
+- **Routed to loosely track where the real border actually runs, not a
+  straight line drawn for convenience.** Points bend near where the
+  Douro and Tagus rivers cross the real border (matching this build-out's
+  established `TRIP_PLANNER_RIVERS` data), continuing the same honest
+  framing already used for the coastline redraw: **explicitly an
+  approximation, not a traced border dataset** — this environment has no
+  way to fetch real geographic border data, so this is a plausible,
+  reasonably-placed line, stated as such in the code's own comment,
+  not represented as survey-accurate. Verified in Python before
+  committing that every border point stays comfortably clear (28px+) of
+  every city pin, so the line never cuts through a label.
+- **The actual "wasted space" complaint, fixed at its real cause — the
+  map's own max-width, not the map's aspect ratio or its content.**
+  `#tp-map-svg` was hard-capped at `max-width: 420px` inside a `#tp-map-
+  wrap` that, on any normal-width screen, is far wider than 420px —
+  confirmed directly from the screenshot's own proportions (the map
+  filled maybe half the available row, with the legend and a large gap
+  of plain cream background to its right). Regrouped the SVG and its
+  legend into a new `#tp-map-col` (`flex: 3 1 640px; max-width: 720px`)
+  so they grow together as one unit, bumped `#tp-map-svg`'s own cap from
+  420px to 700px, and centered the whole `#tp-map-wrap` (`justify-
+  content: center`, capped at `max-width: 1180px` so it doesn't stretch
+  edge-to-edge on a very wide monitor either) — the map is now roughly
+  70% larger on a typical desktop width while `#tp-controls` (the click-
+  to-select panel) keeps its own sensible `max-width: 340px` alongside
+  it rather than being crowded out. The existing narrow-screen media
+  query (`flex-direction: column` under the mobile breakpoint) needed
+  only two additions (`#tp-map-col`/`#tp-controls` both capped at 100%
+  width there) to keep working the same way it already did — the column
+  stacks exactly as before on a phone-width screen.
+- Verified via this project's established non-script-content discipline
+  plus the same geometry-check method used for the coastline fix: all 16
+  inline `<script>` blocks re-verified via `node --check` (confirms the
+  new `TRIP_PLANNER_BORDER` array literal and the render function's new
+  `borderD` template logic are syntactically valid); a full script-
+  excluded tag-balance recount (all tracked static-HTML tags held
+  exactly at the established baseline — the new `#tp-map-col` div and
+  border `<path>` are both JS-template-string content inside `renderTrip
+  Planner()`, the same dynamically-injected-markup category this file's
+  own tag-balance check has never counted, consistent with how the rest
+  of this map's own markup was already treated); the duplicate-id sweep
+  (unchanged from baseline — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids; the new `tp-map-col` id confirmed genuinely
+  unique); and a real Python distance check confirming every border
+  point's clearance from every city pin (minimum 28px, at Porto).
+- **Unverified live, and this is real visual/layout work no static check
+  can confirm**: whether 700px actually reads as "enlarged and centered"
+  rather than just "bigger" on the DE's real screen, whether the new
+  dashed-brown border line is visually legible against the pale green
+  landmass fill without looking like clutter next to the highway/river
+  lines, and whether the border's own routing (through the Douro/Tagus
+  crossing points) looks geographically sane once actually rendered —
+  none of this has been seen outside this environment. Test next: open
+  the Interactive Trip Planner Map and confirm the map now fills most of
+  its row with visibly less empty space beside it, that a clear brown
+  dashed line separates Portugal from Spain, and that the new legend
+  entry reads clearly alongside the existing three.

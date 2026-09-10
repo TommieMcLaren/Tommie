@@ -1256,38 +1256,54 @@
   #tp-map-wrap {
     display: flex;
     flex-wrap: wrap;
-    gap: 24px;
+    gap: 28px;
     align-items: flex-start;
-    margin: 16px 0 26px;
+    justify-content: center;
+    margin: 16px auto 26px;
+    max-width: 1180px;
     background: var(--beige);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 20px;
+    padding: 24px;
+  }
+  /* Sep 2026: the map used to be capped at a small 420px inside a much
+     wider wrap, leaving a lot of visible empty space to the right on any
+     normal-width screen (reported live) — svg+legend are now grouped in
+     their own centered column so the map can actually grow to use the
+     freed room instead of sitting small in a corner of it. */
+  #tp-map-col {
+    flex: 3 1 640px;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
   #tp-map-svg {
     width: 100%;
-    max-width: 420px;
-    flex: 1 1 340px;
+    max-width: 700px;
     background: #eaf3ec;
     border-radius: 10px;
   }
   #tp-landmass, #tp-island { fill: #d7e6da; stroke: var(--sage); stroke-width: 1.5; }
   .tp-road { stroke: #fff; stroke-width: 3; stroke-dasharray: 6 4; opacity: 0.85; }
   .tp-river { fill: none; stroke: #7fb3d5; stroke-width: 2; opacity: 0.65; }
+  .tp-border { fill: none; stroke: #8a5a2b; stroke-width: 2; stroke-dasharray: 3 4; stroke-linecap: round; opacity: 0.7; }
   .tp-mountain path { fill: #a8998a; opacity: 0.55; }
   #tp-map-legend {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
+    justify-content: center;
     font-size: 11px;
     color: var(--sage-darker);
-    margin-top: 8px;
+    margin-top: 10px;
     font-family: 'Lato', sans-serif;
   }
   #tp-map-legend span { display: inline-flex; align-items: center; gap: 5px; }
   .tp-legend-swatch { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
   .tp-legend-road { background: repeating-linear-gradient(90deg, var(--sage) 0 4px, transparent 4px 7px); }
   .tp-legend-river { background: #7fb3d5; }
+  .tp-legend-border { background: repeating-linear-gradient(90deg, #8a5a2b 0 3px, transparent 3px 6px); }
   .tp-legend-mtn { width: auto !important; height: auto !important; color: #a8998a; font-size: 12px; }
   .tp-pin { cursor: pointer; }
   .tp-pin-dot { fill: var(--gold); stroke: #fff; stroke-width: 2; transition: r 0.15s ease, fill 0.15s ease; }
@@ -1301,7 +1317,7 @@
     pointer-events: none;
   }
   .tp-pin.selected .tp-pin-label { fill: var(--gold-text); font-weight: 800; }
-  #tp-controls { flex: 1 1 260px; min-width: 240px; }
+  #tp-controls { flex: 1 1 260px; min-width: 240px; max-width: 340px; }
   #tp-selected-label {
     font-size: 13.5px;
     font-weight: 700;
@@ -1718,7 +1734,9 @@
     .hotel-card, .media-card, .weather-card { height: 180px; }
     #quiz-modal, #tip-modal, #map-modal, #tmm-modal { max-width: 92vw; padding: 22px 18px; }
     #tp-map-wrap { flex-direction: column; padding: 14px; }
+    #tp-map-col { max-width: 100%; }
     #tp-map-svg { max-width: 100%; }
+    #tp-controls { max-width: 100%; }
   }
   @media print { #sidebar, #sidebarBackToTop, #random-tip-btn, #tell-me-more-btn, #topbanner { display: none; } #main { margin-left: 0; } }
   /* ---- Sidebar clean-up (flat list, no dropdowns) ---- */
@@ -11191,6 +11209,20 @@ ${resultsBody}
   // Portugal build-out — a reasonable-sounding inland placement, not a
   // traced coordinate).
   const TRIP_PLANNER_MOUNTAINS = [{"x": 425.9, "y": 97.7, "label": "Pyrenees"}, {"x": 271.9, "y": 425.0, "label": "Sierra Nevada"}, {"x": 209.8, "y": 357.1, "label": "Sierra Morena"}, {"x": 205.8, "y": 71.2, "label": "Cantabrian Mts."}, {"x": 205.8, "y": 227.4, "label": "Sistema Central"}, {"x": 100.0, "y": 215.0, "label": "Serra da Estrela"}];
+  // Spain–Portugal border (Sep 2026) — the landmass itself is one merged
+  // polygon (Spain and Portugal were always meant to share a single map,
+  // see this file's own Portugal build-out notes), so this is a separate
+  // stroked-only overlay tracing roughly where the two countries meet —
+  // from the north Atlantic coast near the Minho river down to the
+  // Guadiana river mouth in the Algarve, passing near where the Douro and
+  // Tagus rivers themselves cross the real border. Confirmed via a real
+  // distance check (Node/Python) that every point here stays comfortably
+  // clear of every city pin, so it never runs through a label. Like the
+  // Portugal coastline redraw above, this is a reasonable approximation
+  // (this environment has no way to fetch a real traced border dataset),
+  // not survey-accurate — good enough to make "these are two countries"
+  // visually legible, which is what was actually asked for.
+  const TRIP_PLANNER_BORDER = [[56, 155], [95, 160], [120, 200], [135, 250], [140, 320], [130, 380], [125, 425]];
   // Douro (Sep 2026) — real Spain-to-Portugal river (the "Duero" upstream),
   // added the same shape as every other river here: a polyline flowing to
   // its real mouth city, Porto (62.1,182.4).
@@ -11225,20 +11257,26 @@ ${resultsBody}
       return `<path class="tp-river" d="${d}"></path>`;
     }).join('');
 
+    const borderD = 'M ' + TRIP_PLANNER_BORDER.map(p => p[0] + ',' + p[1]).join(' L ');
+
     root.innerHTML = `
       <div id="tp-map-wrap">
-        <svg id="tp-map-svg" viewBox="0 0 560 520" xmlns="http://www.w3.org/2000/svg">
-          <path id="tp-landmass" d="${QB_LANDMASS_PATH}"></path>
-          <path id="tp-island" d="${QB_ISLAND_PATH}"></path>
-          ${riversSvg}
-          ${mountainsSvg}
-          ${roadsSvg}
-          ${pinsSvg}
-        </svg>
-        <div id="tp-map-legend">
-          <span><i class="tp-legend-swatch tp-legend-road"></i> Major highway</span>
-          <span><i class="tp-legend-swatch tp-legend-river"></i> River</span>
-          <span><i class="tp-legend-swatch tp-legend-mtn">▲</i> Mountain range</span>
+        <div id="tp-map-col">
+          <svg id="tp-map-svg" viewBox="0 0 560 520" xmlns="http://www.w3.org/2000/svg">
+            <path id="tp-landmass" d="${QB_LANDMASS_PATH}"></path>
+            <path id="tp-island" d="${QB_ISLAND_PATH}"></path>
+            <path class="tp-border" d="${borderD}"></path>
+            ${riversSvg}
+            ${mountainsSvg}
+            ${roadsSvg}
+            ${pinsSvg}
+          </svg>
+          <div id="tp-map-legend">
+            <span><i class="tp-legend-swatch tp-legend-road"></i> Major highway</span>
+            <span><i class="tp-legend-swatch tp-legend-river"></i> River</span>
+            <span><i class="tp-legend-swatch tp-legend-mtn">▲</i> Mountain range</span>
+            <span><i class="tp-legend-swatch tp-legend-border"></i> Spain–Portugal border</span>
+          </div>
         </div>
         <div id="tp-controls">
           <div id="tp-selected-label">Click cities to add them — none selected yet</div>
