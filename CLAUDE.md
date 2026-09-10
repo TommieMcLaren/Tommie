@@ -9122,3 +9122,100 @@ table (confirmed via grep before writing anything).
   thin, haven't been seen outside this environment. Next in this 9-lesson
   series: presumably Porto, Sintra, or another locale's hotel content in
   whatever order Lessons 2–9 arrive.
+
+## Hotels: Porto/Douro confirmed, Coimbra + Évora added, Algarve/Azores/Madeira enriched (Sep 2026, unverified live)
+
+Continues the Portugal hotel-lesson series ("Lesson X of 9") started in the previous
+CLAUDE.md entry (Lisbon + Cascais). This batch covered Lessons 2 through 6 in one
+pass: Porto & the Douro Valley, Coimbra & Évora, the Algarve region, the Azores, and
+Madeira — each cross-checked against the guide's existing content before touching
+anything, following this whole build-out's standing "don't guess, place only what's
+given, verify against the real file first" discipline.
+
+- **Porto (Lesson 2) and every Azores/Madeira/Algarve hotel named in this batch
+  already existed in the guide — this was near-total confirmation, not new
+  content.** All 4 pinned Porto hotels (The Yeatman, Hospes Infante Sagres Porto =
+  the existing "Infante Sagres" row, Pestana Vintage Porto, PortoBay Teatro = the
+  existing "PortoBay Hotel Teatro" row), all 5 pinned Azores hotels (Octant Ponta
+  Delgada, The Grand Hotel Azores, White Exclusive Suites & Villas, Azoris Angra
+  Garden, Azoris Faial Garden), both pinned Algarve hotels (Epic Sana Algarve, Pine
+  Cliffs Hotel), and both pinned Madeira hotels (Belmond Reid's Palace, Savoy
+  Palace) were already documented from the earlier "9 - Top Hotels" xlsx pass. Each
+  row was enriched in place with genuinely new detail from the lesson decks' detail
+  cards/location notes (Infante Sagres's Avenida dos Aliados proximity; Pestana
+  Vintage Porto's 16th-century/balcony/waterfront specifics; PortoBay Teatro's Rua
+  Sá da Bandeira street name; The Yeatman's "wine-themed... retreat-style" framing;
+  White Exclusive's Lagoa location; Azoris Angra Garden's Duque da Terceira
+  Municipal Garden name and mainland-vs-island amenity gap; Azoris Faial Garden's
+  fold-up-bed/10-minute-beach detail; Epic Sana's up-to-6-people rooms and
+  Romance/Family/Adventure packages; Belmond Reid's Palace's activity list; Savoy
+  Palace's named Laurea Spa and half/full board options) — no new hotel names were
+  added anywhere in this half of the batch.
+- **Douro Valley (Lesson 2)** — same pattern: all three pinned hotels (Six Senses
+  Douro Valley, Quinta da Pacheca – The Wine House Hotel, The Vintage House Hotel)
+  already existed in the compact stub's "Preferred hotels" paragraph. Enriched with
+  new detail (Six Senses' spa/fine-dining focus and 3 accessible Valley Garden
+  suites; Quinta da Pacheca's on-site winery tastings/cooking classes/picnics and
+  its one accessible Superior room; Vintage House's real room categories, 2A+2C
+  suite occupancy, and the named on-site Rabelo Restaurant).
+- **Coimbra and Évora — genuinely new compact-stub sections (Lesson 3), the first
+  real content either has had in this guide.** Both were previously only day-trip
+  mentions (Coimbra under Porto's "Day Trips," Évora under Lisbon's "Day Trips" and
+  the Alentejo wine-estate tour). New `<h4 id="coimbra-region">📖 COIMBRA</h4>` and
+  `<h4 id="evora-region">🏛️ ÉVORA</h4>` stubs, placed right after Cascais and before
+  Douro Valley — matching Cascais's own "hotel-limited, comfortably a day trip
+  instead" framing from the lesson text almost verbatim. Coimbra got a real hotel:
+  **Quinta das Lágrimas Hotel** (Historic, Boutique, Luxe) — a historic-palace hotel
+  with literary connections and its own romantic-legend gardens, ~10–15 min drive
+  from the main sites (not walkable), 2 accessible rooms (Deluxe/Garden), with an
+  explicit warning to avoid the Spa Wing (worn rooms, outdated spa) sourced directly
+  from the lesson's own location-notes callout. **Évora deliberately got no hotel
+  name** — the lesson's own map only ever showed a Coimbra pin; despite the lesson
+  title naming both cities, no Évora property/detail card arrived in this batch, so
+  the Évora stub states plainly that no specific hotel has been confirmed yet
+  (pointing at TMT/Job Aid in the meantime) rather than guessing one — consistent
+  with this whole session's "place only what's given" rule, most recently applied
+  the same way to the still-pending second Douro Valley detail card earlier in this
+  series. Both stubs cross-reference their existing day-trip/tour content instead of
+  re-describing it.
+- **New Algarve "Choosing where to stay" framing** (Albufeira vs. Portimão/Praia da
+  Rocha) added ahead of the existing "Preferred hotels" paragraph — genuinely new
+  general guidance from the Lesson 4 deck, not previously in this guide, and
+  distinct from (not a duplicate of) the existing per-hotel table, which already
+  names Albufeira/Portimão per hotel but never explained the two towns' own
+  character difference.
+- **New Azores-wide note** ("true 5-star properties are only on São Miguel...") added
+  to the Azores hotels intro — a genuinely new piece of general guidance from the
+  Lesson 5 deck's own closing line, not previously stated anywhere in the section.
+- **New "Discovery-level properties" note** added to the Portugal-wide "Selecting
+  Hotels in Portugal" section (built in the previous CLAUDE.md entry) — Portugal-
+  wide sequencing advice from the Lesson 6 deck's closing note (start a
+  price-conscious multi-stop itinerary at Discovery, build up to Premier, never the
+  reverse) that applies across every locale, not just Madeira where it was
+  mentioned, so it was placed alongside the other Portugal-wide hotel-selection
+  guidance rather than inside Madeira's own stub.
+- **Sidebar nav updated** for both new stubs (`Coimbra`/`Évora` entries inserted
+  between `Cascais` and `Douro Valley`, matching the exact `nav-item-solo` pattern
+  and placement discipline established when Cascais was first added) — confirmed via
+  a direct id/href cross-check that both new ids resolve to exactly one real heading
+  and exactly one nav link each.
+- Verified via this project's established non-script-content discipline: all 16
+  inline `<script>` blocks re-extracted and `node --check`ed individually (all
+  pass — this batch was pure HTML/table/prose content, no script logic touched); a
+  full script-excluded tag-balance recount (div/table/tr/td/th/thead/tbody/ul/li/
+  h3/h4/p all held exactly even across the whole file); the duplicate-id sweep
+  (unchanged from the established baseline — the same 4 pre-existing, unrelated
+  Client Tracker bulk-action-bar ids; both new stub ids and both new nav hrefs
+  confirmed genuinely unique/correctly wired, zero new duplicates or dead links).
+- **Unverified live, same caveat as the rest of this Portugal build-out**: none of
+  this batch's specific facts (the Azoris Angra Garden's exact garden name, the
+  Quinta das Lágrimas Spa Wing warning, the Epic Sana package names, the Savoy
+  Palace's Laurea Spa) have been checked against a live source beyond the lesson
+  screenshots and text themselves — transcribed faithfully, not independently
+  re-confirmed. Whether the new Coimbra/Évora stubs read clearly in the sidebar
+  now that they sit between Cascais and Douro Valley, and whether the enriched
+  Algarve/Azores/Madeira table rows feel appropriately denser rather than
+  overloaded, haven't been seen in a real browser from this environment. Still
+  outstanding from this same lesson series: any Évora hotel content the DE
+  may send in a later chunk (the Coimbra half of Lesson 3 is complete;
+  Évora's own pins never arrived).
