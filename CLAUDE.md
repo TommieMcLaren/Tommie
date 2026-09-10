@@ -8701,3 +8701,126 @@ cities can be in the appropriate location geographically."
   real tradeoff check — skim a text-heavy section elsewhere in the guide
   (e.g. a Culture & Etiquette page) and confirm the wider paragraph
   column still reads comfortably rather than feeling stretched.
+
+## Interactive map: the whole coordinate system shifted east to open a real west margin, plus two genuinely merged labels fixed (Sep 2026, unverified live)
+
+Direct follow-up, from a fresh screenshot showing "PoDtouro Valley" and
+"BilSan Sebastián" as literally merged, unreadable text, and the Azores/
+Madeira inset box sitting in the bottom-right corner near Spain: "okay
+great. Lets fix this though. Words are crowding each other, the islands
+are on the Spain side when it should be on the west side. lets fix this
+scaling and accuracy."
+
+- **The inset box's placement was a real, reported wrong call, not a
+  preference nit.** The previous pass picked the bottom-right corner
+  purely because it was the one genuinely empty patch of ocean the old
+  560-wide viewBox had — correct by the letter of "don't overlap
+  anything," wrong by the letter of "the Azores are west of Portugal."
+  Fixing this for real meant creating actual empty space on the WEST
+  side of the map, which the old viewBox didn't have — Portugal's own
+  coastline already sat almost flush against the viewBox's left edge (x
+  as low as 8), leaving nothing to work with there.
+- **Fixed by shifting the entire coordinate system 230 units east**
+  (a uniform `x += 230` applied to every x-coordinate in
+  `QB_LANDMASS_PATH`, `QB_ISLAND_PATH`, all 26 `TRIP_PLANNER_PINS`, all
+  20 `TRIP_PLANNER_ROADS` endpoints, all 6 `TRIP_PLANNER_MOUNTAINS`, all
+  7 `TRIP_PLANNER_BORDER` points, and every point in all 4
+  `TRIP_PLANNER_RIVERS`; y-values and all relative geography are
+  untouched by construction, since this is a pure translation, not a
+  rescale) and widening the viewBox from `560×520` to `790×520` —
+  updated in both places that declare it (`qbRouteMapSvg()`'s own mini
+  map and the Interactive Trip Planner Map's `#tp-map-svg`, since both
+  read the same shared `QB_LANDMASS_PATH`/`QB_ISLAND_PATH`/
+  `TRIP_PLANNER_PINS` constants and need to agree on the same coordinate
+  space). This opens a genuinely empty 230-unit-wide strip on the west
+  side, not hunted for after the fact — it exists because every other
+  point on the map moved out of it.
+- **`TRIP_PLANNER_INSET_BOX` moved into that new west margin** (x=12,
+  width 205, up from the old bottom-right placement) — now reads, both
+  numerically and at a glance, as sitting west of Portugal, matching
+  real geography's rough direction even though the box is explicitly
+  still schematic/not-to-scale internally. Also fixes the label-clipping
+  bug from the previous pass ("...not to sca[le]" cut off at the old
+  box's tight-against-the-viewBox-edge position) two ways: the box grew
+  (138×98 → 205×155) and the label text was shortened ("Azores & Madeira
+  (schematic — not to scale)" → "Azores & Madeira — not to scale") so it
+  now fits inside its own box width (~176px estimated vs. a 205px box)
+  instead of overflowing past whichever edge happened to be nearby.
+- **Two real, visibly-merged label pairs fixed by testing against the
+  actual reported screenshot text, not by re-tuning the old flat 22px-
+  clearance rule of thumb.** That rule (first established from the
+  Málaga/Marbella pair, which has shipped fine for many sessions) turns
+  out to only work for short single-word names — it silently under-
+  clears any pair where at least one label is longer ("Douro Valley,"
+  "San Sebastián"), which is exactly the failure this screenshot caught.
+  Rather than trust an abstract label-width model (tried one; it also
+  over-flagged Málaga/Marbella itself, a pair known to render fine, so
+  it wasn't a reliable enough signal on its own), fixed the two pairs
+  the screenshot actually showed broken and re-verified the fix against
+  real distance numbers:
+  - **Douro Valley** moved from `(94.3, 182.5)` to `(135, 200)`
+    (pre-shift coordinates) — further east/inland along its own river
+    valley from Porto, which is directionally correct (the real Douro
+    Valley wine region *is* inland/east of Porto). Distance from Porto
+    grew from 32.2px to 75.0px.
+  - **San Sebastián** moved from `(326.6, 55.4)` to `(364, 80)`
+    (pre-shift) — further east along the north coast from Bilbao,
+    nudged slightly south since a grid search confirmed the real
+    coastal strip there is narrow enough that pushing straight east
+    lands in open water outside the landmass polygon; this position was
+    the one found via that search that's both inside the polygon and
+    genuinely far enough from Bilbao. Distance from Bilbao grew from
+    38.2px to 78.5px.
+  - Both moves rippled into their one connected `TRIP_PLANNER_ROADS`
+    segment (`Porto→Douro Valley`, `Bilbao→San Sebastián`) so the road
+    lines still terminate exactly at the pins' new positions rather than
+    pointing at empty space.
+- **Deliberately left every other close-but-not-actually-merged pair
+  alone** (Málaga/Marbella, Lisbon/Cascais, Lisbon/Évora, Faro/
+  Albufeira) — these were flagged by the same abstract label-width
+  heuristic used to sanity-check the fix, but none of them show as
+  visibly broken in the actual screenshot the way Porto/Douro Valley and
+  Bilbao/San Sebastián did, and the heuristic itself is now known to
+  over-flag (it also flags Málaga/Marbella, a pair with no live
+  complaint against it). Moving pins based on an unreliable model
+  instead of the one piece of real evidence available (what the DE
+  actually saw) would risk "fixing" pairs that were never actually
+  broken while potentially introducing new problems elsewhere — worth
+  revisiting any of these specifically if a future screenshot shows one
+  of them genuinely merged too.
+- Verified via this project's established discipline plus the same
+  geometry-check method used throughout this map-extension effort,
+  re-run against the FINAL committed file content (not the drafted
+  coordinates): all 16 inline `<script>` blocks re-extracted and
+  `node --check`ed individually (all pass); a full script-excluded
+  tag-balance recount (all tracked tags held exactly at the established
+  baseline — pure JS-data/attribute changes, no HTML markup touched);
+  the duplicate-id sweep (unchanged from baseline); confirmation that
+  the old `viewBox="0 0 560 520"` string no longer appears anywhere in
+  the file and the new `viewBox="0 0 790 520"` appears in exactly the
+  two expected places; a real point-in-polygon re-check confirming all
+  22 non-inset pins still land inside their correct shape (mainland or,
+  for Palma de Mallorca, the separate Mallorca polygon) after the
+  shift, all 4 inset pins land inside the relocated box and outside
+  both shapes, and the relocated box itself doesn't overlap the
+  (now-shifted) mainland landmass; and confirmation that both moved
+  roads' endpoints exactly match their pins' new coordinates, not stale
+  pre-move values.
+- **Unverified live, and this remains real visual work no static check
+  can confirm**: whether the inset box now genuinely reads as "west of
+  Portugal" at a glance once actually rendered (the numbers say west,
+  but only a real screenshot confirms it looks that way), whether Porto/
+  Douro Valley and Bilbao/San Sebastián's labels are now clearly
+  separate text at the map's real on-screen font size, and whether the
+  viewBox's new, wider aspect ratio (790:520 ≈ 1.52:1, up from
+  560:520 ≈ 1.08:1) renders proportionally sensibly inside `#tp-map-
+  svg`'s existing 740px-max-width CSS cap (a wider aspect ratio at the
+  same pixel width means the map now renders visibly SHORTER top-to-
+  bottom than before — expected, not adjusted for here since nothing in
+  the request was about vertical sizing, but worth a look). Test next:
+  open the Interactive Trip Planner Map and confirm the Azores/Madeira
+  box now sits clearly to the west/left of Portugal rather than near
+  Spain, that "Porto"/"Douro Valley" and "Bilbao"/"San Sebastián" both
+  read as two separate, non-overlapping labels, and that the inset
+  box's own label ("Azores & Madeira — not to scale") is fully visible,
+  not cut off at either edge.

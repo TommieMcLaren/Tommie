@@ -10781,8 +10781,19 @@ Tommie McLaren</p>
   // its own second, independently-hardcoded copy — that drift is exactly
   // what left Portugal's 4 pins floating outside the old #tp-landmass
   // shape, confirmed via a real point-in-polygon check before this fix).
-  const QB_LANDMASS_PATH = "M 44.3,140.1 L 46.3,98.1 L 30.0,72.6 L 86.6,30.0 L 135.6,40.6 L 189.3,40.3 L 231.9,50.3 L 265.1,47.2 L 329.8,49.2 L 345.8,72.1 L 419.5,98.9 L 434.0,86.2 L 479.0,112.8 L 525.4,105.2 L 527.6,139.4 L 489.7,178.7 L 438.4,191.2 L 434.8,211.0 L 410.2,243.7 L 394.8,291.7 L 410.4,325.4 L 387.2,351.7 L 378.6,390.0 L 348.4,401.8 L 320.0,447.1 L 269.2,448.0 L 231.1,446.9 L 206.0,467.7 L 190.7,490.0 L 171.1,485.1 L 156.3,465.2 L 145.0,431.3 L 120.0,440.0 L 95.0,449.0 L 68.0,443.0 L 42.0,433.0 L 30.0,402.0 L 20.0,366.0 L 16.0,336.0 L 28.0,323.0 L 14.0,313.0 L 8.0,297.0 L 10.0,280.0 L 18.0,245.0 L 30.0,221.0 L 38.0,201.0 L 44.0,187.0 L 36.0,169.0 L 48.0,158.0 L 81.7,153.7 L 44.3,140.1 Z";
-  const QB_ISLAND_PATH = "M 500.0,259.9 L 506.0,255.7 L 516.0,258.7 L 528.0,265.8 L 530.0,275.8 L 524.0,289.3 L 512.0,293.5 L 502.0,283.4 L 498.0,271.7 L 500.0,259.9 Z";
+  // Shifted east by 230 viewBox units (Sep 2026) to open a real, permanent
+  // west margin for the Azores/Madeira inset — see TRIP_PLANNER_INSET_BOX's
+  // own comment for why "put it wherever there happens to be empty ocean"
+  // wasn't good enough once the DE pointed out the islands were rendering
+  // on the Spain side of the map, the geographically backwards side. This
+  // is a pure rightward translation of every x-coordinate in both shapes
+  // (y untouched) — relative geography between every point is unchanged,
+  // just re-anchored inside a wider (790, up from 560) viewBox. Every
+  // other map constant below (pins/roads/mountains/rivers/border) was
+  // shifted the same +230 to stay in sync; re-verified via a fresh
+  // point-in-polygon pass after the shift, not assumed safe.
+  const QB_LANDMASS_PATH = "M 274.3,140.1 L 276.3,98.1 L 260.0,72.6 L 316.6,30.0 L 365.6,40.6 L 419.3,40.3 L 461.9,50.3 L 495.1,47.2 L 559.8,49.2 L 575.8,72.1 L 649.5,98.9 L 664.0,86.2 L 709.0,112.8 L 755.4,105.2 L 757.6,139.4 L 719.7,178.7 L 668.4,191.2 L 664.8,211.0 L 640.2,243.7 L 624.8,291.7 L 640.4,325.4 L 617.2,351.7 L 608.6,390.0 L 578.4,401.8 L 550.0,447.1 L 499.2,448.0 L 461.1,446.9 L 436.0,467.7 L 420.7,490.0 L 401.1,485.1 L 386.3,465.2 L 375.0,431.3 L 350.0,440.0 L 325.0,449.0 L 298.0,443.0 L 272.0,433.0 L 260.0,402.0 L 250.0,366.0 L 246.0,336.0 L 258.0,323.0 L 244.0,313.0 L 238.0,297.0 L 240.0,280.0 L 248.0,245.0 L 260.0,221.0 L 268.0,201.0 L 274.0,187.0 L 266.0,169.0 L 278.0,158.0 L 311.7,153.7 L 274.3,140.1 Z";
+  const QB_ISLAND_PATH = "M 730.0,259.9 L 736.0,255.7 L 746.0,258.7 L 758.0,265.8 L 760.0,275.8 L 754.0,289.3 L 742.0,293.5 L 732.0,283.4 L 728.0,271.7 L 730.0,259.9 Z";
   // Lazy lookup — TRIP_PLANNER_PINS is declared later in this same script
   // (Section 1.18's Interactive Trip Planner Map), so this can't be built
   // eagerly here without hitting a temporal-dead-zone error. By the time any
@@ -10811,7 +10822,7 @@ Tommie McLaren</p>
       const a = coords[known[i].city], b = coords[known[i + 1].city];
       lines.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" ${forExport ? 'stroke="#c8a552" stroke-width="2.5" stroke-dasharray="5 4"' : 'class="qb-map-route"'}></line>`);
     }
-    return `<svg viewBox="0 0 560 520" xmlns="http://www.w3.org/2000/svg" ${forExport ? 'style="width:100%;max-width:520px;background:#eef3ec;border-radius:10px;border:1px solid #ccc;"' : 'id="qb-route-svg"'}>
+    return `<svg viewBox="0 0 790 520" xmlns="http://www.w3.org/2000/svg" ${forExport ? 'style="width:100%;max-width:520px;background:#eef3ec;border-radius:10px;border:1px solid #ccc;"' : 'id="qb-route-svg"'}>
       <path d="${QB_LANDMASS_PATH}" ${forExport ? 'fill="#d7e6da" stroke="#7a8c6e" stroke-width="1.5"' : 'class="qb-map-land"'}></path>
       <path d="${QB_ISLAND_PATH}" ${forExport ? 'fill="#d7e6da" stroke="#7a8c6e" stroke-width="1.5"' : 'class="qb-map-land"'}></path>
       ${lines.join('')}
@@ -11252,7 +11263,20 @@ ${resultsBody}
   // Madeira pins carry real lat/lng too (for travel-time math) but
   // deliberately schematic x/y (`inset: true`) — see TRIP_PLANNER_INSET_BOX
   // below for why these can't use the real affine transform.
-  const TRIP_PLANNER_PINS = [{"name": "Madrid", "x": 257.7, "y": 226.4, "lat": 40.4168, "lng": -3.7038}, {"name": "Toledo", "x": 250.5, "y": 258.0, "lat": 39.8628, "lng": -4.0273}, {"name": "Barcelona", "x": 492.9, "y": 169.3, "lat": 41.3851, "lng": 2.1734}, {"name": "Valencia", "x": 390.9, "y": 282.3, "lat": 39.4699, "lng": -0.3763}, {"name": "Seville", "x": 166.4, "y": 405.0, "lat": 37.3891, "lng": -5.9845}, {"name": "Granada", "x": 261.9, "y": 417.4, "lat": 37.1773, "lng": -3.5986}, {"name": "Córdoba", "x": 214.6, "y": 375.5, "lat": 37.8882, "lng": -4.7794}, {"name": "Málaga", "x": 229.0, "y": 444.3, "lat": 36.7213, "lng": -4.4214}, {"name": "Marbella", "x": 210.4, "y": 456.7, "lat": 36.5108, "lng": -4.885}, {"name": "Bilbao", "x": 288.5, "y": 58.6, "lat": 43.263, "lng": -2.935}, {"name": "San Sebastián", "x": 326.6, "y": 55.4, "lat": 43.3183, "lng": -1.9812}, {"name": "Palma de Mallorca", "x": 512.0, "y": 276.4, "lat": 39.5696, "lng": 2.6502}, {"name": "Lisbon", "x": 41.5, "y": 326.1, "lat": 38.7223, "lng": -9.1393}, {"name": "Porto", "x": 62.1, "y": 182.4, "lat": 41.1579, "lng": -8.6291}, {"name": "Sintra", "x": 16.0, "y": 290.0, "lat": 38.7999, "lng": -9.3817}, {"name": "Faro", "x": 89.5, "y": 426.5, "lat": 37.0194, "lng": -7.9304}, {"name": "Cascais", "x": 18.0, "y": 340.0, "lat": 38.6979, "lng": -9.4215}, {"name": "Évora", "x": 89.2, "y": 335.3, "lat": 38.5714, "lng": -7.9135}, {"name": "Coimbra", "x": 69.3, "y": 239.0, "lat": 40.2033, "lng": -8.4103}, {"name": "Aveiro", "x": 59.9, "y": 213.0, "lat": 40.6443, "lng": -8.6455}, {"name": "Albufeira", "x": 55.0, "y": 432.0, "lat": 37.0891, "lng": -8.2503}, {"name": "Douro Valley", "x": 94.3, "y": 182.5, "lat": 41.1621, "lng": -7.7871}, {"name": "São Miguel", "x": 448, "y": 445, "lat": 37.7412, "lng": -25.6699, "inset": true}, {"name": "Terceira", "x": 492, "y": 440, "lat": 38.656, "lng": -27.2216, "inset": true}, {"name": "Faial", "x": 522, "y": 458, "lat": 38.5325, "lng": -28.6291, "inset": true}, {"name": "Madeira", "x": 448, "y": 495, "lat": 32.6669, "lng": -16.9241, "inset": true}];
+  // Douro Valley and San Sebastián were both repositioned here (Sep 2026,
+  // on top of the +230 eastward shift every other pin also got) — both
+  // had visibly merged, unreadable labels with their nearest neighbor
+  // (Porto, Bilbao) confirmed directly from a real screenshot ("PoDtouro
+  // Valley", "BilSan Sebastián"), not from the flat 22px-clearance
+  // precedent this map has used elsewhere, which turned out to under-
+  // clear a pair once either label is long. Both moved further from
+  // their neighbor while staying inside the real landmass polygon
+  // (re-verified) and still directionally sensible: Douro Valley further
+  // east/inland along its own river valley from Porto (was 32px apart,
+  // now 75px), San Sebastián further east along the north coast from
+  // Bilbao, nudged south slightly since the real coastal strip there is
+  // narrow (was 38px apart, now 78px).
+  const TRIP_PLANNER_PINS = [{"name": "Madrid", "x": 487.7, "y": 226.4, "lat": 40.4168, "lng": -3.7038}, {"name": "Toledo", "x": 480.5, "y": 258.0, "lat": 39.8628, "lng": -4.0273}, {"name": "Barcelona", "x": 722.9, "y": 169.3, "lat": 41.3851, "lng": 2.1734}, {"name": "Valencia", "x": 620.9, "y": 282.3, "lat": 39.4699, "lng": -0.3763}, {"name": "Seville", "x": 396.4, "y": 405.0, "lat": 37.3891, "lng": -5.9845}, {"name": "Granada", "x": 491.9, "y": 417.4, "lat": 37.1773, "lng": -3.5986}, {"name": "Córdoba", "x": 444.6, "y": 375.5, "lat": 37.8882, "lng": -4.7794}, {"name": "Málaga", "x": 459.0, "y": 444.3, "lat": 36.7213, "lng": -4.4214}, {"name": "Marbella", "x": 440.4, "y": 456.7, "lat": 36.5108, "lng": -4.885}, {"name": "Bilbao", "x": 518.5, "y": 58.6, "lat": 43.263, "lng": -2.935}, {"name": "San Sebastián", "x": 594, "y": 80, "lat": 43.3183, "lng": -1.9812}, {"name": "Palma de Mallorca", "x": 742.0, "y": 276.4, "lat": 39.5696, "lng": 2.6502}, {"name": "Lisbon", "x": 271.5, "y": 326.1, "lat": 38.7223, "lng": -9.1393}, {"name": "Porto", "x": 292.1, "y": 182.4, "lat": 41.1579, "lng": -8.6291}, {"name": "Sintra", "x": 246.0, "y": 290.0, "lat": 38.7999, "lng": -9.3817}, {"name": "Faro", "x": 319.5, "y": 426.5, "lat": 37.0194, "lng": -7.9304}, {"name": "Cascais", "x": 248.0, "y": 340.0, "lat": 38.6979, "lng": -9.4215}, {"name": "Évora", "x": 319.2, "y": 335.3, "lat": 38.5714, "lng": -7.9135}, {"name": "Coimbra", "x": 299.3, "y": 239.0, "lat": 40.2033, "lng": -8.4103}, {"name": "Aveiro", "x": 289.9, "y": 213.0, "lat": 40.6443, "lng": -8.6455}, {"name": "Albufeira", "x": 285.0, "y": 432.0, "lat": 37.0891, "lng": -8.2503}, {"name": "Douro Valley", "x": 365, "y": 200, "lat": 41.1621, "lng": -7.7871}, {"name": "São Miguel", "x": 62, "y": 248, "lat": 37.7412, "lng": -25.6699, "inset": true}, {"name": "Terceira", "x": 142, "y": 242, "lat": 38.656, "lng": -27.2216, "inset": true}, {"name": "Faial", "x": 182, "y": 275, "lat": 38.5325, "lng": -28.6291, "inset": true}, {"name": "Madeira", "x": 60, "y": 335, "lat": 32.6669, "lng": -16.9241, "inset": true}];
   // Roads (Sep 2026) — the Seville–Lisbon label was corrected from "A-49"
   // (which is real, but only covers the Spain-side Seville–Huelva leg, not
   // the whole route) to "A-66 / A6" — the actual standard direct drive
@@ -11268,14 +11292,14 @@ ${resultsBody}
   // Porto–Douro Valley). No roads connect the four inset Azores/Madeira
   // pins — those are reached by domestic flight or seasonal ferry, not a
   // highway, matching how this map already treats every other island.
-  const TRIP_PLANNER_ROADS = [{"x1": 257.7, "y1": 226.4, "x2": 492.9, "y2": 169.3, "label": "A-2 / AP-7"}, {"x1": 257.7, "y1": 226.4, "x2": 390.9, "y2": 282.3, "label": "A-3"}, {"x1": 257.7, "y1": 226.4, "x2": 214.6, "y2": 375.5, "label": "A-4"}, {"x1": 214.6, "y1": 375.5, "x2": 166.4, "y2": 405.0, "label": "A-4"}, {"x1": 166.4, "y1": 405.0, "x2": 261.9, "y2": 417.4, "label": "A-92"}, {"x1": 261.9, "y1": 417.4, "x2": 229.0, "y2": 444.3, "label": "A-45"}, {"x1": 229.0, "y1": 444.3, "x2": 210.4, "y2": 456.7, "label": "AP-7"}, {"x1": 492.9, "y1": 169.3, "x2": 390.9, "y2": 282.3, "label": "AP-7"}, {"x1": 257.7, "y1": 226.4, "x2": 288.5, "y2": 58.6, "label": "A-1"}, {"x1": 288.5, "y1": 58.6, "x2": 326.6, "y2": 55.4, "label": "A-8"}, {"x1": 166.4, "y1": 405.0, "x2": 41.5, "y2": 326.1, "label": "A-66 / A6"}, {"x1": 41.5, "y1": 326.1, "x2": 16.0, "y2": 290.0, "label": "A-16"}, {"x1": 41.5, "y1": 326.1, "x2": 62.1, "y2": 182.4, "label": "A-1"}, {"x1": 41.5, "y1": 326.1, "x2": 89.5, "y2": 426.5, "label": "A-2"}, {"x1": 41.5, "y1": 326.1, "x2": 18.0, "y2": 340.0, "label": "A-5"}, {"x1": 41.5, "y1": 326.1, "x2": 89.2, "y2": 335.3, "label": "A-6"}, {"x1": 62.1, "y1": 182.4, "x2": 59.9, "y2": 213.0, "label": "A-1"}, {"x1": 59.9, "y1": 213.0, "x2": 69.3, "y2": 239.0, "label": "A-1"}, {"x1": 89.5, "y1": 426.5, "x2": 55.0, "y2": 432.0, "label": "A-22"}, {"x1": 62.1, "y1": 182.4, "x2": 94.3, "y2": 182.5, "label": "A-4"}];
+  const TRIP_PLANNER_ROADS = [{"x1": 487.7, "y1": 226.4, "x2": 722.9, "y2": 169.3, "label": "A-2 / AP-7"}, {"x1": 487.7, "y1": 226.4, "x2": 620.9, "y2": 282.3, "label": "A-3"}, {"x1": 487.7, "y1": 226.4, "x2": 444.6, "y2": 375.5, "label": "A-4"}, {"x1": 444.6, "y1": 375.5, "x2": 396.4, "y2": 405.0, "label": "A-4"}, {"x1": 396.4, "y1": 405.0, "x2": 491.9, "y2": 417.4, "label": "A-92"}, {"x1": 491.9, "y1": 417.4, "x2": 459.0, "y2": 444.3, "label": "A-45"}, {"x1": 459.0, "y1": 444.3, "x2": 440.4, "y2": 456.7, "label": "AP-7"}, {"x1": 722.9, "y1": 169.3, "x2": 620.9, "y2": 282.3, "label": "AP-7"}, {"x1": 487.7, "y1": 226.4, "x2": 518.5, "y2": 58.6, "label": "A-1"}, {"x1": 518.5, "y1": 58.6, "x2": 594, "y2": 80, "label": "A-8"}, {"x1": 396.4, "y1": 405.0, "x2": 271.5, "y2": 326.1, "label": "A-66 / A6"}, {"x1": 271.5, "y1": 326.1, "x2": 246.0, "y2": 290.0, "label": "A-16"}, {"x1": 271.5, "y1": 326.1, "x2": 292.1, "y2": 182.4, "label": "A-1"}, {"x1": 271.5, "y1": 326.1, "x2": 319.5, "y2": 426.5, "label": "A-2"}, {"x1": 271.5, "y1": 326.1, "x2": 248.0, "y2": 340.0, "label": "A-5"}, {"x1": 271.5, "y1": 326.1, "x2": 319.2, "y2": 335.3, "label": "A-6"}, {"x1": 292.1, "y1": 182.4, "x2": 289.9, "y2": 213.0, "label": "A-1"}, {"x1": 289.9, "y1": 213.0, "x2": 299.3, "y2": 239.0, "label": "A-1"}, {"x1": 319.5, "y1": 426.5, "x2": 285.0, "y2": 432.0, "label": "A-22"}, {"x1": 292.1, "y1": 182.4, "x2": 365, "y2": 200, "label": "A-4"}];
   // Serra da Estrela (Sep 2026) — mainland Portugal's highest range, real
   // and central, added the same way every Spain mountain marker already is:
   // a labeled triangle glyph, no new marker type invented for parity with
   // Spain's own (unverified live, same status as everything else in this
   // Portugal build-out — a reasonable-sounding inland placement, not a
   // traced coordinate).
-  const TRIP_PLANNER_MOUNTAINS = [{"x": 425.9, "y": 97.7, "label": "Pyrenees"}, {"x": 271.9, "y": 425.0, "label": "Sierra Nevada"}, {"x": 209.8, "y": 357.1, "label": "Sierra Morena"}, {"x": 205.8, "y": 71.2, "label": "Cantabrian Mts."}, {"x": 205.8, "y": 227.4, "label": "Sistema Central"}, {"x": 100.0, "y": 215.0, "label": "Serra da Estrela"}];
+  const TRIP_PLANNER_MOUNTAINS = [{"x": 655.9, "y": 97.7, "label": "Pyrenees"}, {"x": 501.9, "y": 425.0, "label": "Sierra Nevada"}, {"x": 439.8, "y": 357.1, "label": "Sierra Morena"}, {"x": 435.8, "y": 71.2, "label": "Cantabrian Mts."}, {"x": 435.8, "y": 227.4, "label": "Sistema Central"}, {"x": 330.0, "y": 215.0, "label": "Serra da Estrela"}];
   // Spain–Portugal border (Sep 2026) — the landmass itself is one merged
   // polygon (Spain and Portugal were always meant to share a single map,
   // see this file's own Portugal build-out notes), so this is a separate
@@ -11289,11 +11313,11 @@ ${resultsBody}
   // (this environment has no way to fetch a real traced border dataset),
   // not survey-accurate — good enough to make "these are two countries"
   // visually legible, which is what was actually asked for.
-  const TRIP_PLANNER_BORDER = [[56, 155], [95, 160], [120, 200], [135, 250], [140, 320], [130, 380], [125, 425]];
+  const TRIP_PLANNER_BORDER = [[286, 155], [325, 160], [350, 200], [365, 250], [370, 320], [360, 380], [355, 425]];
   // Douro (Sep 2026) — real Spain-to-Portugal river (the "Duero" upstream),
   // added the same shape as every other river here: a polyline flowing to
   // its real mouth city, Porto (62.1,182.4).
-  const TRIP_PLANNER_RIVERS = {"Tagus": [[291.9, 256.9], [257.8, 254.0], [213.8, 265.8], [149.8, 277.5], [105.8, 286.4], [39.7, 327.7]], "Guadalquivir": [[283.9, 377.8], [239.8, 371.9], [215.0, 375.4], [181.8, 398.4], [153.8, 439.7]], "Ebro": [[297.9, 112.5], [341.9, 116.6], [405.9, 153.7], [439.9, 192.1]], "Douro": [[150.0, 167.0], [125.0, 172.0], [100.0, 178.0], [75.0, 181.0], [62.1, 182.4]]};
+  const TRIP_PLANNER_RIVERS = {"Tagus": [[521.9, 256.9], [487.8, 254.0], [443.8, 265.8], [379.8, 277.5], [335.8, 286.4], [269.7, 327.7]], "Guadalquivir": [[513.9, 377.8], [469.8, 371.9], [445.0, 375.4], [411.8, 398.4], [383.8, 439.7]], "Ebro": [[527.9, 112.5], [571.9, 116.6], [635.9, 153.7], [669.9, 192.1]], "Douro": [[380.0, 167.0], [355.0, 172.0], [330.0, 178.0], [305.0, 181.0], [292.1, 182.4]]};
   // Azores/Madeira inset box (Sep 2026) — the Azores (9 islands, real
   // lng ~ -25 to -31) and Madeira (real lng ~ -17) sit far west of every
   // other point this map's affine transform was fitted against; plotting
@@ -11311,7 +11335,21 @@ ${resultsBody}
   // real Locale Planning Quick Reference content elsewhere in this guide,
   // plus Madeira) keep their real lat/lng for the travel-time feature
   // below; only their on-screen x/y is schematic.
-  const TRIP_PLANNER_INSET_BOX = {"x": 412, "y": 412, "w": 138, "h": 98, "label": "Azores & Madeira (schematic — not to scale)"};
+  // Moved to the west margin (Sep 2026), replacing the earlier bottom-
+  // right-corner placement — reported directly by the DE as reading
+  // backwards ("the islands are on the Spain side when it should be on
+  // the west side"), a fair complaint: the Azores/Madeira really do sit
+  // west of Portugal, and a schematic-not-to-scale inset can still get
+  // its ROUGH direction right even when it can't be geographically
+  // precise. This new spot exists because of the +230 eastward shift
+  // applied to every other map constant above — genuinely empty space
+  // west of the (now-shifted) mainland coastline, not a leftover gap
+  // hunted for after the fact. Label shortened ("schematic" dropped,
+  // an em dash instead of parentheses) and the box widened/heightened
+  // so the text fits inside its own box width instead of overflowing
+  // past whichever edge happened to be nearby, which is what clipped it
+  // ("...not to sca[le]") in the old corner placement.
+  const TRIP_PLANNER_INSET_BOX = {"x": 12, "y": 205, "w": 205, "h": 155, "label": "Azores & Madeira — not to scale"};
   // Travel time / mode (Sep 2026) — click exactly 2 pins to see this.
   // Documented pairs use real facts already written elsewhere in this
   // guide (grep-sourced, not re-derived): Porto↔Faro's Ryanair-only
@@ -11382,7 +11420,7 @@ ${resultsBody}
     root.innerHTML = `
       <div id="tp-map-wrap">
         <div id="tp-map-col">
-          <svg id="tp-map-svg" viewBox="0 0 560 520" xmlns="http://www.w3.org/2000/svg">
+          <svg id="tp-map-svg" viewBox="0 0 790 520" xmlns="http://www.w3.org/2000/svg">
             <path id="tp-landmass" d="${QB_LANDMASS_PATH}"></path>
             <path id="tp-island" d="${QB_ISLAND_PATH}"></path>
             <path class="tp-border" d="${borderD}"></path>
