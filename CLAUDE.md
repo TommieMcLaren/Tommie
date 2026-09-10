@@ -9438,3 +9438,110 @@ touched here.
   not a Job Aid duplicate) is clear enough at a glance that a DE doesn't
   mistake it for the same kind of official-document content Spain's
   parallel section is — neither has been seen outside this environment.
+
+## PORTUGAL — Itineraries (Live Website Listings): the first entry, from a real KT Villas PDF, and a real "12 vs. 1" gap flagged (Sep 2026, unverified live)
+
+The DE said "here are all 12 Portugal itineraries" and attached one PDF —
+"Algarve Unveiled: A Luxury Villa Stay in Portugal," an 8-page print of a
+single kensingtontours.com Villas listing page (confirmed via `pypdf`'s
+real page count and `pdfminer.six` text extraction, not assumed from the
+upload UI's own page-count estimate, which read 28 and turned out to be
+wrong for the actual file). Only this one itinerary's content actually
+arrived this session — checked the session's own upload directory
+directly rather than guessing, and confirmed no other new files came in
+alongside it.
+
+- **This is the real breakthrough this build-out's "Live Website
+  Listings" gap has been waiting on** — every prior attempt to pull real,
+  priced, linked Portugal itineraries from the live site has been
+  blocked by this environment's `EGRESS_BLOCKED` restriction on
+  kensingtontours.com, stated explicitly and repeatedly throughout this
+  file's own history. A DE-supplied PDF print of the actual live page
+  sidesteps that block entirely — this is genuine, first-party website
+  content (title, price, route, day-by-day, and the real live URL),
+  not a guess or a Job-Aid approximation.
+- **Correctly identified as a different KT product line, not silently
+  treated as an ordinary multi-city tour.** The URL path is
+  `kensingtontours.com/villas/europe/portugal/...`, not `.../travels/
+  tours/...` the way every existing Spain "Live Website Listings" entry
+  is — a private villa stay with a dedicated Villa Specialist, an
+  in-villa private chef, and villa staff, genuinely different from a
+  hotel-based city-to-city tour. Flagged as its own distinct fact in the
+  new section's intro paragraph rather than presented as if it were the
+  same product shape as everything in Spain's parallel section.
+- **New `<h3 id="portugal-itineraries-live-website-listings">PORTUGAL —
+  ITINERARIES (Live Website Listings)</h3>`**, the direct Portugal
+  counterpart to Spain's own `119-spain-itineraries-live-website-
+  listings` section (cross-linked to it by anchor in the intro
+  paragraph), inserted right after `portugal-top-itineraries-job-aid`
+  and before `portugal-hotels-by-room-configuration` — the same
+  Job-Aid-then-live-listings ordering Spain's own section 118→119 uses.
+  Deliberately did NOT use Spain's `.media-gallery` tap-to-flip photo-
+  card format for this one entry — that pattern needs a real, verified
+  image URL, and unlike the Wikimedia-search method this build-out
+  established for real historic landmarks (Lisbon's 19-card conversion),
+  there's no equivalent verifiable-search method for KT's own
+  proprietary marketing photography; a guessed KT CDN path can't be
+  confirmed to resolve from this environment. Built as the same
+  Route/Duration/Highlights/link `<ul>` shape Spain's entries already
+  pair with their photo cards, plus one thing Spain's own entries don't
+  have: a genuinely real day-by-day table (8 rows), since the source PDF
+  actually provided that level of detail and this build-out's own
+  discipline is to place diligently what's given, not trim it down to
+  match another destination's shallower existing format.
+- **Added to `KT_LIVE_ITINERARIES` itself, not just the guide's prose**
+  — this is the first Portugal-only entry in that array to genuinely
+  satisfy its real contract (a real price AND a real link from the live,
+  bookable website), unlike the three Job-Aid-sourced Portugal
+  itineraries from an earlier session that were deliberately kept OUT of
+  this array specifically because they lacked both. `id: "algarve-
+  unveiled-a-luxury-villa-stay-in-portugal"`, `route: "Gale, Algarve
+  (Villa Stay)"`, `duration: "8 days"`, `price: "$4,461/person"`, a new
+  `"🏡 Villa Stay"` badge (distinguishing it from the array's existing
+  `"🚢 Kensington Cruise"` badge convention for a different alternate
+  product line), and `tags: ["villa","algarve","beach","luxury",
+  "private-chef"]`. Verified by re-extracting and `JSON.parse`-ing the
+  live array after the edit (16 entries now, up from 15, the new one
+  well-formed) — not just visually checked.
+- **Sidebar nav updated**: a new expandable entry ("Itineraries (Live
+  website listings)", `navsubP9`) inserted between "Top itineraries (Job
+  Aid)" and "Hotels by room configuration (Job Aid)," with one real
+  subsection link to the Algarve Unveiled entry — built with room to
+  grow as the other 11 itineraries arrive, matching the toggle/
+  subsection pattern every other multi-entry Portugal section already
+  uses.
+- **The "12 vs. 1" gap stated plainly in the section's own intro
+  paragraph, not just in this CLAUDE.md entry** — a DE reading the guide
+  itself sees the honest state ("only one of these has been transcribed
+  so far... the other 11 still need to be sent") rather than a page that
+  quietly implies completeness it doesn't have.
+- Verified via this project's established non-script-content discipline
+  plus the one real JS-data check this edit needed: all 16 inline
+  `<script>` blocks re-extracted and `node --check`ed individually (all
+  pass — confirms the new `KT_LIVE_ITINERARIES` object literal is
+  syntactically valid); a full script-excluded tag-balance recount
+  (div/table/tr/td/th/thead/tbody/ul/li/h3/h4/p/button/span/select/
+  label/details/summary/a/strong/em all held exactly even across the
+  whole file); the duplicate-id sweep (unchanged from the established
+  baseline — the same 4 pre-existing, unrelated Client Tracker bulk-
+  action-bar ids; the three new ids — the new `<h3>`, the new `<h4>`,
+  and `navsubP9` — all confirmed genuinely unique); a `getElementById`
+  cross-check (zero missing targets); and the `KT_LIVE_ITINERARIES`
+  re-extract-and-`JSON.parse` described above.
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this entry's specific facts (the exact golf-course/restaurant
+  names, the 45-minute transfer times, the $4,461 starting price) have
+  been checked against a live source beyond the PDF itself — transcribed
+  faithfully from the PDF's own text, not independently re-confirmed
+  (and can't be, since kensingtontours.com is still unreachable from
+  this environment). Whether adding a `"villa"`-tagged, single-location
+  entry into `KT_LIVE_ITINERARIES` causes any surprising behavior in
+  `find_matching_itinerary`'s city-overlap scoring (Gale/Algarve/Faro
+  aren't `QB_CITY_ORDER` cities, so this should behave like every other
+  already-added Portugal city name that isn't in that list — inert
+  until Portugal is ever added to it) hasn't been exercised live either.
+  Test next, once the DE sends more: open the new section in a real
+  browser and confirm the day-by-day table and the live link both render
+  correctly, and — the most useful live check — ask the Trip Assistant
+  something like "what's a good Algarve villa option" and see whether
+  `find_matching_itinerary` surfaces this new entry sensibly.
