@@ -90,7 +90,20 @@
   #sidebar summary::before { content: '▸'; display: inline-block; width: 14px; color: var(--gold-light); font-size: 11px; }
   #sidebar details[open] > summary::before { content: '▾'; }
   #sidebar summary a { display: inline; padding: 0; }
-  #main { margin-left: 330px; padding: 0 0 80px; max-width: 960px; width: 100%; }
+  /* max-width raised from 960px (Sep 2026) so the Interactive Trip Planner
+     Map (Section 1.18/1.20) has real room to render at a useful size —
+     960px minus #main-inner's own 120px of side padding left only ~840px
+     for the map, not enough to fit #tp-map-col beside #tp-controls at any
+     real size, so the map+controls silently stacked instead of sitting
+     side by side, wasting the actual space to the right of the whole
+     content column on any normal-width screen. Real tradeoff, stated
+     plainly: this also widens the line length of every other paragraph/
+     table in the guide, not just the map — 1300px is still a normal
+     desktop content width for a reference tool with heavy tables, but
+     hasn't been checked live for whether long stretches of plain prose
+     now feel too wide to read comfortably; worth a look next time a
+     text-heavy section (not just the map) is open in a real browser. */
+  #main { margin-left: 330px; padding: 0 0 80px; max-width: 1300px; width: 100%; }
   #main-inner { padding: 48px 60px; }
   #topbanner {
     background: linear-gradient(120deg, var(--sage-dark), var(--sage));
@@ -1260,7 +1273,7 @@
     align-items: flex-start;
     justify-content: center;
     margin: 16px auto 26px;
-    max-width: 1180px;
+    max-width: 1280px;
     background: var(--beige);
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -1270,17 +1283,27 @@
      wider wrap, leaving a lot of visible empty space to the right on any
      normal-width screen (reported live) — svg+legend are now grouped in
      their own centered column so the map can actually grow to use the
-     freed room instead of sitting small in a corner of it. */
+     freed room instead of sitting small in a corner of it. A follow-up
+     report (also Sep 2026) found that fix never actually reached its own
+     ceiling: #main (the whole guide's content column) was hard-capped at
+     max-width:960px, so #main-inner's real usable width (~840px after its
+     own 60px side padding) was already narrower than #tp-map-col+#tp-
+     controls' combined flex-basis — the map's own wrap never had room to
+     grow into, and #tp-controls was silently dropping below it on every
+     normal-width screen, not just a narrow one. Raised #main's cap (and
+     its sidebar-collapsed variant) alongside the sizes below so the two
+     actually fit side by side with real room to spare — see the #main
+     rule itself for the fuller note on that tradeoff. */
   #tp-map-col {
-    flex: 3 1 640px;
-    max-width: 720px;
+    flex: 3 1 660px;
+    max-width: 760px;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
   #tp-map-svg {
     width: 100%;
-    max-width: 700px;
+    max-width: 740px;
     background: #eaf3ec;
     border-radius: 10px;
   }
@@ -1320,7 +1343,7 @@
     pointer-events: none;
   }
   .tp-pin.selected .tp-pin-label { fill: var(--gold-text); font-weight: 800; }
-  #tp-controls { flex: 1 1 260px; min-width: 240px; max-width: 340px; }
+  #tp-controls { flex: 1 1 260px; min-width: 240px; max-width: 320px; }
   #tp-selected-label {
     font-size: 13.5px;
     font-weight: 700;
@@ -1759,7 +1782,7 @@
   #sidebarExpandBtn { display: none; position: fixed; left: 12px; top: 14px; z-index: 1150; background: var(--sage-darker); color: #fff; border: 0; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
   #sidebar, #main { transition: transform .22s ease, margin-left .22s ease; }
   body.sidebar-collapsed #sidebar { transform: translateX(-100%); }
-  body.sidebar-collapsed #main { margin-left: 0; max-width: 1100px; margin-right: auto; }
+  body.sidebar-collapsed #main { margin-left: 0; max-width: 1400px; margin-right: auto; }
   body.sidebar-collapsed #sidebarExpandBtn { display: block; }
   body.sidebar-collapsed #topbanner { padding-left: 64px; }
   .nav-extra { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.1); }

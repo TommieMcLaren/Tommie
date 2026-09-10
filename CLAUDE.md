@@ -8600,3 +8600,104 @@ whole Portugal build-out.
   Granada) and confirm a clearly-labeled estimate appears instead, and
   confirm selecting a 3rd pin or clearing selection correctly
   hides the travel-time box again.
+
+## Interactive map: the real bottleneck was the whole guide's content column, not the map's own CSS (Sep 2026, unverified live)
+
+Direct follow-up, from a fresh screenshot showing the map's controls
+("Click cities to add them" + the two buttons) dropped BELOW the map
+instead of beside it, with a large blank area to the right of the whole
+thing: "Can we use the space to the right on the map though? It is
+wasted space. That way all the mapping can be more accurate so all the
+cities can be in the appropriate location geographically."
+
+- **Root cause, found by reading the actual layout chain rather than
+  just re-tuning the map's own numbers again.** The previous "enlarge
+  and center" pass (see the entry above) raised `#tp-map-col`/`#tp-map-
+  svg` to a 700–720px range and `#tp-map-wrap` to a 1180px cap — but
+  never checked those against the REAL width available inside `#main`,
+  this guide's whole content column. `#main` has always been hard-capped
+  at `max-width: 960px`, and `#main-inner` adds `60px` of padding on
+  each side — so the actual usable width for anything inside, map
+  included, was only ~840px. `#tp-map-col`(720) + a 28px gap +
+  `#tp-controls`(340) = 1088px — already more than that 840px budget
+  **before** this session's own 10-new-pins/travel-time batch even
+  shipped. The controls were silently dropping to their own line on
+  every normal-width screen, not just narrow ones, and the "wasted
+  space" the DE is pointing at is the gap between `#main`'s own 960px-
+  capped column and the actual, much wider browser viewport around it —
+  confirmed this is the real shape of the bug (not the map's own SVG
+  having unused ocean space inside its viewBox — the Azores/Madeira
+  inset box already sits right up against the viewBox's own right edge,
+  leaving almost no true internal margin there).
+- **Fixed at that real bottleneck**: raised `#main`'s own `max-width`
+  (960px → 1300px) and its sidebar-collapsed variant
+  (`body.sidebar-collapsed #main`, 1100px → 1400px) — both left
+  otherwise identical (same offsets, same centering behavior, same
+  mobile `100%` fallback at the existing 900px breakpoint, untouched).
+  Then re-sized the map's own elements to actually use that newly real
+  room while comfortably fitting `#tp-map-col` beside `#tp-controls`
+  again (recomputed against `#main-inner`'s known 120px horizontal
+  padding and `#tp-map-wrap`'s own 48px, not just guessed): `#tp-map-
+  col` 720px → 760px, `#tp-map-svg` 700px → 740px, `#tp-controls` 340px
+  → 320px, `#tp-map-wrap` 1180px → 1280px. The math: default state now
+  has ~1132px of real flex budget, and `760 + 28 + 320 = 1108px` fits
+  inside it with ~24px to spare — a real, checked fit, not a repeat of
+  the same unverified-overflow mistake the previous pass made.
+- **A real, stated tradeoff, not a free win**: `#main` is the container
+  for the ENTIRE guide, so this also widens the line length of every
+  other paragraph and table in the file, not just the map — 1300px
+  (1400px collapsed) is still a normal desktop content width for a
+  reference tool this table-heavy, but it's a genuine, disclosed change
+  in how the rest of the guide reads, not something scoped only to the
+  map section. Deliberately did NOT attempt a narrower "just break the
+  map out of `#main`'s box" CSS trick (negative-margin/viewport-calc
+  breakout) instead — `#main`'s own left offset differs across three
+  real states (330px sidebar-expanded, 0px collapsed, 0px mobile), and
+  a breakout calibrated to only one of those would either overflow or
+  silently do nothing in the other two; this environment has no way to
+  render and catch that kind of overflow bug before it ships, so the
+  plain, uniform width increase — the same one CSS number checked
+  against the same layout math in all three states — was the safer,
+  more honestly verifiable choice, even though it's a bigger blast
+  radius than "just the map."
+- **"So all the cities can be in the appropriate location geographically"
+  — addressed as a rendering/legibility fix, not a coordinate change.**
+  No pin coordinates, the affine transform, or `QB_LANDMASS_PATH` were
+  touched here — those were already verified geographically correct
+  (point-in-polygon/clearance-checked) in the immediately preceding
+  entry. This pass is purely about the map rendering PHYSICALLY BIGGER
+  (more real screen pixels per viewBox unit), which is what actually
+  helps the already-correct-but-tightly-clustered Portugal pins
+  (Lisbon/Cascais/Sintra/Évora, Porto/Aveiro/Coimbra/Douro Valley) read
+  as being in genuinely separate, legible locations rather than a
+  crowded knot — the same relative geographic accuracy, just easier to
+  actually see.
+- Verified via this project's established non-script-content discipline:
+  all 16 inline `<script>` blocks re-extracted and `node --check`ed
+  individually (unaffected — pure CSS, checked anyway per standing
+  practice); a full script-excluded tag-balance recount (all tracked
+  tags held exactly at the established baseline — no HTML markup
+  touched, only CSS values); the duplicate-id sweep (unchanged from
+  baseline — the same 4 pre-existing, unrelated Client Tracker bulk-
+  action ids; no new `id` attributes were added); and the actual layout
+  arithmetic re-derived from the real `#main-inner`/`#tp-map-wrap`
+  padding values read directly out of the file (not assumed from
+  memory) and checked to fit in both the default and sidebar-collapsed
+  states before committing, the same real-numbers-not-guesses discipline
+  this whole map-extension effort has used throughout.
+- **Unverified live, and this is the one thing most worth a real
+  browser check**: whether 1300px (1400px collapsed) actually reads as
+  "comfortably wider" or "too wide" for the guide's plain prose
+  sections — tables and the map benefit clearly, but long paragraphs of
+  running text haven't been seen at this new width in a real browser.
+  Also unverified: whether `#tp-map-col`/`#tp-controls` now genuinely
+  sit side by side as intended (the arithmetic checks out, but arithmetic
+  isn't a browser), and whether the bigger map (740px vs. the old
+  effective ~700px) reads as meaningfully roomier or only marginally so
+  once actually rendered. Test next: open the Interactive Trip Planner
+  Map at a normal desktop window width and confirm the "Click cities to
+  add them" controls now sit beside the map (not below it), that there's
+  visibly less blank space to the right of the whole section, and — the
+  real tradeoff check — skim a text-heavy section elsewhere in the guide
+  (e.g. a Culture & Etiquette page) and confirm the wider paragraph
+  column still reads comfortably rather than feeling stretched.
