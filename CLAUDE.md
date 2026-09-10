@@ -9029,3 +9029,96 @@ place only what's given" rule; expect it in a later chunk of this same
   content (named in the lesson title but not yet sent), then presumably
   Porto/Sintra/Douro Valley/Algarve/the Azores/Madeira in whatever order
   the remaining 8 lessons cover.
+
+## Cascais: a first real destination stub, built from the second half of the same hotel-selection lesson (Sep 2026, unverified live)
+
+Direct continuation — the Cascais half of "Hotels in Lisbon and Cascais /
+Lesson 1 of 9" arrived next: a 2-pin map (Hotel Albatroz Cascais, The
+Oitavos Hotel), a detail card + location-notes panel for each, and a
+short Cascais intro plus a Beachfront-vs-Golf-Resort hotel-selection
+framing. Unlike Lisbon, Cascais had **zero** dedicated section anywhere
+in this guide before this pass — only a generic mention inside "Portugal
+— Key Locales Overview" and a row in the Locale Planning Quick Reference
+table (confirmed via grep before writing anything).
+
+- **Given a compact `<h4 id="cascais-region">🏖️ CASCAIS</h4>` stub**,
+  matching the established shape for a locale with real-but-not-yet-full
+  content (Sintra/Douro Valley/Algarve/Madeira's own stubs) rather than
+  promoted straight to a full `<h3>` — two hotels and one selection
+  framework isn't yet the depth Lisbon/Porto/the Azores had when THEY
+  were promoted. Placed right after Sintra in document order (both are
+  Lisbon-satellite locales, geographically and in how clients book them)
+  and before Douro Valley — a deliberate ordering choice, not arbitrary.
+- **The Cascais intro paragraph was NOT duplicated** — the pasted lesson's
+  own opening line ("coastal retreat known for its beaches, golf, and
+  laid-back atmosphere") restates almost exactly what "Portugal — Key
+  Locales Overview" already says about Cascais ("once a royal retreat...
+  charming, laid-back coastal town with golf courses, elegant villas, and
+  great seafood"). Read as confirmation, not new content — the stub's own
+  intro cross-references that existing paragraph by name instead of
+  repeating it, then states the real reason a second paragraph is worth
+  having here: hotel selection specifically.
+- **"Choosing where to stay" — genuinely new, Cascais-specific framing**,
+  parallel to (but more specific than) the general "Selecting Hotels in
+  Portugal" note added in the previous pass: Beachfront &amp; Central
+  Cascais (walkable to beach/shops/restaurants) vs. Outskirts &amp;
+  Golf-Focused Resorts (secluded, upscale, often inland, may need
+  transportation) — transcribed as given, not merged into the general
+  Portugal-wide note since it's specific enough to this one locale to
+  earn its own line.
+- **Two real hotels, transcribed with their confirmed Style/Size/
+  Kensington-Level fields and both cards' bullets/location notes folded
+  together into one prose entry each** (matching the Douro Valley/
+  Algarve compact-stub convention — prose paragraphs with bolded hotel
+  names, not a full multi-column table, since a table felt like overkill
+  for 2 entries and would have been visually inconsistent with how every
+  OTHER compact stub in this file presents its hotels): **Hotel Albatroz
+  Cascais** (Historic, Boutique, Luxe) — cliff-perched between two
+  beaches, central, glamorous, wine tasting at their own cellar, 1
+  accessible ground-floor room, can be crowded in peak season. **The
+  Oitavos Hotel** (Contemporary, Medium, Luxe) — minimalist modern
+  resort, panoramic ocean views, part of a larger golf resort near
+  Quinta da Marinha (west of central Cascais — may not suit non-golfers),
+  spa/sea-water pool/equestrian centre/health club, no extra beds in any
+  room.
+- **Added to the sidebar nav too, not left orphaned** — a new "Cascais"
+  `nav-item-solo` entry inserted right after "Sintra," matching the
+  file's own established discipline (the earlier sidebar-rebuild session
+  learned this lesson the hard way — a stale, uncrosschecked nav is a
+  real, previously-shipped bug class in this file, not a hypothetical
+  risk). Confirmed via a `getElementById`/href cross-check that
+  `#cascais-region` now resolves to exactly one real heading and the new
+  nav link targets it correctly.
+- **Deliberately not added**: a pronunciation flip-card for "Cascais" —
+  checked directly that Sintra/Douro Valley/Algarve (Cascais' fellow
+  compact stubs) don't have one either, so adding one only to Cascais
+  would have been a new inconsistency, not a fix; a `SEARCH_INDEX` entry
+  — same established, accepted gap already documented for every other
+  compact-stub locale, not something this one pass needs to close; and a
+  full `<h3>` promotion — two hotels is real content, but not yet the
+  same depth (Orientation/Airport/Key Attractions/Food & Culture/etc.)
+  that earned Lisbon/Porto/the Azores their own full section.
+- Verified via this project's established non-script-content discipline:
+  all 16 inline `<script>` blocks re-extracted and `node --check`ed
+  individually (unaffected — pure HTML, checked anyway per standing
+  practice); a full script-excluded tag-balance recount (table/tr/td/th/
+  thead/tbody/ul/li/h3 all held exactly even; h4 +1 for the new Cascais
+  heading, div +1/a +1 for the new nav entry's own `<div><a>...</a></div>`
+  wrapper, p +3 for the three new paragraphs — every increment internally
+  balanced, none a mismatch); the duplicate-id sweep (unchanged from the
+  established baseline — the same 4 pre-existing, unrelated Client
+  Tracker bulk-action ids; `cascais-region` confirmed to appear exactly
+  once as an id and exactly once as a nav href target); and a
+  `getElementById` cross-check confirming zero broken lookups anywhere
+  in the file.
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this batch's specific facts (Hotel Albatroz's cellar wine
+  tasting, The Oitavos' exact amenity list, the Quinta da Marinha
+  positioning) have been checked against a live source beyond the lesson
+  screenshots and text themselves. Whether a brand-new sidebar entry
+  between Sintra and Douro Valley reads cleanly in a real browser, and
+  whether presenting only 2 hotels as prose (rather than a table) reads
+  as consistent with the rest of the Portugal section or as visually
+  thin, haven't been seen outside this environment. Next in this 9-lesson
+  series: presumably Porto, Sintra, or another locale's hotel content in
+  whatever order Lessons 2–9 arrive.
