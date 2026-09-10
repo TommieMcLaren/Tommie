@@ -8824,3 +8824,111 @@ scaling and accuracy."
   read as two separate, non-overlapping labels, and that the inset
   box's own label ("Azores & Madeira — not to scale") is fully visible,
   not cut off at either edge.
+
+## Interactive map: the Azores/Madeira box removed, the four islands spread across the real available west margin (Sep 2026, unverified live)
+
+Direct follow-up, from a fresh screenshot showing the islands now correctly
+positioned on the west side (per the coordinate-shift fix above) but all
+four crammed inside one small dashed box, with a lot of the newly-opened
+west-margin space left visibly unused around it: "Okay now lets scale the
+islands and remove the box around it and the map utilizing all the space
+in the area. Make it user friendly and easy to read."
+
+- **The box/rect is gone entirely, not just restyled.** `TRIP_PLANNER_
+  INSET_BOX` (`{x, y, w, h, label}`) is replaced by `TRIP_PLANNER_INSET_
+  LABEL` (`{x, y, label}`) — a single point, not a rectangle — and the
+  render code's `insetSvg` const dropped its `<g class="tp-inset-box">`
+  wrapper and `<rect>` entirely, now just one plain `<text class="tp-
+  inset-label">` element. The `.tp-inset-box rect` CSS rule (the dashed-
+  border/fill box styling) was deleted outright — nothing left to style,
+  since there's no rect anymore.
+- **The four island pins spread across the real, now much larger, open
+  space instead of staying confined to the old box's small footprint.**
+  New positions — São Miguel (70,90), Terceira (165,135), Faial (55,225),
+  Madeira (115,410) — use roughly the full available margin (x from ~55
+  to 165, y from 90 to 410, most of the viewBox's vertical extent) rather
+  than the old box's tight 205×155 sub-region. Every position was checked
+  in Python BEFORE editing the file, per this whole map-extension effort's
+  established discipline: a real point-in-polygon test confirms all four
+  land outside both `QB_LANDMASS_PATH` and `QB_ISLAND_PATH` (nothing
+  drifted onto real land or the Mallorca shape); pairwise distance among
+  the four themselves came back 105–323px apart (genuinely spread, not
+  just technically non-overlapping); and distance to the nearest real-
+  position mainland pin came back 135–241px (Porto, Sintra, and Cascais
+  are the three nearest neighbors, none remotely close enough to risk a
+  label collision). Re-verified against the actual committed file content
+  after the edit, not just the drafted coordinates — this project's own
+  history (`ITIN_STOPWORDS`, the Lisbon↔Évora sort-key bug earlier this
+  session) has more than once shown that "the draft looked right" isn't
+  the same as "the shipped file is right."
+- **A plain unboxed italic caption replaces the box's own label, kept
+  rather than dropped, to preserve this whole build-out's standing
+  "schematic, not to scale" honesty convention** (the same disclosure
+  this file already applies to the coastline redraw, the country border
+  line, and every haversine-based travel-time estimate) — just without a
+  rectangle wrapped around it. Positioned once, above the island cluster
+  (110,45) rather than centered inside a box that no longer exists;
+  verified it sits outside the landmass and comfortably clear of every
+  pin (60–365px). Restyled from a small bold sage label (`font-weight:
+  700`, meant to read against its own box's fill) to a lighter italic
+  caption (`font-style: italic; font-weight: 600; opacity: 0.75`) that
+  reads as a quiet annotation floating in open space, not a leftover
+  label with nothing to anchor it.
+- **`.tp-pin-inset`'s existing dashed-dot-outline CSS was deliberately
+  left untouched** — with the box gone, this is now the only remaining
+  per-pin visual cue (alongside the caption) marking these four as
+  schematic rather than true-position, so removing it too would have
+  left the four islands visually indistinguishable from every other pin
+  on the map, quietly undoing the very honesty this whole feature exists
+  to preserve.
+- **Pin dot/label sizing was deliberately kept identical to every
+  mainland pin** — considered and rejected enlarging just these four to
+  visually "use the space" more; inconsistent pin sizing would read as a
+  rendering bug rather than a deliberate design choice, and the actual
+  ask ("scale the islands... utilizing all the space") is satisfied by
+  spreading their POSITIONS across the real available room, not by
+  making the pins themselves bigger than everywhere else on the map.
+- **`inset: true` was left on all four entries, unchanged** — still
+  load-bearing for the travel-time feature built earlier this session
+  (`tpEstimateTravelMode`'s fallback logic always recommends a flight for
+  any pair involving an inset pin, since a real trip there always crosses
+  open water regardless of mainland distance) — this pass only ever
+  touched `x`/`y`, never the flag itself.
+- Verified via this project's established discipline, re-run against the
+  final committed file content: all 16 inline `<script>` blocks re-
+  extracted and `node --check`ed individually (all pass — confirms the
+  new `TRIP_PLANNER_INSET_LABEL` object literal and the simplified
+  `insetSvg` template are syntactically valid); a full script-excluded
+  tag-balance recount (div 1733/1733, table 151/151, h3 80/80, h4
+  214/214, and every other tracked tag held exactly even — pure JS-data/
+  CSS/template changes, the box's removal and the caption's `<text>`-only
+  replacement are both internally balanced); the duplicate-id sweep
+  (unchanged from the established baseline — the same 4 pre-existing,
+  unrelated Client Tracker bulk-action ids; this edit added zero new `id`
+  attributes, since `TRIP_PLANNER_INSET_LABEL` and its `<text>` element
+  need none); a grep confirming zero remaining references to
+  `TRIP_PLANNER_INSET_BOX`/`.tp-inset-box` anywhere in the file (both
+  code and the two comments that used to name it); and the full geometry
+  re-check described above (point-in-polygon for all four repositioned
+  pins plus the caption, pairwise and nearest-neighbor clearance for all
+  four, and a full all-pins clearance sweep confirming Málaga/Marbella
+  — at the established 22.4px precedent — is still the single closest
+  pair on the whole map, i.e. nothing about this change introduced a new
+  tightest-clearance risk anywhere else).
+- **Unverified live, and this is real visual/layout work no static check
+  can confirm**: whether the four islands, now genuinely spread across
+  the west margin rather than clustered, read as a coherent "these four
+  are related, schematically grouped" set once the box that used to group
+  them visually is gone — spreading them further apart for legibility
+  necessarily trades away some of that visual grouping, and only a real
+  screenshot can say whether that tradeoff lands right; whether the new
+  italic unboxed caption is easy to notice/read floating above the
+  cluster rather than anchored inside a border; and whether the dashed-
+  dot pin styling alone is enough of a visual cue, on its own, to still
+  read as "these are different from the rest of the map" without the box
+  reinforcing it. Test next: open the Interactive Trip Planner Map and
+  confirm the four island pins now spread across a visibly larger stretch
+  of the west margin with no leftover box/rectangle anywhere, that the
+  "Azores & Madeira — not to scale" caption reads clearly above them, and
+  that all four still feel like a related group despite no longer being
+  visually boxed together.
