@@ -9696,3 +9696,168 @@ the real, complete batch originally meant by "all 12."
   and ask the Trip Assistant something like "what's a good option for a
   Lisbon and Porto wine trip" to see whether `find_matching_itinerary`
   surfaces the new entries sensibly alongside the existing ones.
+
+## QB_CITY_ORDER extended to Portugal — with real QB_HOTELS/QB_TOURS backfill, not a bare flip (Sep 2026, unverified live)
+
+Direct follow-up to "you can action all of it" against a list of previously-
+flagged open items. `QB_CITY_ORDER` had been explicitly deferred multiple
+times as "a real architectural decision worth its own conversation" — asked
+directly rather than silently flipped it, confirmed with the DE (add Portugal
+cities now), then found and closed a real gap the confirmation itself hadn't
+surfaced yet.
+
+- **A real gap found before touching `QB_CITY_ORDER` at all**: `QB_HOTELS`
+  and `QB_TOURS` were still Spain-only — only `QB_RESTAURANTS` had Lisbon/
+  Porto/Azores keys. Every consumer (`qbBestHotelIndex`, `qbRankedTour
+  Indices`, the `search_guide`/`get_city_data`-adjacent tool text builders)
+  reads via `QB_HOTELS[city] || []`, so this wouldn't have crashed — it
+  would have silently shown a DE an empty hotel/tour picker the moment they
+  selected Lisbon as a Quote Builder stop, exactly the "looks fine, quietly
+  degraded" shape this file's own history keeps warning about. Backfilled
+  both from real content already sitting in the guide (the Lisbon/Porto/
+  Azores Hotels tables built from the xlsx Job Aid pass, and the "PORTUGAL
+  — TOP TOURS (Job Aid)" section's real per-locale tour listings) — not
+  fabricated, and not a second, disconnected data source: `QB_HOTELS.Lisbon`
+  is the same 5 hotels/tiers already in the guide's own Hotels table,
+  `QB_TOURS.Lisbon` the same 6 real tours already in the Top Tours section,
+  same for Porto (4 hotels/2 tours) and Azores (5 hotels/2 tours).
+- **Checked `qbStopsForDays()` — the actual auto-pick trip-length
+  algorithm — before assuming the ripple effect I'd described to the DE
+  was real.** It turned out to be a fully hardcoded Spain-only function
+  that never reads `QB_CITY_ORDER` at all — so unlike what was implied
+  when asking the DE about this, adding Portugal cities does NOT make the
+  Quote Builder auto-build mixed Spain+Portugal itineraries; that would
+  need a separate, deliberate edit to `qbStopsForDays()` itself, not
+  attempted here since it wasn't what was asked. The real effect of this
+  change is narrower and safer: Portugal cities become valid options in
+  the manual per-stop `<select>` dropdown, valid destinations for
+  `extractDestination()` (client-message parsing), and valid entries for
+  the route-map-preview city filter — all confirmed order-independent
+  (`.includes()`/`.map()` only, no position-dependent logic) across all 7
+  real usages before editing.
+- **The Azores deliberately included despite being an archipelago, not a
+  single city** — checked `qbRouteMapSvg()` handles this gracefully:
+  `coords[s.city]` returns undefined for "Azores" (no single pin by that
+  exact name — the real map pins are São Miguel/Terceira/Faial
+  individually), and the function already filters unmatched cities out
+  rather than crashing, so a route-map preview involving "Azores" as a
+  Quote Builder stop just silently omits it from that one visual instead
+  of erroring — an acceptable, already-existing soft-fallback, not a new
+  risk introduced by this change.
+- Verified: all 16 `<script>` blocks pass `node --check`; `QB_CITY_ORDER`/
+  `QB_HOTELS`/`QB_TOURS` re-extracted and `JSON.parse`-d to confirm all
+  three are well-formed with the new Portugal entries present and correctly
+  shaped (same `{name, tier}`/`{name, tags}` schema as every Spain entry).
+- **Unverified live**: whether picking Lisbon/Porto/Azores as a manual
+  Quote Builder stop now produces a sensible hotel/tour/restaurant picker
+  in a real browser, and whether `extractDestination()` correctly picks up
+  a Portugal city mentioned in a typed client message — neither tested
+  outside this environment.
+
+## Porto and the Azores: Key Attractions converted to real photo cards, matching Lisbon's own (Sep 2026, unverified live)
+
+Direct continuation of the previously-flagged "Porto's and the Azores' own
+Key Attractions tables converting to real tap-to-flip photo cards" item —
+the same Wikimedia-Commons-search-then-verify method established for
+Lisbon's 19-card conversion, reused without shortcuts.
+
+- **16 of 17 Porto attractions and 14 of 15 Azores attractions got real
+  photo cards**; the two without a confidently-matched Commons file (the
+  Tower of Dom Pedro Pitões — Porto's tourism-office landmark — and the
+  Santana Astronomical Observatory in the Azores) were deliberately left
+  as plain text notes rather than guessed at, matching this build-out's
+  standing "don't guess a filename" rule. Every image URL used a filename
+  pulled from a real `site:commons.wikimedia.org` search hit, built as
+  `Special:FilePath/<exact filename>` — the same pattern Lisbon's cards
+  and Madrid's own original cards already use.
+- **Existing "why it matters"/"practical info" table text carried over
+  into each card's detail paragraph essentially verbatim**, not
+  rewritten — this was a format conversion (table rows → flip cards),
+  not a content rewrite; nothing about the underlying facts changed.
+- **"Learn more" links prefer the venue's own official site (already
+  verified present in the original table) over a guessed Wikipedia
+  title** — 10 of Porto's 16 cards and most of the Azores' link to the
+  same official/venue links the plain table already had confirmed;
+  only where no official link existed in the original table (Ribeira,
+  Porto Cathedral, Dom Luís I Bridge, São Bento Station, Church of Santa
+  Clara) did this reach for a Wikipedia article title, and even those
+  were checked against real search results rather than typed from
+  memory where the search actually confirmed the article exists (Church
+  of Santa Clara, Soares dos Reis Museum, Serralves, Portuguese Centre
+  of Photography, Terra Nostra Park, Lagoa das Sete Cidades, Algar do
+  Carvão, Lagoa da Fajã de Santo Cristo all confirmed real via search
+  before use). Two entries with no confirmed dedicated article (Lagoa
+  do Fogo, Furna do Enxofre's exact page, Rocha dos Bordões, Museu
+  Carlos Machado) fall back to a real Commons category/file page
+  instead — same "Wikipedia, the venue's site, or the Commons category
+  as last resort" rule Lisbon's own conversion already established.
+- **Port Wine Caves at Vila Nova de Gaia's card image is a real Sandeman
+  cellar interior, not a Taylor's-branded photo** — searched specifically
+  for a Taylor's cellar/building photo first (the card's own text singles
+  Taylor's out as "a standout") and came up empty beyond a bottle-label
+  product shot, which wasn't a fair visual match for a cellar-tour
+  attraction; since the card's own title is the broader "Port Wine Caves
+  at Vila Nova de Gaia," not "Taylor's" specifically, a real, confirmed
+  cellar-interior photo from a different Gaia lodge (Sandeman) was judged
+  the more honest choice over either a mismatched product photo or a
+  guessed Taylor's building filename.
+- Verified via this project's established non-script-content discipline:
+  all 16 `<script>` blocks re-verified via `new Function()`/`node --check`
+  parsing (unaffected — pure HTML card markup, no script logic touched);
+  a full script-excluded tag-balance recount (div 2101/2101, table
+  167/167, h3 85/85, h4 244/244, and every other tracked tag held exactly
+  even, including a correctly-uncounted `<img>` void-element count); the
+  duplicate-id sweep (unchanged from the established baseline — this
+  batch added zero new `id` attributes, since `.media-card` markup
+  doesn't need any).
+- **Unverified live, and this is a real, stated limitation carried over
+  from Lisbon's own conversion, not new to this pass**: none of the 30
+  new Commons image URLs (16 Porto + 14 Azores) has actually been
+  rendered and looked at from this environment — confirmation stops at
+  "a search result really points to a File: page with this exact name,"
+  not "this URL definitely renders a real photo in a browser." Test next,
+  in priority order: open Porto's and the Azores' Key Attractions
+  galleries in a real browser and scan for any broken image icons — the
+  single most useful thing to check first, same as Lisbon's own
+  still-outstanding item.
+
+## Pronunciation Guide: the 11 outstanding Job Aid checklist words added (Sep 2026, unverified live)
+
+Direct continuation of the last previously-flagged open item — the guide's
+own Pronunciation Guide section had explicitly named 11 words the official
+Job Aid's "Pronounciation" checklist flags for practice but never supplies
+actual phonetics for (Alentejo, Coimbra, Cascais, Jerónimos Monastery,
+Óbidos, Quinta da Regaleira, Moliceiro boat, Sete Cidades, Funchal,
+Terceira, Almendres Cromlech), deliberately left out of the section rather
+than guessed at in an earlier pass.
+
+- **Added with the same treatment the section's own first four entries
+  (Lisboa/Porto/Açores/Madeira) already received** — reasonable general
+  Portuguese-pronunciation phonetics, explicitly disclosed as NOT a
+  transcription of official KT guidance (the Job Aid itself never supplies
+  phonetics, only the word list), matching the honesty standard this
+  guide already applies to every other unverified-but-reasonable judgment
+  call. The section's own intro paragraph was rewritten to state this
+  plainly for all 15 entries now in the grid, rather than singling the
+  new 11 out with a different disclosure standard than the original 4
+  quietly carried.
+- **A short one-line context note added to each new entry** (matching the
+  existing four cards' own "why this word matters" style) — e.g. Óbidos'
+  note ties back to the ginjinha liqueur already documented under Lisbon's
+  Day Trips, Almendres Cromlech's ties back to Évora's own already-built
+  content — so each card reads as a real cross-reference into the guide,
+  not an isolated flashcard.
+- Verified via this project's established non-script-content discipline:
+  all 16 `<script>` blocks re-verified via `node --check` (unaffected —
+  pure HTML flip-card markup, no script logic touched); a full
+  script-excluded tag-balance recount (div 2101/2101 and every other
+  tracked tag held exactly even, matching the batch's own internally-
+  balanced 11 new `.flip-card` blocks); the duplicate-id sweep (unchanged
+  — this batch added zero new `id` attributes, `.flip-card` markup uses
+  none).
+- **Unverified live**: whether the 🔊 Listen button correctly speaks each
+  new term in a real browser's `pt-PT` voice (same caveat this file's
+  voice-picker work already documents generally — not every browser has a
+  `pt-PT` voice installed), and whether the phonetics themselves read
+  naturally to someone actually trying to pronounce them from the card —
+  neither checked outside this environment.
