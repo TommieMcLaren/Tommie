@@ -8231,3 +8231,96 @@ the Spain section does."
   box and confirm matching subsections surface, and tap the Portugal Map
   button and confirm it lands on the interactive map with the real
   Lisbon/Porto/Sintra/Faro pins visible.
+
+## Interactive map: a real bug found in the Portugal coastline, the west coast redrawn with more detail, Portugal's own mountain + river added (Sep 2026, unverified live)
+
+Direct request, from a screenshot of the Interactive Trip Planner Map
+showing Lisbon/Sintra/Porto/Faro's pins sitting oddly close to (and
+outside) the green landmass edge, with "Sintra"/"Lisbon" labels visibly
+overlapping: "combine it, make it a neutral location... make Portugal
+more detailed like Spain, use landscapes and land marks on the map."
+
+- **A real, previously-undiscovered bug, found by testing rather than
+  assumed from the screenshot alone.** This file has always carried TWO
+  independent copies of the landmass shape — `QB_LANDMASS_PATH` (feeds
+  the Quote Builder's own small route-map SVG) and a second, separately
+  hardcoded `d="..."` on `<path id="tp-landmass">` inside
+  `renderTripPlanner()` (feeds the actual Interactive Trip Planner Map —
+  the one in the screenshot). An earlier session's own "Interactive map"
+  entry above extended `QB_LANDMASS_PATH` with a rough Portugal bulge but,
+  confirmed via a real point-in-polygon test run against both paths
+  directly, **never touched `#tp-landmass`'s own separate copy** — it
+  silently stayed the old Spain-only shape. All four Portugal pins were
+  floating genuinely outside the shape actually being drawn on screen —
+  exactly what the screenshot shows, not a labeling nit.
+- **Fixed at the root, not patched around**: `#tp-landmass`/`#tp-island`
+  no longer carry their own hardcoded `d="..."` — they now read
+  `d="${QB_LANDMASS_PATH}"`/`d="${QB_ISLAND_PATH}"` directly inside
+  `renderTripPlanner()`'s own template literal (confirmed this is legal —
+  the constants are real top-level `const`s declared in an earlier
+  `<script>` tag, and this file's own scripts already share global scope
+  in document order). One shape now feeds both maps; this exact class of
+  bug (two copies of the same data silently drifting apart) can't recur
+  here again.
+- **The west coast itself redrawn with real detail, not just repaired.**
+  Replaced the old single crude "bulge" with 17 points forming an actual
+  coastline: an Algarve stretch sweeping south past **Cabo de São
+  Vicente** (the real SW tip of mainland Europe), a Tagus-estuary inlet
+  at Lisbon, a westward point near **Cabo da Roca** (mainland Europe's
+  real westernmost point, right by Sintra), and a Douro-estuary notch at
+  Porto — comparable in point-density to how Spain's own ~30-point
+  coastline is drawn, not a rough approximation anymore. Spain's own
+  boundary (everything between the two shared anchor points) was left
+  completely untouched, per this build-out's standing rule that it's
+  traced from real geographic data and shouldn't be redrawn.
+- **The Sintra/Lisbon label collision fixed at its actual cause.** The
+  two pins sat only ~11px apart in a 560-wide viewBox — genuinely too
+  close for two 12px-font labels to ever not overlap, regardless of the
+  landmass fix. Moved Sintra to a real, plausible position near Cabo da
+  Roca (Sintra's real-world location, WNW of Lisbon) — confirmed via
+  real distance/point-in-polygon/margin-to-coastline checks in Python
+  before touching the file, not eyeballed: now ~44px from Lisbon with a
+  real margin inside the new coastline. The one road segment connecting
+  them (`TRIP_PLANNER_ROADS`) was updated to match — confirmed via grep
+  that no other data in the file referenced Sintra's old coordinates.
+- **Landscape parity with Spain, using the exact same categories Spain
+  already has — no new marker type invented.** Added **Serra da
+  Estrela** (mainland Portugal's real highest range) to
+  `TRIP_PLANNER_MOUNTAINS` and the **Douro** (the real river that starts
+  in Spain as the "Duero" and reaches the sea at Porto) to
+  `TRIP_PLANNER_RIVERS` — both rendered through the exact same triangle-
+  glyph/polyline code Spain's own mountains and rivers already use, no
+  new SVG element type added. **Deliberately did not invent a separate
+  "landmark" icon category** for Portugal — Spain's own map has no
+  marker type beyond city pins/roads/mountains/rivers, so a Portugal-
+  only landmark icon would have been asymmetric in the other direction
+  rather than genuine parity; Cabo de São Vicente and Cabo da Roca are
+  real landmarks, but are represented as coastline shape (where they
+  physically are), not as a new icon this map has never had for any
+  country.
+- Verified via this project's established non-script-content discipline
+  plus real geometry checks specific to this pass: all 16 inline
+  `<script>` blocks re-verified via `node --check` (confirms the new
+  path literal and the `${QB_LANDMASS_PATH}`/`${QB_ISLAND_PATH}`
+  template interpolation are syntactically valid); a full script-
+  excluded tag-balance recount (all tracked tags held exactly at the
+  established baseline — pure JS-data and template-literal changes, no
+  HTML markup touched); and, the real check that mattered most here, a
+  Python point-in-polygon test confirming **every one of the 16 city
+  pins** (Spain's 12 plus Portugal's 4) and **every mountain/river
+  point**, including the two new Portugal additions, now genuinely sits
+  inside its correct shape (mainland vs. the separate Mallorca island
+  path) — re-run against the final, actually-committed file content, not
+  just the drafted coordinates.
+- **Unverified live, and this is real visual/rendering work no static
+  check can confirm**: whether the redrawn west coast actually reads as
+  a natural-looking coastline once rendered in a real browser (point-in-
+  polygon containment confirms correctness, not that it looks good), and
+  whether the Sintra/Lisbon label separation is now visually comfortable
+  at the map's real on-screen size — none of this has been seen outside
+  this environment. Test next: open the Interactive Trip Planner Map and
+  confirm all four Portugal pins now sit clearly inside the green
+  landmass with visible margin, that Sintra's and Lisbon's labels no
+  longer overlap, and that the coastline's new detail (the Algarve
+  sweep, the Lisbon inlet, the Porto notch) reads as a plausible map
+  rather than jagged or odd at actual rendered size.
