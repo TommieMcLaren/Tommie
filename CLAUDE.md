@@ -9354,3 +9354,87 @@ skipped.
   cards, click a table column header and confirm it actually sorts, then
   open the Pronunciation Guide and flip through all 10 cards checking that
   🔊 Listen actually speaks each term.
+
+## Two more real gaps closed by pulling data already in the guide: Hotels by Room Configuration + a Top Sites quick index (Sep 2026, unverified live)
+
+Direct follow-up to the parity-gap pass above: "can you pull any of that
+information from the guide? Forget about the qualifying questions." Two
+of the remaining named gaps turned out to be genuinely derivable from
+content this file already has, once actually checked — the other named
+gaps (Tommie's Personal Boutique Picks, Additional FAIR-Inspected Hotels,
+Live Website Listings, Porto/Azores photo cards, `QB_CITY_ORDER`) still
+aren't, for the same reasons stated in the previous entry, and weren't
+touched here.
+
+- **`PORTUGAL — Hotels by Room Configuration (Job Aid)`** — mirrors
+  Spain's own section exactly (a Single/Double/Triple/Quad/Notes table
+  per locale), but built by extracting the real Triple/Quad/connecting-
+  room facts already sitting inside every Portugal hotel's own "Rooms,
+  alternatives & considerations" cell across all 8 locales with hotel
+  content (Lisbon, Cascais, Porto, Coimbra, Douro Valley, Algarve, the
+  Azores, Madeira — 25 hotels total), not re-derived or guessed. **One
+  honest, disclosed gap**: no Portugal hotel entry anywhere in this
+  guide's own source material ever states single-room availability, so
+  that column reads "❌ not confirmed" for all 25 rows rather than a
+  fabricated guess — Double is marked ✅ uniformly as the one genuinely
+  safe universal assumption (every hotel has a double room by
+  definition). Where a Quad only works via connecting rooms rather than
+  a true single room, that's flagged (⚠️) exactly the way Spain's own
+  table already does, not smoothed over into a plain ✅.
+- **`PORTUGAL — TOP SITES BY LOCALE (Quick Index)`** — deliberately named
+  and framed differently from Spain's own `112-spain-top-sites-by-locale-
+  job-aid` section, and the intro says so explicitly: Spain's version is
+  sourced from a real official Job Aid document; Portugal has no
+  equivalent document in this guide, so building a literal copy of that
+  section's shape would have meant inventing Job-Aid-style content that
+  doesn't exist. Built instead as a genuinely different, honestly-framed
+  artifact — a fast cross-locale index (Site | one-line cross-reference)
+  pulling the real attraction names and short descriptive clauses
+  straight out of each locale's own already-documented Key Attractions
+  section (Lisbon's 19 real photo cards, Porto's 17 table rows, the
+  Azores' 15) plus the named sites already in the five compact-stub
+  locales' own prose (Sintra: Pena Palace, Quinta da Regaleira, the
+  Moorish Castle; Douro Valley: vineyard/quinta visits, Peso da Régua/
+  Pinhão; Algarve: the Benagil Sea Cave, Lagos; Évora: the Chapel of
+  Bones, Évora Cathedral; Madeira: the Toboggan Ride, Monte & Wine
+  Lodge) — every short note extracted from the real existing sentence,
+  not newly written, and the section's own intro tells the DE to click
+  through to the fuller detail rather than treating this as a
+  replacement for it. Non-duplicative by design: this is an index into
+  what already exists, not a second copy of it.
+- **Sidebar nav updated for both**, with the Room Configuration section
+  getting a real 8-locale subsection dropdown and the Top Sites index
+  getting its own 8-locale dropdown too, matching the toggle/subsection
+  pattern every other multi-part Portugal section already uses.
+- Verified via this project's established non-script-content discipline:
+  all 16 inline `<script>` blocks re-verified via `node --check`
+  (unaffected — pure HTML/table content, checked anyway per standing
+  practice); a full script-excluded tag-balance recount (div/table/tr/
+  td/th/thead/tbody/ul/li/h3/h4/p/button/span/select/label/details/
+  summary/a all held exactly even across the whole file); the duplicate-
+  id sweep (unchanged from the established baseline — the same 4
+  pre-existing, unrelated Client Tracker bulk-action-bar ids; every new
+  id from both sections and their nav entries confirmed genuinely
+  unique); and a `getElementById` cross-check (zero missing targets).
+- **What's still genuinely not pulled from the guide, because the guide
+  doesn't have it** — restated plainly since this pass specifically
+  tested "is this actually derivable": Lisbon's own "Tommie's Hotels —
+  Personal Boutique Picks" and "Additional FAIR-Inspected Hotels"
+  equivalents (these are the DE's own personal curation in Spain's
+  version, not factual content this guide could derive from anywhere);
+  Live Website Listings (still blocked — no network access to
+  kensingtontours.com); Porto/Azores photo flip-cards (needs real
+  per-image Wikimedia sourcing, the same careful method Lisbon's 19
+  cards used — a genuinely separate task, not something to extract from
+  existing text); and `QB_CITY_ORDER` staying Spain-only (an
+  architectural decision with real ripple effects on the Quote
+  Builder's auto-pick logic, already explicitly deferred multiple times
+  in this build-out's own history — still not something to change
+  without being asked directly).
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  whether the Room Configuration table's honest "not confirmed" Single
+  column reads as useful-but-incomplete or just incomplete in a real
+  browser, and whether the Top Sites Quick Index's framing (an index,
+  not a Job Aid duplicate) is clear enough at a glance that a DE doesn't
+  mistake it for the same kind of official-document content Spain's
+  parallel section is — neither has been seen outside this environment.
