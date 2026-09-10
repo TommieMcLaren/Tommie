@@ -8402,3 +8402,201 @@ detail and realism."
   its row with visibly less empty space beside it, that a clear brown
   dashed line separates Portugal from Spain, and that the new legend
   entry reads clearly alongside the existing three.
+
+## Interactive map: 10 missing Portugal cities/islands added, road labels corrected to real highway numbers, and a real click-2-pins travel-time/mode feature (Sep 2026, unverified live)
+
+Direct follow-up: "okay this is great. Some cities and islands are
+missing from Portugal. Add in the appropriate missing areas. Make
+road/highway mapping more accurate as well. Can it include the time to
+travel to each place when you click on 2 locations as well? For
+example, when I click on Porto and Faro, it tells me the amount of
+travel time and recommended travel type, car/train/domestic flight?"
+Three real pieces, each grounded in real coordinates/highway numbers/
+guide facts rather than guessed — the standing discipline for this
+whole Portugal build-out.
+
+- **6 new mainland pins, placed via the same real affine transform this
+  map's Portugal pins have always used, not eyeballed.** Recomputed the
+  transform fresh (Spain's 9 most-precisely-known reference cities'
+  real lng/lat → their real pin x/y, solved via least-squares in pure
+  Python — no numpy available in this environment, so the 3×3 normal-
+  equations solve was hand-written) and confirmed it reproduces
+  Lisbon/Porto/Faro's own already-placed pins within ~1.5px, i.e. the
+  same transform as before. Applied to **Cascais, Évora, Coimbra,
+  Aveiro, Albufeira, and Douro Valley** (Peso da Régua as its
+  representative point) — the six Portugal locations with the most
+  real, already-built guide content (Locale Planning Quick Reference
+  rows, a full Chapel-of-Bones/Day-Trip writeup, Popular-Attractions
+  xlsx detail, etc.) that didn't yet have a map pin. Verified via a
+  real point-in-polygon test against `QB_LANDMASS_PATH` (all six land
+  inside the shape) and a pairwise-clearance check against every other
+  pin. Cascais and Albufeira came back too close to Lisbon/Faro
+  respectively for their labels not to collide (12–14px) — nudged both
+  a further, still real-direction-correct few px west along the coast,
+  the same fix already applied to Sintra in an earlier pass, until
+  every new pin cleared the established Málaga–Marbella precedent
+  (22.4px, the closest two pins already tolerated anywhere on this
+  map) — confirmed via the same test, re-run against the actual
+  committed file content, not the drafted coordinates.
+- **4 new Azores/Madeira pins, in a genuinely new schematic inset box —
+  not an extrapolation of the real transform.** The Azores (real lng
+  ≈ −25 to −31) and Madeira (≈ −17) sit far enough west of every Spain
+  reference point that projecting them through the real transform would
+  land them off the edge of the 560×520 viewBox entirely, or force the
+  whole map to shrink to make room for empty ocean. Used the standard
+  cartographic fix instead — the same one printed Portugal/US maps use
+  for this exact problem (a US map's Hawaii/Alaska corner insets, e.g.):
+  a new `TRIP_PLANNER_INSET_BOX` const, explicitly labeled "Azores &
+  Madeira (schematic — not to scale)," placed at a genuinely open patch
+  of ocean on this map (verified via a grid-sampled point-in-polygon
+  sweep against `QB_LANDMASS_PATH` before picking coordinates — the
+  whole region is landmass-free, and it sits 130+px from the nearest
+  real pin, so it can never visually collide with anything). Holds
+  **São Miguel, Terceira, and Faial** (the three Azores islands with
+  real Locale Planning Quick Reference nights/alternatives/add-ons data
+  already in this guide) plus **Madeira** — each pin still carries its
+  real lat/lng (for the travel-time feature below), just a schematic
+  on-screen x/y, flagged via a new `inset: true` field. Reused the
+  existing generic `.tp-pin`/`toggleTripPin()` click machinery
+  unchanged for these four — they're real, clickable, selectable pins
+  like any other, just visually grouped inside a dashed box instead of
+  sitting at their true (off-map) position.
+- **Road labels corrected to real Portuguese highway designations, one
+  genuine inaccuracy found and fixed.** The Seville–Lisbon line had
+  been labeled "A-49" since an earlier session — real, but only for the
+  Spain-side Seville–Huelva leg, not the whole route. The actual
+  standard direct drive is Spain's **A-66** to the Badajoz/Elvas border
+  crossing, then Portugal's **A6** the rest of the way to Lisbon (the
+  same A6 this map already uses for the separate Lisbon–Évora leg) —
+  relabeled "A-66 / A6". The other four pre-existing Portugal-touching
+  labels (Lisbon–Sintra "A-16", Lisbon–Porto "A-1", Lisbon–Faro "A-2")
+  were checked against real Portuguese auto-estrada designations and
+  confirmed already correct, left unchanged. **6 new road segments**
+  for the new pins, each a real highway: Lisbon–Cascais (**A-5**,
+  Auto-estrada da Costa do Estoril), Lisbon–Évora (**A-6**, Auto-estrada
+  do Sul), Porto–Aveiro and Aveiro–Coimbra (both **A-1**, continuing
+  Porto's own corridor south in real geographic order rather than a
+  single nearest-neighbor jump straight from Porto to Coimbra),
+  Faro–Albufeira (**A-22**, Via do Infante), and Porto–Douro Valley
+  (**A-4**, Auto-estrada Transmontana). No roads connect the four inset
+  Azores/Madeira pins — real trips there go by flight or seasonal
+  ferry, matching how every other island on this map (Mallorca) is
+  already treated.
+- **A real click-2-pins travel-time/mode feature, the third explicit
+  ask.** Every `TRIP_PLANNER_PINS` entry — including the original 12
+  Spain and 4 Portugal pins, not just the new ones — now also carries
+  real `lat`/`lng` fields, so the feature has one consistent data
+  source for ANY pair, not just newly-added cities. A new `#tp-travel-
+  time` box (in `#tp-controls`, above the existing Find-My-Itinerary/
+  Clear buttons — updates live on every pin click, not gated behind a
+  button) shows a mode + time line the moment exactly 2 pins are
+  selected, and hides itself again the instant selection count is
+  anything else — wired into the two existing selection-mutation
+  functions (`toggleTripPin`/`clearTripPlanner`) rather than adding a
+  third, parallel selection-tracking mechanism.
+  - **16 explicit `TRAVEL_TIMES` entries, sourced from real facts
+    already written elsewhere in this guide, grep-verified before use
+    rather than re-derived from memory**: Porto↔Faro's Ryanair-only
+    flight and 5+ hr not-recommended train (this session's own earlier
+    Arrivals & Transfers Flights/Trains modules), Lisbon↔Porto's Alfa
+    Pendular timing, Madrid↔Toledo's ~30 min commuter train and
+    Madrid↔Barcelona's ~3 hr AVE (both already stated in this guide's
+    own Spain train-travel section), and the Azores' real SATA-flight/
+    seasonal-Atlanticoline-ferry facts (this session's own Azores
+    Arrivals & Transfers content) — plus a handful of real, well-
+    established regional facts (Lisbon↔Sintra/Cascais commuter rail,
+    Porto↔Coimbra/Aveiro, Faro↔Albufeira, Porto↔Douro Valley) disclosed
+    as ordinary travel knowledge rather than claimed as guide-sourced.
+  - **A real bug caught by testing, not assumed correct from the
+    draft**: the Lisbon↔Évora entry's key was written as
+    `"Évora|Lisbon"` by hand, but a real Node test of the actual
+    `[a,b].sort().join('|')` key-building logic against the real pin
+    names showed JS's default UTF-16-code-unit string sort puts
+    `"Lisbon"` (L = U+004C) before `"Évora"` (É = U+00C9) — the
+    opposite of naive alphabetical intuition. The stored key silently
+    never matched a real lookup; every Lisbon↔Évora click would have
+    silently fallen through to the generic distance-estimate fallback
+    (which happened to compute the same "~1 hr 30 min" by coincidence,
+    masking the bug from a casual look) instead of surfacing the real,
+    sourced A-6 note. Fixed by correcting the key to `"Lisbon|Évora"`,
+    then re-ran the same real Node test against all 16 keys and
+    confirmed every one now matches its real sorted pin pair — this is
+    exactly the kind of mismatch that looks fine on a manual read and
+    only shows up under actual execution, the same lesson this file's
+    own history has learned the hard way more than once (`ITIN_
+    STOPWORDS`, `renderDrafts`/`wireDraftButtons`).
+  - **A disclosed, honest fallback for every other pair.** Any city
+    pair not in the explicit table (still the large majority of
+    possible pairs) is estimated from real haversine great-circle
+    distance between the two pins' actual lat/lng, with a simple mode
+    rule: either pin marked `inset` (an Azores/Madeira island) always
+    recommends a flight, since a real trip there always crosses open
+    water regardless of mainland distance; otherwise >400km suggests a
+    flight (distance ÷ realistic cruise speed + a ground-handling
+    buffer), 120–400km suggests "train or car" at real highway speed,
+    and under 120km suggests a plain car estimate at a slower mixed-
+    road speed. Every estimate is visibly labeled on-screen ("Estimated
+    from straight-line distance... not a sourced fact; confirm actual
+    routing/timing before quoting a client") — never presented as
+    equal-confidence to a `TRAVEL_TIMES` entry, matching this whole
+    build-out's standing rule about disclosing approximations.
+- Verified via this project's established discipline plus the extra
+  execution-based check the key bug above specifically called for: all
+  16 inline `<script>` blocks re-extracted and `node --check`ed
+  individually (all pass, both before and after the key fix); a full
+  script-excluded tag-balance recount (div/table/tr/td/th/thead/tbody/
+  ul/li/h3/h4/p/button/span/select/label/details/summary all held
+  exactly even); the duplicate-id sweep (unchanged from the established
+  baseline — the same 4 pre-existing, unrelated Client Tracker bulk-
+  action ids; the new `tp-travel-time` id confirmed genuinely unique);
+  a `getElementById` cross-check (333 distinct string-literal lookups,
+  zero missing); a reference-count check confirming every new helper
+  function (`updateTripPlannerTravelTime`/`tpPairKey`/`tpHaversineKm`/
+  `tpFormatHours`/`tpEstimateTravelMode`) has real callers beyond its
+  own definition, not just defined-and-orphaned; a real point-in-
+  polygon/clearance re-check run against the FINAL committed file
+  content (not the drafted values) confirming all 22 non-inset pins
+  land inside the mainland shape, all 4 inset pins land inside both the
+  new inset box AND outside the mainland shape (as intended), and every
+  pin clears the established 22.4px precedent; and a real Node
+  simulation of the actual click-2-pins logic across 9 sample pairs
+  (both click orders of Porto/Faro correctly resolve to the same
+  entry; Lisbon/Évora now correctly hits the real entry post-fix;
+  Madrid/Barcelona hits its real entry; São Miguel/Madeira and
+  Madrid/São Miguel both correctly fall back to a flight estimate;
+  Sintra/Cascais and Toledo/Granada both produce reasonable car/train
+  estimates at genuinely different distances).
+- **Deliberately not built**: a full A-to-B routing engine (real road-
+  network distance, not straight-line) — this map has never had real
+  routing data for ANY pair, existing or new, so a haversine-based
+  estimate is consistent with everything else here, not a new kind of
+  approximation; individual pins for the Azores' other 6 islands (Pico,
+  São Jorge, Graciosa, Santa Maria, Flores, Corvo) or for Coimbra/
+  Aveiro's own day-trip satellites — scoped to the locations with real,
+  already-built guide content backing them, matching this whole
+  build-out's "don't guess, place diligently" rule; and re-deriving
+  Spain-only travel times beyond the two (Madrid↔Toledo, Madrid↔
+  Barcelona) already explicitly documented elsewhere in this guide —
+  the fallback estimator already covers the rest reasonably, and
+  hand-sourcing a full 16×16 pair matrix was judged disproportionate to
+  what was actually asked.
+- **Unverified live, same caveat as the rest of this Portugal build-
+  out, and this is real interactive/visual work no static check can
+  confirm**: whether the new pins' label text stays legible at their
+  real on-screen spacing once rendered (point-in-polygon and pixel-
+  clearance checks confirm correctness, not that it looks uncrowded);
+  whether the dashed inset box reads clearly as "this is schematic, not
+  really located here" rather than as a stray disconnected map
+  fragment; whether the `#tp-travel-time` box's placement (above the
+  existing buttons, always-live on click) feels like a natural part of
+  the flow rather than a jarring extra box; and whether the haversine-
+  based estimates "feel right" against real DE intuition for a pair
+  like Toledo↔Granada — none of this has been seen in a real browser
+  from this environment. Test next: open the Interactive Trip Planner
+  Map, confirm all 10 new pins render inside the (correct) landmass or
+  inset box with legible labels, click Porto then Faro and confirm the
+  travel-time box shows the real Ryanair/train-not-recommended note,
+  click any two mainland cities with no explicit entry (e.g. Toledo and
+  Granada) and confirm a clearly-labeled estimate appears instead, and
+  confirm selecting a 3rd pin or clearing selection correctly
+  hides the travel-time box again.

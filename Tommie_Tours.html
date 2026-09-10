@@ -1289,6 +1289,9 @@
   .tp-river { fill: none; stroke: #7fb3d5; stroke-width: 2; opacity: 0.65; }
   .tp-border { fill: none; stroke: #8a5a2b; stroke-width: 2; stroke-dasharray: 3 4; stroke-linecap: round; opacity: 0.7; }
   .tp-mountain path { fill: #a8998a; opacity: 0.55; }
+  .tp-inset-box rect { fill: #fdfaf3; stroke: var(--sage); stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.9; }
+  .tp-inset-label { font-family: 'Lato', sans-serif; font-size: 9px; font-weight: 700; fill: var(--sage-darker); }
+  .tp-pin.tp-pin-inset .tp-pin-dot { stroke-dasharray: 2 1.5; }
   #tp-map-legend {
     display: flex;
     gap: 16px;
@@ -1325,6 +1328,17 @@
     margin-bottom: 12px;
     min-height: 20px;
   }
+  .tp-travel-card {
+    background: #fdfaf3;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: 12.5px;
+  }
+  .tp-travel-card strong { display: block; font-family: 'Playfair Display', serif; color: var(--sage-darker); margin-bottom: 4px; }
+  .tp-travel-mode-line { font-weight: 700; color: var(--gold-text); margin-bottom: 3px; }
+  .tp-travel-note { color: #5c5a4d; font-size: 11.5px; line-height: 1.4; }
   #tp-buttons { display: flex; gap: 10px; margin-bottom: 16px; }
   #tp-find-btn {
     background: var(--gold);
@@ -11200,8 +11214,38 @@ ${resultsBody}
   // then match against the live itineraries (live listings) by city
   // overlap. Pure client-side, no server.
   // ============================================================
-  const TRIP_PLANNER_PINS = [{"name": "Madrid", "x": 257.7, "y": 226.4}, {"name": "Toledo", "x": 250.5, "y": 258.0}, {"name": "Barcelona", "x": 492.9, "y": 169.3}, {"name": "Valencia", "x": 390.9, "y": 282.3}, {"name": "Seville", "x": 166.4, "y": 405.0}, {"name": "Granada", "x": 261.9, "y": 417.4}, {"name": "Córdoba", "x": 214.6, "y": 375.5}, {"name": "Málaga", "x": 229.0, "y": 444.3}, {"name": "Marbella", "x": 210.4, "y": 456.7}, {"name": "Bilbao", "x": 288.5, "y": 58.6}, {"name": "San Sebastián", "x": 326.6, "y": 55.4}, {"name": "Palma de Mallorca", "x": 512.0, "y": 276.4}, {"name": "Lisbon", "x": 41.5, "y": 326.1}, {"name": "Porto", "x": 62.1, "y": 182.4}, {"name": "Sintra", "x": 16.0, "y": 290.0}, {"name": "Faro", "x": 89.5, "y": 426.5}];
-  const TRIP_PLANNER_ROADS = [{"x1": 257.7, "y1": 226.4, "x2": 492.9, "y2": 169.3, "label": "A-2 / AP-7"}, {"x1": 257.7, "y1": 226.4, "x2": 390.9, "y2": 282.3, "label": "A-3"}, {"x1": 257.7, "y1": 226.4, "x2": 214.6, "y2": 375.5, "label": "A-4"}, {"x1": 214.6, "y1": 375.5, "x2": 166.4, "y2": 405.0, "label": "A-4"}, {"x1": 166.4, "y1": 405.0, "x2": 261.9, "y2": 417.4, "label": "A-92"}, {"x1": 261.9, "y1": 417.4, "x2": 229.0, "y2": 444.3, "label": "A-45"}, {"x1": 229.0, "y1": 444.3, "x2": 210.4, "y2": 456.7, "label": "AP-7"}, {"x1": 492.9, "y1": 169.3, "x2": 390.9, "y2": 282.3, "label": "AP-7"}, {"x1": 257.7, "y1": 226.4, "x2": 288.5, "y2": 58.6, "label": "A-1"}, {"x1": 288.5, "y1": 58.6, "x2": 326.6, "y2": 55.4, "label": "A-8"}, {"x1": 166.4, "y1": 405.0, "x2": 41.5, "y2": 326.1, "label": "A-49"}, {"x1": 41.5, "y1": 326.1, "x2": 16.0, "y2": 290.0, "label": "A-16"}, {"x1": 41.5, "y1": 326.1, "x2": 62.1, "y2": 182.4, "label": "A-1"}, {"x1": 41.5, "y1": 326.1, "x2": 89.5, "y2": 426.5, "label": "A-2"}];
+  // Pins (Sep 2026) — extended with real lat/lng on every entry (Spain's
+  // original 12 plus Portugal's original 4 included, not just the new
+  // ones) so the haversine-distance travel-time fallback below has one
+  // consistent data source to draw from for ANY pair, not just newly-added
+  // cities. Six new mainland Portugal pins added from real coordinates via
+  // the same affine transform (Spain reference cities -> this map's x/y)
+  // already used to place Lisbon/Porto/Sintra/Faro, verified via a real
+  // point-in-polygon test against QB_LANDMASS_PATH before committing (all
+  // land inside the shape) — Cascais and Albufeira were then nudged a few
+  // px further from Lisbon/Faro respectively (still real-direction-
+  // correct: west along the coast) purely for label clearance, the same
+  // reason Sintra was manually adjusted in an earlier pass. Four Azores/
+  // Madeira pins carry real lat/lng too (for travel-time math) but
+  // deliberately schematic x/y (`inset: true`) — see TRIP_PLANNER_INSET_BOX
+  // below for why these can't use the real affine transform.
+  const TRIP_PLANNER_PINS = [{"name": "Madrid", "x": 257.7, "y": 226.4, "lat": 40.4168, "lng": -3.7038}, {"name": "Toledo", "x": 250.5, "y": 258.0, "lat": 39.8628, "lng": -4.0273}, {"name": "Barcelona", "x": 492.9, "y": 169.3, "lat": 41.3851, "lng": 2.1734}, {"name": "Valencia", "x": 390.9, "y": 282.3, "lat": 39.4699, "lng": -0.3763}, {"name": "Seville", "x": 166.4, "y": 405.0, "lat": 37.3891, "lng": -5.9845}, {"name": "Granada", "x": 261.9, "y": 417.4, "lat": 37.1773, "lng": -3.5986}, {"name": "Córdoba", "x": 214.6, "y": 375.5, "lat": 37.8882, "lng": -4.7794}, {"name": "Málaga", "x": 229.0, "y": 444.3, "lat": 36.7213, "lng": -4.4214}, {"name": "Marbella", "x": 210.4, "y": 456.7, "lat": 36.5108, "lng": -4.885}, {"name": "Bilbao", "x": 288.5, "y": 58.6, "lat": 43.263, "lng": -2.935}, {"name": "San Sebastián", "x": 326.6, "y": 55.4, "lat": 43.3183, "lng": -1.9812}, {"name": "Palma de Mallorca", "x": 512.0, "y": 276.4, "lat": 39.5696, "lng": 2.6502}, {"name": "Lisbon", "x": 41.5, "y": 326.1, "lat": 38.7223, "lng": -9.1393}, {"name": "Porto", "x": 62.1, "y": 182.4, "lat": 41.1579, "lng": -8.6291}, {"name": "Sintra", "x": 16.0, "y": 290.0, "lat": 38.7999, "lng": -9.3817}, {"name": "Faro", "x": 89.5, "y": 426.5, "lat": 37.0194, "lng": -7.9304}, {"name": "Cascais", "x": 18.0, "y": 340.0, "lat": 38.6979, "lng": -9.4215}, {"name": "Évora", "x": 89.2, "y": 335.3, "lat": 38.5714, "lng": -7.9135}, {"name": "Coimbra", "x": 69.3, "y": 239.0, "lat": 40.2033, "lng": -8.4103}, {"name": "Aveiro", "x": 59.9, "y": 213.0, "lat": 40.6443, "lng": -8.6455}, {"name": "Albufeira", "x": 55.0, "y": 432.0, "lat": 37.0891, "lng": -8.2503}, {"name": "Douro Valley", "x": 94.3, "y": 182.5, "lat": 41.1621, "lng": -7.7871}, {"name": "São Miguel", "x": 448, "y": 445, "lat": 37.7412, "lng": -25.6699, "inset": true}, {"name": "Terceira", "x": 492, "y": 440, "lat": 38.656, "lng": -27.2216, "inset": true}, {"name": "Faial", "x": 522, "y": 458, "lat": 38.5325, "lng": -28.6291, "inset": true}, {"name": "Madeira", "x": 448, "y": 495, "lat": 32.6669, "lng": -16.9241, "inset": true}];
+  // Roads (Sep 2026) — the Seville–Lisbon label was corrected from "A-49"
+  // (which is real, but only covers the Spain-side Seville–Huelva leg, not
+  // the whole route) to "A-66 / A6" — the actual standard direct drive
+  // (Spain's A-66 to the Badajoz/Elvas border crossing, then Portugal's
+  // A6 the rest of the way into Lisbon), matching the same A6 this map
+  // already uses for the separate Lisbon–Évora leg. Six new segments
+  // connect the six new mainland pins using real Portuguese highway
+  // designations: A-5 (Auto-estrada da Costa do Estoril, Lisbon–Cascais),
+  // A-6 (Auto-estrada do Sul, Lisbon–Évora), A-1 (Auto-estrada do Norte,
+  // continuing Porto's own corridor south through Aveiro then Coimbra —
+  // real geographic order, not just nearest-neighbor), A-22 (Via do
+  // Infante, Faro–Albufeira), and A-4 (Auto-estrada Transmontana,
+  // Porto–Douro Valley). No roads connect the four inset Azores/Madeira
+  // pins — those are reached by domestic flight or seasonal ferry, not a
+  // highway, matching how this map already treats every other island.
+  const TRIP_PLANNER_ROADS = [{"x1": 257.7, "y1": 226.4, "x2": 492.9, "y2": 169.3, "label": "A-2 / AP-7"}, {"x1": 257.7, "y1": 226.4, "x2": 390.9, "y2": 282.3, "label": "A-3"}, {"x1": 257.7, "y1": 226.4, "x2": 214.6, "y2": 375.5, "label": "A-4"}, {"x1": 214.6, "y1": 375.5, "x2": 166.4, "y2": 405.0, "label": "A-4"}, {"x1": 166.4, "y1": 405.0, "x2": 261.9, "y2": 417.4, "label": "A-92"}, {"x1": 261.9, "y1": 417.4, "x2": 229.0, "y2": 444.3, "label": "A-45"}, {"x1": 229.0, "y1": 444.3, "x2": 210.4, "y2": 456.7, "label": "AP-7"}, {"x1": 492.9, "y1": 169.3, "x2": 390.9, "y2": 282.3, "label": "AP-7"}, {"x1": 257.7, "y1": 226.4, "x2": 288.5, "y2": 58.6, "label": "A-1"}, {"x1": 288.5, "y1": 58.6, "x2": 326.6, "y2": 55.4, "label": "A-8"}, {"x1": 166.4, "y1": 405.0, "x2": 41.5, "y2": 326.1, "label": "A-66 / A6"}, {"x1": 41.5, "y1": 326.1, "x2": 16.0, "y2": 290.0, "label": "A-16"}, {"x1": 41.5, "y1": 326.1, "x2": 62.1, "y2": 182.4, "label": "A-1"}, {"x1": 41.5, "y1": 326.1, "x2": 89.5, "y2": 426.5, "label": "A-2"}, {"x1": 41.5, "y1": 326.1, "x2": 18.0, "y2": 340.0, "label": "A-5"}, {"x1": 41.5, "y1": 326.1, "x2": 89.2, "y2": 335.3, "label": "A-6"}, {"x1": 62.1, "y1": 182.4, "x2": 59.9, "y2": 213.0, "label": "A-1"}, {"x1": 59.9, "y1": 213.0, "x2": 69.3, "y2": 239.0, "label": "A-1"}, {"x1": 89.5, "y1": 426.5, "x2": 55.0, "y2": 432.0, "label": "A-22"}, {"x1": 62.1, "y1": 182.4, "x2": 94.3, "y2": 182.5, "label": "A-4"}];
   // Serra da Estrela (Sep 2026) — mainland Portugal's highest range, real
   // and central, added the same way every Spain mountain marker already is:
   // a labeled triangle glyph, no new marker type invented for parity with
@@ -11227,6 +11271,53 @@ ${resultsBody}
   // added the same shape as every other river here: a polyline flowing to
   // its real mouth city, Porto (62.1,182.4).
   const TRIP_PLANNER_RIVERS = {"Tagus": [[291.9, 256.9], [257.8, 254.0], [213.8, 265.8], [149.8, 277.5], [105.8, 286.4], [39.7, 327.7]], "Guadalquivir": [[283.9, 377.8], [239.8, 371.9], [215.0, 375.4], [181.8, 398.4], [153.8, 439.7]], "Ebro": [[297.9, 112.5], [341.9, 116.6], [405.9, 153.7], [439.9, 192.1]], "Douro": [[150.0, 167.0], [125.0, 172.0], [100.0, 178.0], [75.0, 181.0], [62.1, 182.4]]};
+  // Azores/Madeira inset box (Sep 2026) — the Azores (9 islands, real
+  // lng ~ -25 to -31) and Madeira (real lng ~ -17) sit far west of every
+  // other point this map's affine transform was fitted against; plotting
+  // them at their true projected position would either fall miles outside
+  // this 560×520 viewBox or force the whole map to shrink around empty
+  // ocean just to make room. Standard cartographic solution, the same one
+  // real printed Portugal/US maps use for exactly this problem (Hawaii/
+  // Alaska insets on a US map, e.g.): a separate schematic box, explicitly
+  // labeled "not to scale," placed in genuinely open ocean space on THIS
+  // map (verified via a grid-sampled point-in-polygon sweep against
+  // QB_LANDMASS_PATH before picking these coordinates — nothing in this
+  // region overlaps the mainland/Mallorca shapes, and it sits 130+px from
+  // the nearest real pin). The four island pins living inside it
+  // (São Miguel, Terceira, Faial, Madeira — the three Azores islands with
+  // real Locale Planning Quick Reference content elsewhere in this guide,
+  // plus Madeira) keep their real lat/lng for the travel-time feature
+  // below; only their on-screen x/y is schematic.
+  const TRIP_PLANNER_INSET_BOX = {"x": 412, "y": 412, "w": 138, "h": 98, "label": "Azores & Madeira (schematic — not to scale)"};
+  // Travel time / mode (Sep 2026) — click exactly 2 pins to see this.
+  // Documented pairs use real facts already written elsewhere in this
+  // guide (grep-sourced, not re-derived): Porto↔Faro's Ryanair-only
+  // flight and 5+ hr train (Arrivals & Transfers, Flights/Trains
+  // modules), Lisbon↔Porto/Faro's real Alfa Pendular/A1/A2 timings,
+  // Madrid↔Toledo's ~30 min commuter train and Madrid↔Barcelona's ~3 hr
+  // AVE (both from this guide's own Spain train-travel section), and the
+  // Azores' real SATA-flight/seasonal-ferry facts (Arrivals & Transfers,
+  // Azores). Everything else falls back to a haversine-distance estimate
+  // (see estimateTravelMode below), always disclosed on-screen as an
+  // estimate, never presented as a sourced fact.
+  const TRAVEL_TIMES = {
+    "Faro|Porto": {"mode": "Domestic flight", "icon": "✈️", "time": "~1 hr", "note": "The one direct Porto–Faro route is Ryanair-operated — must be self-booked by the client, not bookable via KT Air or the DMC. Train is 5+ hrs and not recommended; driving is ~4.5 hrs."},
+    "Lisbon|Porto": {"mode": "Train (Alfa Pendular)", "icon": "🚆", "time": "~2 hrs 45 min", "note": "Fastest and most comfortable option. Driving via A-1 is ~3 hrs."},
+    "Faro|Lisbon": {"mode": "Train or private transfer", "icon": "🚆", "time": "~3 hrs", "note": "Driving via A-2 runs about the same, ~2.5–3 hrs."},
+    "Lisbon|Sintra": {"mode": "Train (CP commuter rail)", "icon": "🚆", "time": "~40 min", "note": "Frequent departures from Rossio station."},
+    "Cascais|Lisbon": {"mode": "Train (CP Cascais Line)", "icon": "🚆", "time": "~40 min", "note": "Frequent departures from Cais do Sodré."},
+    "Lisbon|Évora": {"mode": "Car", "icon": "🚗", "time": "~1 hr 30 min", "note": "Via the A-6."},
+    "Coimbra|Porto": {"mode": "Train (AP/IC) or car", "icon": "🚆", "time": "~1 hr", "note": "Via the A-1 corridor either way."},
+    "Aveiro|Porto": {"mode": "Train or car", "icon": "🚆", "time": "~45 min", "note": "Via the A-1."},
+    "Aveiro|Coimbra": {"mode": "Car", "icon": "🚗", "time": "~35 min", "note": "Via the A-1."},
+    "Albufeira|Faro": {"mode": "Car", "icon": "🚗", "time": "~35–40 min", "note": "Via the A-22 (Via do Infante)."},
+    "Douro Valley|Porto": {"mode": "Car", "icon": "🚗", "time": "~1 hr 20 min", "note": "Via the A-4. The scenic Linha do Douro train to Peso da Régua takes ~2 hrs."},
+    "Madrid|Toledo": {"mode": "Train (commuter)", "icon": "🚆", "time": "~30 min", "note": "No first-class on this route; no assigned seats."},
+    "Barcelona|Madrid": {"mode": "Train (AVE)", "icon": "🚆", "time": "~3 hrs", "note": "Seat assignment and first-class available on this high-speed route."},
+    "Faial|São Miguel": {"mode": "Domestic flight (SATA)", "icon": "✈️", "time": "~1 hr 40 min", "note": "Atlanticoline ferries also connect the islands, but June–September only."},
+    "São Miguel|Terceira": {"mode": "Domestic flight (SATA)", "icon": "✈️", "time": "~50 min", "note": "Atlanticoline ferries also connect the islands, but June–September only."},
+    "Faial|Terceira": {"mode": "Domestic flight (SATA) or ferry", "icon": "✈️", "time": "~1 hr (flight)", "note": "Transmaçor also runs boats directly between Terceira, Faial, Pico, and São Jorge."}
+  };
   const ITINERARY_DATA = [{"name": "Barcelona City Getaway", "route": ["Barcelona"], "duration": "5 days", "price": "$4,010", "id": "barcelona-city-getaway"}, {"name": "Madrid & Barcelona Highlights", "route": ["Madrid", "Barcelona"], "duration": "7 days", "price": "$5,296", "id": "madrid-barcelona-highlights"}, {"name": "Andalusia Highlights: Seville, Cordoba and Granada", "route": ["Seville", "Córdoba", "Granada"], "duration": "7 days", "price": "$5,250", "id": "andalusia-highlights-seville-cordoba-and-granada"}, {"name": "Spain & Portugal Signature", "route": ["Barcelona", "Madrid", "Lisbon"], "duration": "9 days", "price": "$9,999", "id": "spain-portugal-signature"}, {"name": "Madrid to Valencia: Art, Culture and Spanish Flavor", "route": ["Madrid", "Valencia"], "duration": "7 days", "price": "$6,519", "id": "madrid-to-valencia-art-culture-and-spanish-flavor"}, {"name": "Barcelona to Bilbao: A Spanish Culinary Journey", "route": ["Barcelona", "Bilbao"], "duration": "7 days", "price": "$6,635", "id": "barcelona-to-bilbao-a-spanish-culinary-journey"}, {"name": "Best of Madrid, Valencia & Palma de Mallorca", "route": ["Madrid", "Valencia", "Palma de Mallorca"], "duration": "8 days", "price": "$7,699", "id": "best-of-madrid-valencia-palma-de-mallorca"}, {"name": "The Best of Spain: Iconic Cities & Andalusia", "route": ["Madrid", "Seville", "Granada", "Barcelona"], "duration": "10 days", "price": "$8,663", "id": "the-best-of-spain-iconic-cities-andalusia"}, {"name": "Grand Tour of Spain", "route": ["Barcelona", "Madrid", "Seville", "Córdoba", "Granada", "Marbella", "Málaga"], "duration": "14 days", "price": "$9,726", "id": "grand-tour-of-spain"}, {"name": "Epic Iberian Journey: Spain & Portugal", "route": ["Barcelona", "Madrid", "Córdoba", "Granada", "Seville", "Lisbon"], "duration": "16 days", "price": "$12,667", "id": "epic-iberian-journey-spain-portugal"}, {"name": "Southern Spain and Morocco Highlights", "route": ["Seville", "Granada"], "duration": "12 days", "price": "$6,945", "id": "southern-spain-and-morocco-highlights"}, {"name": "A Taste of Bordeaux & Basque Region", "route": ["Bilbao", "San Sebastián"], "duration": "9 days", "price": "$9,480", "id": "a-taste-of-bordeaux-basque-region"}, {"name": "The Food & Wine Wonders of Spain", "route": ["Barcelona", "San Sebastián", "Bilbao", "Madrid"], "duration": "12 days", "price": "$10,166", "id": "the-food-wine-wonders-of-spain"}, {"name": "The Best of Spain and Portugal, By Cruise", "route": ["Barcelona"], "duration": "14 days", "price": "$12,500", "id": "the-best-of-spain-and-portugal-by-cruise"}, {"name": "Douro River Cruise: from Lisbon to Santiago de Compostela", "route": ["Santiago de Compostela"], "duration": "14 days", "price": "$14,146", "id": "douro-river-cruise-from-lisbon-to-santiago-de-compostela"}];
   let plannerSelected = new Set();
 
@@ -11236,11 +11327,17 @@ ${resultsBody}
 
     const pinsSvg = TRIP_PLANNER_PINS.map(p => {
       const safeName = p.name.replace(/'/g, "\\'");
-      return `<g class="tp-pin" data-city="${p.name}" transform="translate(${p.x},${p.y})" onclick="toggleTripPin('${safeName}')">
+      return `<g class="tp-pin${p.inset ? ' tp-pin-inset' : ''}" data-city="${p.name}" transform="translate(${p.x},${p.y})" onclick="toggleTripPin('${safeName}')">
         <circle class="tp-pin-dot" r="8"></circle>
         <text class="tp-pin-label" x="0" y="-13" text-anchor="middle">${p.name}</text>
       </g>`;
     }).join('');
+
+    const b = TRIP_PLANNER_INSET_BOX;
+    const insetSvg = `<g class="tp-inset-box">
+      <rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6"></rect>
+      <text class="tp-inset-label" x="${b.x + b.w / 2}" y="${b.y - 6}" text-anchor="middle">${b.label}</text>
+    </g>`;
 
     const roadsSvg = TRIP_PLANNER_ROADS.map(r => `
       <line class="tp-road" x1="${r.x1}" y1="${r.y1}" x2="${r.x2}" y2="${r.y2}"></line>
@@ -11269,6 +11366,7 @@ ${resultsBody}
             ${riversSvg}
             ${mountainsSvg}
             ${roadsSvg}
+            ${insetSvg}
             ${pinsSvg}
           </svg>
           <div id="tp-map-legend">
@@ -11280,6 +11378,7 @@ ${resultsBody}
         </div>
         <div id="tp-controls">
           <div id="tp-selected-label">Click cities to add them — none selected yet</div>
+          <div id="tp-travel-time" hidden></div>
           <div id="tp-buttons">
             <button id="tp-find-btn" type="button">🔍 Find My Itinerary</button>
             <button id="tp-clear-btn" type="button">✕ Clear</button>
@@ -11302,6 +11401,85 @@ ${resultsBody}
     }
   }
 
+  function tpPairKey(a, b) {
+    return [a, b].sort().join('|');
+  }
+
+  // Straight-line (great-circle) distance in km — the fallback input for
+  // any city pair not in TRAVEL_TIMES above. Standard haversine formula.
+  function tpHaversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function tpFormatHours(hrs) {
+    const totalMin = Math.round(hrs * 60 / 5) * 5;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h === 0) return `~${m} min`;
+    if (m === 0) return `~${h} hr${h > 1 ? 's' : ''}`;
+    return `~${h} hr${h > 1 ? 's' : ''} ${m} min`;
+  }
+
+  // No sourced fact for this pair — estimate from straight-line distance.
+  // An island pin (inset:true) always recommends a flight, since every
+  // Azores/Madeira connection in real life crosses open water. Otherwise:
+  // >400km suggests a flight (rough cruise speed + ground-handling
+  // buffer), 120-400km a train-or-car estimate at real highway speed,
+  // under 120km a plain drive estimate at a slower mixed-road speed.
+  // Always labeled on-screen as an estimate, never as a confirmed fact.
+  function tpEstimateTravelMode(pinA, pinB) {
+    const km = tpHaversineKm(pinA.lat, pinA.lng, pinB.lat, pinB.lng);
+    if (pinA.inset || pinB.inset) {
+      return { mode: 'Domestic flight', icon: '✈️', time: tpFormatHours(km / 650 + 0.75), km };
+    }
+    if (km > 400) {
+      return { mode: 'Domestic flight', icon: '✈️', time: tpFormatHours(km / 700 + 0.75), km };
+    }
+    if (km > 120) {
+      return { mode: 'Train or car', icon: '🚆', time: tpFormatHours(km / 85), km };
+    }
+    return { mode: 'Car', icon: '🚗', time: tpFormatHours(km / 70), km };
+  }
+
+  function updateTripPlannerTravelTime() {
+    const box = document.getElementById('tp-travel-time');
+    if (!box) return;
+    if (plannerSelected.size !== 2) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+    const [a, b] = Array.from(plannerSelected);
+    const coords = qbCityCoords();
+    const known = TRAVEL_TIMES[tpPairKey(a, b)];
+    box.hidden = false;
+    if (known) {
+      box.innerHTML = `<div class="tp-travel-card"><strong>${a} ↔ ${b}</strong>
+        <div class="tp-travel-mode-line">${known.icon} ${known.mode}: ${known.time}</div>
+        ${known.note ? `<div class="tp-travel-note">${known.note}</div>` : ''}
+      </div>`;
+      return;
+    }
+    const pinA = coords[a], pinB = coords[b];
+    if (!pinA || !pinB || pinA.lat == null || pinB.lat == null) {
+      box.innerHTML = `<div class="tp-travel-card"><strong>${a} ↔ ${b}</strong>
+        <div class="tp-travel-note">No travel-time data available for this pair yet.</div>
+      </div>`;
+      return;
+    }
+    const est = tpEstimateTravelMode(pinA, pinB);
+    box.innerHTML = `<div class="tp-travel-card"><strong>${a} ↔ ${b}</strong>
+      <div class="tp-travel-mode-line">${est.icon} ${est.mode}: ${est.time}</div>
+      <div class="tp-travel-note">Estimated from straight-line distance (${Math.round(est.km)} km) — not a sourced fact; confirm actual routing/timing before quoting a client.</div>
+    </div>`;
+  }
+
   window.toggleTripPin = function(city) {
     if (plannerSelected.has(city)) {
       plannerSelected.delete(city);
@@ -11312,6 +11490,7 @@ ${resultsBody}
       g.classList.toggle('selected', plannerSelected.has(g.dataset.city));
     });
     updateTripPlannerLabel();
+    updateTripPlannerTravelTime();
     document.getElementById('tp-results').innerHTML = '';
   };
 
@@ -11319,6 +11498,7 @@ ${resultsBody}
     plannerSelected.clear();
     document.querySelectorAll('.tp-pin').forEach(g => g.classList.remove('selected'));
     updateTripPlannerLabel();
+    updateTripPlannerTravelTime();
     document.getElementById('tp-results').innerHTML = '';
   }
 
