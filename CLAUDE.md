@@ -8932,3 +8932,100 @@ in the area. Make it user friendly and easy to read."
   "Azores & Madeira — not to scale" caption reads clearly above them, and
   that all four still feel like a related group despite no longer being
   visually boxed together.
+
+## Lisbon Hotels: cross-checked against a real hotel-selection lesson deck, Selecting Hotels in Portugal + Pousadas vs. Pestana added (Sep 2026, unverified live)
+
+Direct continuation of the Portugal build-out, switching back to hotel
+content: "Hotels in Lisbon and Cascais / Lesson 1 of 9" — a map screenshot
+pinning Lisbon's 5 hotels, plus a detail card (Style/Size/Kensington
+Level/bullets) and a "location notes" panel for each one, sent across
+several messages, alongside general text on selecting hotels in Portugal
+and a Pousadas-vs-Pestana explainer. "Cascais" is named in the lesson
+title but no Cascais hotel content actually arrived in this batch —
+nothing was added for Cascais, per this build-out's standing "don't guess,
+place only what's given" rule; expect it in a later chunk of this same
+9-lesson series.
+
+- **Read as confirmation first, and it mostly was.** All 5 pinned hotels
+  (Heritage Avenida Liberdade, Hotel Britania, Olissippo Lapa Palace,
+  Lisboa Plaza, Pousada de Lisboa) already existed in the guide's own
+  `hotels-lisbon` table from an earlier session's "9 - Top Hotels" xlsx
+  pass — same 5 names, same Style/Kensington-Level pairings confirmed
+  exactly (Contemporary·Premier, Historic·Premier, Historic·Luxe,
+  Historic·Discovery, Historic·Luxe). No new hotel was added; this
+  lesson deck is an independent source (a different lesson tool, not the
+  xlsx) landing on the same 5 properties — a good cross-check that the
+  earlier xlsx-sourced table was accurate, not a reason to rebuild it.
+- **Real, genuinely new operational/client-fit detail folded into the
+  existing table's own cells, not left in a duplicate second table.**
+  Each hotel's detail card and location-notes screenshot added specifics
+  the existing table didn't have:
+  - Heritage Avenida Liberdade: "very safe and scenic" despite the
+    busy/commercial feel of the avenue.
+  - Hotel Britania: it actually sits on a quiet SIDE STREET off Liberdade
+    (calmer than the avenue itself, a nuance the existing "some city
+    noise" line didn't capture), explicitly a good fit for light
+    sleepers/older clients, and — a real gap in what the guide already
+    said about it — no spa or restaurant on-site.
+  - Olissippo Lapa Palace: a hilltop pool, and the concrete operational
+    fact that it's far enough from the center to effectively require a
+    taxi or private transfer (the existing entry only said "quiet and
+    removed from downtown traffic," not that a transfer is basically
+    mandatory).
+  - Lisboa Plaza: also on a quiet side street off Liberdade (specific
+    location, not just "quiet area" as before), and that Junior Suites
+    (not just the already-documented Family Room) also sleep up to 4.
+  - Pousada de Lisboa: it's specifically a former GOVERNMENT building (not
+    just "a historic building"), has its own on-site restaurant, and the
+    parking complaint is now a concrete fact — drop-off may require a
+    short walk due to street restrictions, not just "parking can be a
+    challenge."
+- **Two new general, Portugal-wide sections added under "Portugal — Key
+  Locales Overview," not repeated inside each destination's own Hotels
+  section** — this lesson's own general guidance (location/terrain and
+  style considerations, plus the Pousadas-vs-Pestana explainer) applies
+  everywhere in Portugal, not just Lisbon, so it lives once, alongside
+  the existing Locale Planning Quick Reference table, rather than being
+  pasted into Lisbon/Porto/the Azores' own Hotels sections three times:
+  - **`<h4 id="selecting-hotels-in-portugal">Selecting Hotels in
+    Portugal</h4>`** — the two general considerations (hilly terrain/
+    cobblestones affecting walkability; historic properties trading
+    convenience for atmosphere, so check A/C, elevators, and accessible
+    layouts rather than assuming).
+  - **Pousadas vs. Pestana Hotels** — genuinely new content this guide
+    never had before (confirmed via grep — "Pousada"/"Pestana" only
+    ever appeared as individual hotel/brand names, e.g. Pousada de
+    Lisboa, Pestana Vintage Porto, never explained as a category or
+    positioned against each other). Framed exactly as given: Pousadas
+    for a client wanting genuine historic character and sense of place,
+    Pestana as the natural alternative for a client who wants modern
+    consistency and a wider range of contemporary/resort-style options.
+- **The existing Lisbon "Choosing a neighborhood" paragraph (Avenida da
+  Liberdade / Belém / Baixa &amp; Praça do Comércio) was checked against
+  this lesson's own near-identical neighborhood bullets and left
+  untouched** — the content matches almost word-for-word (both trace back
+  to the same real KT material), so this was read as confirmation, not a
+  reason to rewrite an already-correct paragraph.
+- Verified via this project's established non-script-content discipline:
+  all 16 inline `<script>` blocks re-extracted and `node --check`ed
+  individually (unaffected — pure HTML content, checked anyway per
+  standing practice), a full script-excluded tag-balance recount
+  (div/table/tr/td/th/thead/tbody/ul/li/h3/p all held exactly even; h4
+  incremented by exactly 1, matching the one new `selecting-hotels-in-
+  portugal` heading, internally balanced), and the duplicate-id sweep
+  (unchanged from the established baseline — the same 4 pre-existing,
+  unrelated Client Tracker bulk-action ids; the new heading's id
+  confirmed genuinely unique, not colliding with anything).
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  none of this batch's specific facts (the Britania's side-street
+  position, the Lapa Palace's taxi-required distance, the Pousada de
+  Lisboa's "former government building" history, the Pestana-vs-Pousada
+  framing) have been checked against a live source beyond the lesson
+  screenshots and text themselves — transcribed faithfully, not
+  independently re-confirmed. Whether the enriched table cells now read
+  as too dense (5 rows, each noticeably longer than before) in a real
+  browser at the table's actual column widths hasn't been seen outside
+  this environment. Next in this 9-lesson series: Cascais' own hotel
+  content (named in the lesson title but not yet sent), then presumably
+  Porto/Sintra/Douro Valley/Algarve/the Azores/Madeira in whatever order
+  the remaining 8 lessons cover.
