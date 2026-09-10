@@ -9219,3 +9219,138 @@ given, verify against the real file first" discipline.
   outstanding from this same lesson series: any Évora hotel content the DE
   may send in a later chunk (the Coimbra half of Lesson 3 is complete;
   Évora's own pins never arrived).
+
+## Closing real Spain-parity gaps: Portugal search-index entries + a real Weather by Locale + Pronunciation Guide (Sep 2026, unverified live)
+
+Direct follow-up to being asked point-blank whether Portugal now mirrors
+Spain's structure — the honest answer was no, with a specific list of real
+gaps (see the conversation itself for the full audit). The DE's reply:
+"action this all," using the Portugal guide's own existing content as the
+source rather than inventing anything new. This pass closed the three gaps
+that were safely buildable from data already verified and sitting in this
+file; the ones that would need genuinely new source material (not
+available in this session) are named explicitly at the end, not silently
+skipped.
+
+- **Two real, previously-flagged `SEARCH_INDEX` gaps closed.** Lisbon
+  (`p1-lisbon`) and the Azores (`p2-azores`) — the guide's own in-page
+  search has had zero entries for either since they were first promoted to
+  full `<h3>` sections, meaning a DE searching "Lisbon" or "Azores" inside
+  this guide would have found nothing, an accepted-but-real gap this
+  file's own history has flagged twice without fixing. Added two new
+  entries matching Porto's real entry's exact shape (`{id, title, text}`,
+  same ~1.5–1.9K-character compressed-summary density, not full page
+  text) — built entirely from content already verified and placed in this
+  guide (neighborhoods, attractions, hotels, climate figures, etc.), not
+  new research.
+- **A real `PORTUGAL — WEATHER BY LOCALE` section**, mirroring Spain's own
+  `114-spain-weather-by-locale` structure exactly: 3 tap-to-flip weather
+  cards (Lisbon/Porto/the Azores, `.weather-card`/`.wcard-flip-inner`,
+  same CSS classes Spain's cards already use) plus a real sortable
+  comparison table. **Built entirely from `PORTUGAL_WEATHER`, the data
+  object already added and verified in an earlier session's health-check
+  pass** — no new climate figures were introduced; this is the visual
+  section that data was always missing, now built. One honest gap kept
+  rather than papered over: Spain's cards show an "Annual avg" row,
+  which `PORTUGAL_WEATHER` doesn't store — that row is simply omitted
+  from Portugal's cards rather than a fabricated number filling it.
+  **`makeSortableTable`'s wiring array updated** (it only ever activates
+  click-to-sort on a fixed list of heading ids — `spain-weather-at-a-
+  glance-sortable-comparison`, the two DMC transfer tables) to add
+  `portugal-weather-at-a-glance-sortable-comparison`, or the new table
+  would have rendered correctly but never actually sorted on click — the
+  exact same silent-gap shape this file's own history has caught before
+  (a feature that "looks right" but was never actually wired to the JS
+  that makes it real).
+- **A real `PORTUGAL — PRONUNCIATION GUIDE` section**, mirroring Spain's
+  `115-spain-pronunciation-guide` `.flip-grid`/`.flip-card` structure
+  exactly (a different, dedicated pattern from the individual city-name
+  `.title-pron-wrap` badges already sitting atop Lisbon/Porto/the Azores/
+  Madeira — this is the consolidated cross-reference list Spain's own
+  guide keeps separately). **Deliberately scoped to only what already has
+  a real, sourced pronunciation somewhere in this guide** — the 4 city/
+  region names (Lisboa, Porto, Açores, Madeira, reusing their exact
+  already-verified phonetics from the individual flip-badges) plus the 6
+  Common Portuguese Phrases already transcribed into Lisbon's own Culture
+  & Etiquette section (Bom dia, Obrigado/Obrigada, Por favor, Desculpe,
+  Quanto custa?, Onde fica...?) — 10 entries total, all reused verbatim
+  from content this guide already has, zero new phonetics invented. The
+  section's own intro explicitly names the official Job Aid's
+  "Pronounciation" checklist items that still have NO real phonetic
+  source anywhere in this guide (Alentejo, Coimbra, Cascais, Jerónimos
+  Monastery, Óbidos, Quinta da Regaleira, Moliceiro boat, Sete Cidades,
+  Funchal, Terceira, Almendres Cromlech) rather than guessing plausible-
+  sounding pronunciations for them — consistent with this whole build-
+  out's standing "don't guess" rule, applied here to phonetics
+  specifically for the first time.
+- **Sidebar nav updated for both new sections**, inserted in the same
+  relative order Spain's own nav uses (Top Tours → Weather → Pronunciation
+  → DMCs), with the Weather entry getting its own expandable subsection
+  dropdown pointing at the sortable-table heading, matching Spain's own
+  nav shape for its weather section exactly.
+- Verified via this project's established discipline: all 16 inline
+  `<script>` blocks re-verified via `node --check` (confirms the new
+  `SEARCH_INDEX` entries and the `makeSortableTable` array edit are both
+  syntactically valid); a full script-excluded tag-balance recount
+  (div/table/tr/td/th/thead/tbody/ul/li/h3/h4/p/button/span/select/label/
+  details/summary all held exactly even across the whole file); the
+  duplicate-id sweep (unchanged from the established baseline — the same
+  4 pre-existing, unrelated Client Tracker bulk-action-bar ids; every new
+  id — `portugal-weather-by-locale`, `portugal-weather-at-a-glance-
+  sortable-comparison`, `portugal-pronunciation-guide`, `navsubP6` —
+  confirmed genuinely unique); and a `getElementById` cross-check (333
+  distinct string-literal lookups, zero missing targets).
+- **What's still genuinely NOT done, and why — named explicitly rather
+  than silently left out of "action this all":**
+  - **Porto's and the Azores' own Key Attractions tables converting to
+    real tap-to-flip photo cards** (matching Lisbon's own 19-card
+    conversion) — the exact same Wikimedia-search-then-verify method
+    from that earlier pass is ready to reuse, but converting ~30 more
+    attractions carefully (one real search-confirmed image per
+    attraction, not a guessed filename) is a large enough task on its
+    own that squeezing it into this same pass risked rushing the
+    sourcing quality that made Lisbon's conversion trustworthy in the
+    first place — worth its own dedicated pass.
+  - **A Portugal "Top Sites by Locale," "Qualifying Questions — Matching
+    Clients to Product," or "Hotels by Room Configuration" section**,
+    and Lisbon's own missing "Tommie's Hotels — Personal Boutique Picks"/
+    "Additional FAIR-Inspected Hotels" subsections — none of these have
+    any real source material in this session to build from (this
+    session's own scratchpad, checked directly, no longer has the
+    earlier xlsx extraction dumps a prior session made — they didn't
+    carry over). Building any of these now would mean inventing content
+    with no real backing, directly against this whole build-out's
+    standing discipline — genuinely blocked on the DE providing that
+    material, not something more effort here would fix.
+  - **`QB_CITY_ORDER` staying Spain-only** — deliberately NOT changed
+    here. This file's own history has explicitly deferred adding
+    Portugal cities to the Quote Builder's city list multiple times
+    already, each time as a considered call, not an oversight — it has
+    real, wide-reaching consequences (the auto-pick trip-length
+    algorithm, which cities the Quote Builder can automatically select
+    for a Spain-shaped multi-city trip) that go well beyond adding
+    content, and changing it without being explicitly asked risks
+    breaking an assumption the rest of the Quote Builder's Spain logic
+    quietly depends on. Flagged here as a real architectural decision
+    worth its own explicit conversation, not folded into this content
+    pass.
+  - **Itineraries — Live Website Listings** — still blocked; this
+    environment cannot reach kensingtontours.com (`EGRESS_BLOCKED`,
+    confirmed multiple times this build-out), so there's no way to pull
+    real priced/linked Portugal itineraries the way Spain's own
+    `119-spain-itineraries-live-website-listings` section was built.
+  - **Sintra/Cascais/Coimbra/Évora/Douro Valley/Algarve/Madeira staying
+    compact `<h4>` stubs**, not promoted to full `<h3>` sections — this
+    was already an explicit, standing decision (each waits on its own
+    richer source material, per the DE's own paced lesson delivery), not
+    something "action this all" was asking to override.
+- **Unverified live, same caveat as the rest of this Portugal build-out**:
+  the new Weather section's flip-card colors/layout and whether the
+  sortable table actually sorts correctly on click in a real browser, and
+  whether the Pronunciation Guide's 10-entry `.flip-grid` reads as a
+  useful cross-reference or as too short next to Spain's own longer list
+  — none of this has been seen in a real browser from this environment.
+  Test next: open the new Weather by Locale section, flip each of the 3
+  cards, click a table column header and confirm it actually sorts, then
+  open the Pronunciation Guide and flip through all 10 cards checking that
+  🔊 Listen actually speaks each term.
