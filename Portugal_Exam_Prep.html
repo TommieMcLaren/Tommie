@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portugal Exam — Cram Sheet</title>
+<style>
+  :root{
+    --sage:#7c9885; --sage-dark:#4f6b52; --sage-darker:#3a4f3d;
+    --beige:#f6f1e7; --beige-deep:#ede4d0; --dark:#2c3e35;
+    --gold:#c08a2e; --gold-light:#e2b862; --gold-text:#8a5f18; --border:#ddd3ba; --text:#33362f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--beige);
+    color: var(--text);
+    margin:0; padding: 24px 16px 80px;
+    line-height:1.5;
+  }
+  .wrap{max-width: 880px; margin: 0 auto;}
+  header{
+    background: linear-gradient(135deg, var(--sage-dark), var(--sage-darker));
+    color: #fff; border-radius: 14px; padding: 22px 26px; margin-bottom: 22px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+  header h1{margin:0 0 6px; font-size: 1.7rem; letter-spacing:.3px;}
+  header p{margin:0; opacity:.92; font-size:.95rem;}
+  nav.toc{
+    background:#fff; border:1px solid var(--border); border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 22px; font-size:.92rem;
+  }
+  nav.toc strong{color:var(--sage-darker);}
+  nav.toc a{color: var(--gold-text); text-decoration:none;}
+  nav.toc a:hover{text-decoration:underline;}
+  nav.toc ul{columns:2; margin:8px 0 0; padding-left:18px;}
+  section{
+    background:#fff; border:1px solid var(--border); border-radius: 12px;
+    padding: 18px 22px; margin-bottom: 18px;
+  }
+  h2{
+    color: var(--sage-darker); border-bottom: 2px solid var(--gold-light);
+    padding-bottom:6px; margin-top:0; font-size:1.25rem;
+  }
+  h3{color: var(--gold-text); font-size:1.02rem; margin-bottom:6px;}
+  table{width:100%; border-collapse:collapse; margin: 10px 0 16px; font-size:.9rem;}
+  th, td{border:1px solid var(--border); padding:7px 9px; text-align:left; vertical-align:top;}
+  th{background: var(--beige-deep); color: var(--sage-darker);}
+  tr:nth-child(even) td{background: #fbf9f4;}
+  .trap{
+    background:#fdf2ea; border-left:4px solid #c0622e; border-radius:6px;
+    padding:9px 12px; margin:8px 0; font-size:.92rem;
+  }
+  .tip{
+    background:#eef4ee; border-left:4px solid var(--sage); border-radius:6px;
+    padding:9px 12px; margin:8px 0; font-size:.92rem;
+  }
+  .num{
+    background:var(--beige-deep); border-left:4px solid var(--gold); border-radius:6px;
+    padding:9px 12px; margin:8px 0; font-size:.92rem;
+  }
+  .qa{
+    border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin:10px 0;
+    background:#fffdf8;
+  }
+  .qa .q{font-weight:bold; color:var(--sage-darker);}
+  .qa .a{margin-top:6px; padding-top:6px; border-top:1px dashed var(--border);}
+  .pron-grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap:8px; font-size:.85rem;}
+  .pron-item{border:1px solid var(--border); border-radius:6px; padding:6px 10px; background:#fbf9f4;}
+  .pron-item b{color:var(--sage-darker);}
+  .pron-item .ph{color:var(--gold-text); font-style:italic;}
+  .pill{display:inline-block; background:var(--gold-light); color:#3a2a05; border-radius:20px; padding:2px 10px; font-size:.78rem; font-weight:bold; margin-right:6px;}
+  footer{text-align:center; color:#8a8676; font-size:.8rem; margin-top: 30px;}
+  @media print{
+    body{background:#fff; padding:0;}
+    section{break-inside: avoid; box-shadow:none;}
+    nav.toc{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>🇵🇹 Portugal Exam — Cram Sheet</h1>
+  <p>Condensed from the master Spain/Portugal Destination Guide — every fact below is pulled directly from what's already in the guide (the official Job Aid content, the destination PDFs, and every fact the guide itself flags as exam-likely with ⚠️/💡). Nothing here is invented for this doc. Where the source data has an honest gap or hasn't been independently verified, that's noted the same way the master guide notes it.</p>
+</header>
+
+<nav class="toc">
+  <strong>Jump to:</strong>
+  <ul>
+    <li><a href="#numbers">Must-Know Numbers & Rules</a></li>
+    <li><a href="#locales">Key Locales at a Glance</a></li>
+    <li><a href="#dmcs">DMCs in Portugal</a></li>
+    <li><a href="#transfers">Arrivals & Transfers Traps</a></li>
+    <li><a href="#airports">Airport Codes</a></li>
+    <li><a href="#weather">Weather by Locale</a></li>
+    <li><a href="#itineraries">Top Itineraries & Client Matching</a></li>
+    <li><a href="#hotels">Hotels & Room Config</a></li>
+    <li><a href="#cityfacts">City-Specific Exam Facts</a></li>
+    <li><a href="#pron">Pronunciation Guide</a></li>
+    <li><a href="#scenarios">Scenario Drill (Q&amp;A)</a></li>
+  </ul>
+</nav>
+
+<section id="numbers">
+  <h2>📋 Must-Know Numbers & Rules</h2>
+  <table>
+    <tr><th>#</th><th>Rule / Number</th></tr>
+    <tr><td>90/180</td><td>Schengen visa-free limit — <strong>identical to Spain</strong>: 90 days within any 180-day rolling period. Portugal is a Schengen member.</td></tr>
+    <tr><td>3 months</td><td>Minimum passport validity required past trip end date — same Schengen-wide rule as Spain.</td></tr>
+    <tr><td>€ (Euro)</td><td>Same currency as Spain — no exchange needed when combining both countries on one itinerary.</td></tr>
+    <tr><td>~1 hr</td><td>Typical flight time Lisbon ↔ Madrid; Porto ↔ Madrid runs closer to <strong>1.5 hrs</strong>.</td></tr>
+    <tr><td>No high-speed rail</td><td>Unlike Spain's AVE network, there is <strong>no</strong> high-speed train between Lisbon/Porto and Spain — combined itineraries fly, or use the Douro/Duero river-cruise routing instead.</td></tr>
+    <tr><td>DMC</td><td><strong>Explore Portugal</strong> or <strong>Lusanova</strong> — the two core Portugal DMCs. Must select one per trip, they cannot be mixed.</td></tr>
+  </table>
+  <div class="trap">⚠️ ETIAS is <strong>not yet in effect</strong> for Portugal, same as Spain — a 2027 launch is now considered more likely than the previously-targeted Q4 2026 date. Don't state it as active.</div>
+</section>
+
+<section id="locales">
+  <h2>🗺️ Key Locales at a Glance</h2>
+  <h3>Mainland</h3>
+  <table>
+    <tr><th>Locale</th><th>Nights</th><th>Alternatives</th><th>Typical Add-Ons</th></tr>
+    <tr><td><strong>Lisbon</strong></td><td>4</td><td>No true substitute; Porto is a different urban vibe</td><td>Sintra/Cascais (palaces, coast); Óbidos/Évora (history, wine)</td></tr>
+    <tr><td><strong>Porto</strong></td><td>3</td><td>Lisbon (metropolitan) or Douro Valley (wine)</td><td>Douro Valley; Aveiro & Coimbra; Braga & Guimarães</td></tr>
+    <tr><td><strong>Cascais</strong></td><td>2</td><td>Algarve for beachgoers, or Évora for wine</td><td>Sintra day trip; Sintra-Cascais Natural Park hiking</td></tr>
+    <tr><td><strong>Albufeira (Algarve)</strong></td><td>3</td><td>Cascais (closer to Lisbon)</td><td>Extend beach time or inland villages; extend into Seville, Spain</td></tr>
+  </table>
+  <h3>The Azores</h3>
+  <table>
+    <tr><th>Island</th><th>Nights</th><th>Alternatives</th><th>Typical Add-Ons</th></tr>
+    <tr><td><strong>São Miguel</strong></td><td>4</td><td>Other Azores islands, or Madeira</td><td>Combine with Terceira or Faial for island hopping</td></tr>
+    <tr><td><strong>Terceira</strong></td><td>3</td><td>São Miguel for a "well-rounded" stay</td><td>Faial or São Jorge</td></tr>
+    <tr><td><strong>Faial</strong></td><td>3</td><td>Pico (hiking) or São Jorge (coastlines)</td><td>Pico day trip</td></tr>
+  </table>
+</section>
+
+<section id="dmcs">
+  <h2>🤝 DMCs in Portugal</h2>
+  <div class="trap">⚠️ <strong>Key Rule:</strong> Must select either <strong>Explore Portugal OR Lusanova</strong> as the DMC for the entire trip — they cannot be mixed, even for a large multi-city trip needing a driver AND a guide throughout.</div>
+  <table>
+    <tr><th>DMC</th><th>Strengths</th><th>Considerations / Alerts</th><th>Communication</th></tr>
+    <tr><td><strong>Explore Portugal</strong></td><td>Large group (6+) Driver+Guide rates; near-identical product to Lusanova</td><td>Needs full passport details to book train tickets; no bookings &lt;30 days before travel in high season; no "optional" changes within 30 days of travel</td><td>Email only, copy TMT. ⚠️ No online portal.</td></tr>
+    <tr><td><strong>Lusanova</strong></td><td>Large group (6+) Driver+Guide rates; near-identical product to Explore Portugal's</td><td>Same 30-day rules as above</td><td>Email, <strong>plus a real online portal</strong> for hotel rates/availability.</td></tr>
+  </table>
+  <div class="num">High season = <strong>June–September</strong> (warm, outdoor events, less rain). May is also busy; <strong>September is the single busiest month.</strong> The 30-day rule applies across this whole window, not just peak summer.</div>
+  <div class="tip">💡 Need fast Portugal hotel availability confirmed (e.g. a weekend, price-conscious client)? Use <strong>Dynamic rates</strong> to search/book instantly rather than waiting on a DMC reply.</div>
+</section>
+
+<section id="transfers">
+  <h2>✈️ Arrivals & Transfers — The Real Trap Questions</h2>
+  <div class="trap">⚠️ <strong>M&G location depends on HOW the client arrives, not just that it's their first arrival.</strong> Airport arrival → airport M&G. Arrives by ground from Spain (e.g. a private transfer Seville → Albufeira) → <strong>Hotel M&G instead.</strong> The Welcome Package is delivered to the arrival hotel either way.</div>
+  <div class="trap">⚠️ <strong>The only direct Porto ↔ Faro flight is Ryanair</strong> — a low-cost carrier that must be booked by the client directly. It <strong>cannot</strong> be booked by KT Air or the DMC. This is the one Portugal domestic route where neither usual booking channel helps.</div>
+  <div class="trap">⚠️ Porto ↔ Faro by <strong>train takes 5+ hours</strong> — not time-effective. Ties to the Ryanair rule above: this route is genuinely awkward by every mode.</div>
+  <div class="trap">⚠️ Domestic flights within Portugal are <strong>not booked by the DMCs</strong> — for mainland-to-island routes (e.g. Lisbon → Azores), <strong>KT Air</strong> assists instead.</div>
+  <div class="trap">⚠️ Azores/Madeira flights are usually <strong>TAP or Azores Airlines</strong> — Ryanair is not recommended and not bookable by KT Air.</div>
+  <div class="tip">💡 Porto ↔ Algarve: flying is recommended — much faster/more comfortable than driving or train.</div>
+  <div class="trap">⚠️ Lisbon and Porto <strong>each have multiple train stations</strong> — always specify the exact station; the DMC determines which one based on transfer arrangements. Wrong station = missed private transfer.</div>
+  <div class="trap">⚠️ Portugal has occasional <strong>rail strikes</strong> — confirm plans closer to travel and always have a backup transfer plan.</div>
+  <div class="trap">⚠️ <strong>Tourism Driver ≠ Driver-Guide</strong> — a real distinction, not synonyms, and finer than this guide's general Driver/Guide Combinations table (which lists them as one combined entry). A <strong>Tourism Driver</strong> handles transport ONLY — cannot accompany clients into sites, not even basic guiding. A <strong>Driver-Guide</strong> is one person who genuinely DOES provide basic guiding alongside driving. Always confirm whether a separate guide is needed for monument visits.</div>
+  <div class="trap">⚠️ <strong>13-seater vans are not possible</strong> in: Douro Valley, parts of Évora, Madeira, and the Azores — narrow/winding roads. Always check routing before confirming vehicle size.</div>
+  <div class="trap">⚠️ Vehicle restrictions in historic neighborhoods: Lisbon's <strong>Alfama</strong> and Porto's <strong>Ribeira</strong> may require a short walk. Porto specifically: hotels on <strong>Rua das Flores or in Ribeira</strong> face a municipal <strong>congestion charge (€7.50–15)</strong> for vehicle drop-offs/tours — always flag this.</div>
+</section>
+
+<section id="airports">
+  <h2>🛫 Airport Codes — Quick Reference</h2>
+  <table>
+    <tr><th>City / Island</th><th>Airport</th><th>Code</th></tr>
+    <tr><td>Lisbon</td><td>Humberto Delgado Airport</td><td><strong>LIS</strong></td></tr>
+    <tr><td>Porto</td><td>Francisco Sá Carneiro Airport</td><td><strong>OPO</strong></td></tr>
+    <tr><td>Algarve</td><td>Faro Airport</td><td><strong>FAO</strong></td></tr>
+    <tr><td>Madeira</td><td>Funchal Airport</td><td><strong>FNC</strong></td></tr>
+    <tr><td>São Miguel (Azores)</td><td>Ponta Delgada João Paulo II Airport</td><td><strong>PDL</strong></td></tr>
+    <tr><td>Terceira (Azores)</td><td>Lajes Airport</td><td><strong>TER</strong></td></tr>
+    <tr><td>Faial (Azores)</td><td>Horta Airport</td><td><strong>HOR</strong></td>
+    <tr><td>Santa Maria (Azores)</td><td>Santa Maria Airport</td><td><strong>SMA</strong></td></tr>
+  </table>
+  <div class="tip">💡 São Miguel = largest Azores airport, direct flights from US/Canada/mainland. Terceira = second-largest, both direct and connecting flights back to North America. This is why "Portugal Island Gems" starts in São Miguel and ends in Terceira.</div>
+</section>
+
+<section id="weather">
+  <h2>🌦️ Weather by Locale</h2>
+  <table>
+    <tr><th>Locale</th><th>☀️ Summer High</th><th>❄️ Winter Low</th><th>☔ Rainiest Month</th><th>🏖️ Best Shoulder Season</th></tr>
+    <tr><td>Lisbon</td><td>28°C (82°F)</td><td>8°C (46°F)</td><td>November</td><td>Apr–May, Sep–Oct</td></tr>
+    <tr><td>Porto</td><td>25°C (77°F)</td><td>5°C (41°F)</td><td>December</td><td>May–Jun, Sep</td></tr>
+    <tr><td>The Azores</td><td>24°C (75°F)</td><td>12°C (54°F)</td><td>Nov–Jan</td><td>Jun–Sep</td></tr>
+  </table>
+  <div class="trap">⚠️ <strong>The framing is the opposite of Spain/Lisbon/Porto for the Azores.</strong> There's no "avoid this season for heat" rule in the Azores — the real seasonal factor is <strong>rain</strong>, not temperature. Rain falls somewhat year-round (heaviest Nov–Jan); June–September is driest/sunniest and lines up with peak whale-watching/hiking.</div>
+  <div class="trap">⚠️ Unlike Spain (where heat management dominates almost everywhere), <strong>Portugal's real seasonal variable is rain</strong> — even Lisbon/Porto summers rarely need the aggressive heat-avoidance advice given for Seville/Córdoba/Granada.</div>
+</section>
+
+<section id="itineraries">
+  <h2>🗺️ Top Itineraries (Job Aid) — Know the Client Match</h2>
+  <table>
+    <tr><th></th><th>Best of Lisbon, Porto & the Algarve</th><th>Portugal Island Gems — The Azores</th><th>Portugal Revealed: City to Coast</th></tr>
+    <tr><td><strong>Days</strong></td><td>11</td><td>9</td><td>7</td></tr>
+    <tr><td><strong>KT Level</strong></td><td>Premier</td><td>Premier</td><td>Premier</td></tr>
+    <tr><td><strong>Locales & Nights</strong></td><td>Lisbon (4), Porto (3), Albufeira/Algarve (3)</td><td>São Miguel (4), Faial (3), Terceira (2)</td><td>Lisbon (4), Cascais (2), Douro Valley/coastal day trip (1)</td></tr>
+    <tr><td><strong>Client Segment</strong></td><td>Couples, honeymooners, retirees — mix of city sightseeing + beach, food/wine, coastal beauty</td><td>Active travelers / nature enthusiasts — off the beaten path, dramatic landscapes, hot springs, eco-tourism</td><td>Well-traveled / repeat visitors wanting to dive deeper — history, leisure, scenic experiences</td></tr>
+  </table>
+  <div class="trap">⚠️ <strong>Scenario traps — memorize these exact matches:</strong></div>
+  <div class="qa"><div class="q">Q: Couple wanting beaches + culture + food, OR a multigenerational family with mixed beach/museum/food interests?</div><div class="a">A: <strong>Best of Lisbon, Porto & the Algarve</strong></div></div>
+  <div class="qa"><div class="q">Q: Nature-lover/hiking client wanting volcanic scenery and hot springs?</div><div class="a">A: <strong>São Miguel specifically</strong> — TRAP: name the island, not just "the Azores" or the Algarve/a mainland city.</div></div>
+  <div class="qa"><div class="q">Q: Solo traveler avoiding crowds, wanting dramatic landscapes and outdoor adventure?</div><div class="a">A: <strong>Portugal Island Gems – The Azores</strong></div></div>
+  <div class="qa"><div class="q">Q: Well-traveled/repeat client who's already done Lisbon and Porto, one week, wants deeper cultural immersion?</div><div class="a">A: <strong>Portugal Revealed: City to Coast</strong> — TRAP: this itinerary <em>still includes 4 nights in Lisbon.</em> The right answer is about DEPTH for a repeat visitor, not avoiding a city they've seen.</div></div>
+</section>
+
+<section id="hotels">
+  <h2>🏨 Hotels & Room Configuration</h2>
+  <div class="tip">💡 <strong>Selecting Hotels in Portugal:</strong> hilly terrain/cobblestones can affect walkability. Historic properties trade convenience for atmosphere — always check A/C, elevators, and accessible layouts rather than assuming.</div>
+  <div class="tip">💡 <strong>Pousadas vs. Pestana:</strong> Pousadas = genuine historic character/sense of place. Pestana = modern consistency, wider range of contemporary/resort-style options. Position accordingly.</div>
+  <div class="tip">💡 <strong>Sequencing rule:</strong> start a price-conscious multi-stop itinerary at Discovery-level properties and build up to Premier — never the reverse.</div>
+  <h3>Lisbon — Room Config (sample)</h3>
+  <table>
+    <tr><th>Hotel</th><th>Single</th><th>Double</th><th>Triple</th><th>Quad</th></tr>
+    <tr><td>Heritage Avenida Liberdade</td><td>❌ not confirmed</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>Hotel Britania</td><td>❌ not confirmed</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>Olissippo Lapa Palace</td><td>❌ not confirmed</td><td>✅</td><td>❌</td><td>⚠️ connecting rooms only</td></tr>
+    <tr><td>Lisboa Plaza</td><td>❌ not confirmed</td><td>✅</td><td>✅ +bed (18sqm)</td><td>✅ Family/Jr Suite (2A+2C)</td></tr>
+    <tr><td>Pousada de Lisboa</td><td>❌ not confirmed</td><td>✅</td><td>✅ Deluxe/Suite King</td><td>⚠️ connecting only, not guaranteed</td></tr>
+  </table>
+  <div class="trap">⚠️ No Portugal hotel in the guide's own data confirms single-room availability — don't promise a single without checking. Double is the one universally safe assumption.</div>
+</section>
+
+<section id="cityfacts">
+  <h2>📍 City-Specific Exam-Likely Facts</h2>
+  <h3>Lisbon</h3>
+  <div class="num">⚠️ <strong>Great Lisbon Earthquake — November 1, 1755.</strong> Massive earthquake + tsunami + fires virtually destroyed the city. Marquis of Pombal led reconstruction with earthquake-resistant buildings, wider streets, new public squares — directly shaping the flat, grid-planned <strong>Baixa</strong> seen today.</div>
+  <div class="num">⚠️ Lisbon is home to the <strong>oldest bookshop in the world still operating</strong> — Bertrand Bookstore in Chiado, continuously open since <strong>1732</strong>.</div>
+  <div class="trap">⚠️ Tram 28 gets crowded and pickpocket risk is real onboard — worth mentioning to clients, especially anyone carrying valuables.</div>
+  <div class="tip">💡 Orientation rule of thumb: staying close to the river gets the most out of a visit; Avenidas Novas is the strongest shopping corridor, but everything else worth prioritizing sits along the water.</div>
+  <div class="num">Tipping: not obligatory (some restaurants add "serviço"); customary 5–10% for exceptional service; taxis/hotel staff — rounding up is common, not obligatory.</div>
+  <div class="tip">💡 "Tasca" restaurants — small family-run eateries, authentic Portuguese cooking, very reasonable prices; bustling with locals = quality signal.</div>
+  <div class="trap">⚠️ Notify credit card issuer of travel dates before departure — same as Spain.</div>
+  <div class="tip">💡 Spring (Mar–May) & Fall (Sep–Oct) = ideal window, mild temps, smaller crowds — same recommendation pattern as the Spain cities.</div>
+
+  <h3>The Azores</h3>
+  <div class="tip">💡 Routing logic: Portugal Island Gems starts in <strong>São Miguel</strong> (largest airport, direct US/Canada/mainland flights) and ends in <strong>Terceira</strong> (2nd-largest, direct + connecting flights home).</div>
+
+  <h3>Porto</h3>
+  <div class="tip">💡 For the fullest taste of local life, <strong>summer</strong> is recommended despite crowds — open-air markets fill up, and the city hosts <strong>Serralves em Festa</strong> and <strong>Festa de São João</strong> (name both).</div>
+
+  <h3>Douro Valley</h3>
+  <div class="trap">⚠️ A guided Douro Valley day tour (transportation + winery visits/tastings) runs a full <strong>~9-hour experience</strong>. Hilly terrain/winding roads may not suit motion-sickness-prone clients.</div>
+
+  <h3>Top Tours — Kensington Tour Levels</h3>
+  <div class="tip">💡 <strong>Luxe upsells (name all three):</strong> exclusive vineyard access, private-hire of the historic <strong>Tram 28</strong>, and Michelin-starred dining.</div>
+  <div class="trap">⚠️ Fado Night (dinner) — <strong>not available Sundays</strong>. Use the no-dinner option if that's the client's only free evening.</div>
+  <div class="trap">⚠️ Sagres Fortress / Óbidos / Fátima circuit — uneven cobblestone/limited accessibility; museums mostly closed Mondays.</div>
+  <div class="trap">⚠️ Benagil Cave — can <strong>no longer be entered by boat</strong>. Bumpy, fast ride — not for back problems or motion sickness, clients will get splashed.</div>
+  <div class="trap">⚠️ Seven Hanging Valleys Trail — moderate-to-challenging ~3hr hike + 2hr boat tour; not ideal for mobility concerns; driver drops at trailhead and leaves (hard to shorten mid-hike).</div>
+</section>
+
+<section id="pron">
+  <h2>🗣️ Pronunciation Guide</h2>
+  <div class="pron-grid">
+    <div class="pron-item"><b>Lisboa</b><br><span class="ph">leezh-BOH-uh</span></div>
+    <div class="pron-item"><b>Porto</b><br><span class="ph">POR-too</span></div>
+    <div class="pron-item"><b>Açores</b><br><span class="ph">ah-SOR-esh</span></div>
+    <div class="pron-item"><b>Madeira</b><br><span class="ph">muh-DAY-ruh</span></div>
+    <div class="pron-item"><b>Bom dia</b><br><span class="ph">bohng DEE-ah</span> — good morning</div>
+    <div class="pron-item"><b>Obrigado/a</b><br><span class="ph">oh-bree-GAH-doh/dah</span> — thank you (matches speaker's gender)</div>
+    <div class="pron-item"><b>Por favor</b><br><span class="ph">pohr fah-VOHR</span> — please</div>
+    <div class="pron-item"><b>Desculpe</b><br><span class="ph">desh-KOOL-peh</span> — excuse me/sorry</div>
+    <div class="pron-item"><b>Quanto custa?</b><br><span class="ph">KWAN-too KOOS-tah</span> — how much?</div>
+    <div class="pron-item"><b>Onde fica...?</b><br><span class="ph">OHN-deh FEE-kah</span> — where is...?</div>
+    <div class="pron-item"><b>Alentejo</b><br><span class="ph">ah-len-TAY-zhoo</span></div>
+    <div class="pron-item"><b>Coimbra</b><br><span class="ph">KWEEM-bruh</span></div>
+    <div class="pron-item"><b>Cascais</b><br><span class="ph">kush-KYSH</span></div>
+    <div class="pron-item"><b>Jerónimos Monastery</b><br><span class="ph">zheh-RAW-nee-moosh</span></div>
+    <div class="pron-item"><b>Óbidos</b><br><span class="ph">AW-bee-doosh</span></div>
+    <div class="pron-item"><b>Quinta da Regaleira</b><br><span class="ph">KEEN-tuh duh heh-guh-LAY-ruh</span></div>
+    <div class="pron-item"><b>Moliceiro boat</b><br><span class="ph">moo-lee-SAY-roo</span></div>
+    <div class="pron-item"><b>Sete Cidades</b><br><span class="ph">SEH-tuh see-DAH-desh</span></div>
+    <div class="pron-item"><b>Funchal</b><br><span class="ph">foon-SHAL</span></div>
+    <div class="pron-item"><b>Terceira</b><br><span class="ph">tehr-SAY-ruh</span></div>
+    <div class="pron-item"><b>Almendres Cromlech</b><br><span class="ph">ahl-MEN-dresh KROHM-lek</span></div>
+  </div>
+</section>
+
+<section id="scenarios">
+  <h2>🧠 Scenario Drill — Cover the Answer, Test Yourself</h2>
+  <div class="qa"><div class="q">Q: A client wants a multi-city Portugal trip needing both a driver AND a guide. Can you use Explore Portugal for touring and Lusanova for transfers to get the best of both?</div><div class="a">A: <strong>No.</strong> Pick ONE DMC for the entire trip — they cannot be mixed, no matter how complex the trip is.</div></div>
+  <div class="qa"><div class="q">Q: It's a Friday, client needs weekend hotel availability confirmed fast, price-conscious. DMC or Dynamic rates?</div><div class="a">A: <strong>Dynamic rates</strong> — search and book instantly rather than waiting on the DMC.</div></div>
+  <div class="qa"><div class="q">Q: Client is flying into Lisbon for the first time. What do you arrange, and where?</div><div class="a">A: An <strong>airport M&G</strong> at Lisbon (Humberto Delgado/LIS), plus deliver the Welcome Package to the arrival hotel.</div></div>
+  <div class="qa"><div class="q">Q: Client is being privately transferred overland from Seville to Albufeira — first arrival in Portugal. Airport or hotel M&G?</div><div class="a">A: <strong>Hotel M&G</strong> — location depends on how they physically arrive, not just that it's a first arrival.</div></div>
+  <div class="qa"><div class="q">Q: Client wants to fly directly from Porto to Faro. Can KT Air or the DMC book it?</div><div class="a">A: <strong>No</strong> — the only direct route is Ryanair, client must book it themselves.</div></div>
+  <div class="qa"><div class="q">Q: A driver is arranged for a Sintra day trip, no separate guide booked. Can the client get a tour of Pena Palace's interior from the driver?</div><div class="a">A: Only if it's a <strong>Driver-Guide</strong>, not a plain Tourism Driver — a Tourism Driver cannot accompany clients into sites at all.</div></div>
+  <div class="qa"><div class="q">Q: Client staying at a hotel on Rua das Flores in Porto wants door-to-door van drop-off for every tour. Any catch?</div><div class="a">A: Yes — a municipal <strong>congestion charge (€7.50–15)</strong> applies for vehicle drop-offs/tours in that area; flag it upfront.</div></div>
+  <div class="qa"><div class="q">Q: Hiking client wants volcanic landscapes and hot springs. Which Portugal itinerary/destination?</div><div class="a">A: <strong>São Miguel</strong> specifically (Azores) — don't just say "the Azores."</div></div>
+  <div class="qa"><div class="q">Q: Repeat client, already done Lisbon and Porto, wants a deeper 1-week cultural trip. Portugal Revealed doesn't seem right since it still includes Lisbon — is that a mismatch?</div><div class="a">A: No — it's still the right answer. The pitch is <strong>depth for a repeat visitor</strong>, not "avoid cities they've seen."</div></div>
+</section>
+
+<footer>Built from the Kensington Tours Spain/Portugal Destination Guide — cram sheet only, not a replacement for the master guide or TMT. Verify any pricing/live rates against TMT before quoting a client.</footer>
+
+</div>
+</body>
+</html>
