@@ -14631,12 +14631,31 @@ ${resultsBody}
     settingsPanel.hidden = !settingsPanel.hidden;
     if (!settingsPanel.hidden) { refreshApiKeyUI(); refreshVoiceUI(); }
   });
+  // A real, previously-silent bug (Sep 2026): setStoredApiKey already
+  // catches any localStorage failure and returns false — a Save that
+  // fails because this browser is blocking site storage here (private/
+  // incognito mode, a "block cookies/site data" setting, or a sandboxed
+  // preview iframe) used to just quietly revert to "No key saved yet"
+  // with zero explanation, which reads exactly like the key itself was
+  // rejected even though the real problem is storage access, not the
+  // key. Now checks the return value AND reads the key straight back to
+  // confirm it actually round-tripped, rather than trusting setItem not
+  // throwing was enough — and shows a specific, actionable message
+  // instead of silently falling through to refreshApiKeyUI()'s generic
+  // "no key" state.
   document.getElementById('ta-apikey-save').addEventListener('click', () => {
-    setStoredApiKey(apiKeyInput.value);
+    const typed = apiKeyInput.value.trim();
+    if (!typed) { apiKeyStatus.textContent = 'Paste a key first — the box is empty.'; return; }
+    const ok = setStoredApiKey(typed) && getStoredApiKey() === typed;
+    if (!ok) {
+      apiKeyStatus.textContent = "Couldn't save — this browser is blocking local storage on this page (common in a private/incognito window, a \"block site data\" setting, or an embedded preview). Try opening this file directly in a normal browser tab/window.";
+      return;
+    }
     refreshApiKeyUI();
   });
   document.getElementById('ta-apikey-clear').addEventListener('click', () => {
-    setStoredApiKey('');
+    const ok = setStoredApiKey('') && !getStoredApiKey();
+    if (!ok) { apiKeyStatus.textContent = "Couldn't clear — this browser is blocking local storage on this page."; return; }
     refreshApiKeyUI();
   });
   document.getElementById('ta-apikey-close').addEventListener('click', () => { settingsPanel.hidden = true; });
