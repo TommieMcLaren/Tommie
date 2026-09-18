@@ -559,6 +559,11 @@
           <div class="field"><label>Budget</label><input class="input" id="cm-f-budget" placeholder="e.g. $8,000 - $10,000"></div>
           <div class="field"><label>Travel Start Date</label><input class="input" id="cm-f-datestart" type="date"></div>
           <div class="field"><label>Travel End Date</label><input class="input" id="cm-f-dateend" type="date"></div>
+          <div class="field full">
+            <label>Itinerary</label>
+            <select class="input" id="cm-f-itinerary"><option value="">— Not selected —</option></select>
+            <div id="cm-itinerary-summary" style="display:none; font-size:12.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;"></div>
+          </div>
         </div>
       </div>
 
@@ -799,6 +804,26 @@
   const TRIP_TYPES = ['Custom Itinerary','Guided Small-Group Tour','Family Trip','Honeymoon / Romance','Multi-Generational Trip','Group Trip','Corporate / Incentive','Cruise','Other'];
   const LEAD_TEMP_EMOJI = { 'Hot Lead':'🔥', 'Warm Lead':'🌤️', 'Check Back Later':'🕐', 'Cold Lead':'❄️' };
 
+  // Snapshot of the real, current KT_LIVE_ITINERARIES from the Kensington Tours
+  // guide (Tommie_Tours.html) — id/title/route/duration/price/badge/link only
+  // (dropped "highlights"/"tags", not needed for a lookup dropdown). This is a
+  // one-time copy, not a live link between the two files: if the guide's own
+  // itinerary list grows or changes, this array needs to be re-synced by hand.
+  // Stores the itinerary's id on the contact (not its title), so a later title
+  // edit here can't silently orphan what a contact has saved.
+  const KT_ITINERARIES = [{"id": "barcelona-city-getaway", "title": "Barcelona City Getaway", "route": "Barcelona (single-city)", "duration": "5 days", "price": "$4,010/person", "badge": null, "link": "https://www.kensingtontours.com/travels/tours/spain/1634799?learn_more=true"}, {"id": "madrid-barcelona-highlights", "title": "Madrid and Barcelona Highlights", "route": "Madrid, Barcelona", "duration": "7 days", "price": "$5,296/person", "badge": null, "link": "https://www.kensingtontours.com/travels/tours/spain/2718799?learn_more=true"}, {"id": "andalusia-highlights-seville-cordoba-and-granada", "title": "Andalusia Highlights: Seville, Cordoba and Granada", "route": "Seville, Córdoba, Granada", "duration": "7 days", "price": "$5,250/person", "badge": "🆕 New listing", "link": "https://www.kensingtontours.com/travels/tours/spain/4593904?learn_more=true"}, {"id": "spain-portugal-signature", "title": "Spain and Portugal Signature", "route": "Barcelona, Madrid, Lisbon", "duration": "9 days", "price": "$9,999/person", "badge": null, "link": "https://www.kensingtontours.com/travels/tours/spain/1271211?learn_more=true"}, {"id": "madrid-to-valencia-art-culture-and-spanish-flavor", "title": "Madrid to Valencia: Art, Culture and Spanish Flavor", "route": "Madrid, Valencia", "duration": "7 days", "price": "$6,519/person", "badge": "🆕 New listing", "link": "https://www.kensingtontours.com/travels/tours/spain/4593165?learn_more=true"}, {"id": "barcelona-to-bilbao-a-spanish-culinary-journey", "title": "Barcelona to Bilbao: A Spanish Culinary Journey", "route": "Barcelona, Bilbao", "duration": "7 days", "price": "$6,635/person", "badge": "🆕 New listing", "link": "https://www.kensingtontours.com/travels/tours/spain/4580052?learn_more=true"}, {"id": "best-of-madrid-valencia-palma-de-mallorca", "title": "Best of Madrid, Valencia and Palma de Mallorca", "route": "Madrid, Valencia, Palma de Mallorca", "duration": "8 days", "price": "$7,699/person", "badge": "🆕 New listing", "link": "https://www.kensingtontours.com/travels/tours/spain/4589994?learn_more=true"}, {"id": "the-best-of-spain-iconic-cities-andalusia", "title": "The Best of Spain: Iconic Cities and Andalusia", "route": "Madrid, Seville, Granada, Barcelona", "duration": "10 days", "price": "$8,663/person", "badge": "⭐ Bestseller", "link": "https://www.kensingtontours.com/travels/tours/spain/2720225?learn_more=true"}, {"id": "grand-tour-of-spain", "title": "Grand Tour of Spain", "route": "Barcelona, Madrid, Seville, Córdoba, Granada, Marbella, Málaga", "duration": "14 days", "price": "$9,726/person", "badge": "⭐ Bestseller", "link": "https://www.kensingtontours.com/travels/tours/spain/1271214?learn_more=true"}, {"id": "epic-iberian-journey-spain-portugal", "title": "Epic Iberian Journey: Spain and Portugal", "route": "Barcelona, Madrid, Córdoba, Granada, Seville, Albufeira, Lisbon, Porto", "duration": "16 days", "price": "$12,667/person", "badge": null, "link": "https://www.kensingtontours.com/travels/tours/spain/1271210?learn_more=true"}, {"id": "southern-spain-and-morocco-highlights", "title": "Southern Spain and Morocco Highlights", "route": "Seville, Granada, Tangier, Fes, Marrakech", "duration": "12 days", "price": "$6,945/person", "badge": null, "link": "https://www.kensingtontours.com/travels/tours/spain/68097?learn_more=true"}, {"id": "a-taste-of-bordeaux-basque-region", "title": "A Taste of Bordeaux and Basque Region", "route": "Bordeaux, Biarritz, San Sebastián, Bilbao", "duration": "9 days", "price": "$9,480/person", "badge": "⏳ Limited Time listing", "link": "https://www.kensingtontours.com/travels/tours/spain/2719301?learn_more=true"}, {"id": "the-food-wine-wonders-of-spain", "title": "The Food and Wine Wonders of Spain", "route": "Barcelona, San Sebastián, Bilbao, Madrid", "duration": "12 days", "price": "$10,166/person", "badge": null, "link": "https://www.kensingtontours.com/travels/tours/spain/1271217?learn_more=true"}, {"id": "the-best-of-spain-and-portugal-by-cruise", "title": "The Best of Spain and Portugal, By Cruise", "route": "Barcelona, Mediterranean Cruise", "duration": "14 days", "price": "$12,500/person", "badge": "🚢 Kensington Cruise", "link": "https://www.kensingtontours.com/travels/tours/spain/2498544?learn_more=true"}, {"id": "douro-river-cruise-from-lisbon-to-santiago-de-compostela", "title": "Douro River Cruise: from Lisbon to Santiago de Compostela", "route": "Lisbon, Douro River Cruise, Santiago de Compostela", "duration": "14 days", "price": "$14,146/person", "badge": "🚢 Kensington Cruise", "link": "https://www.kensingtontours.com/travels/tours/spain/2186565?learn_more=true"}, {"id": "algarve-unveiled-a-luxury-villa-stay-in-portugal", "title": "Algarve Unveiled: A Luxury Villa Stay in Portugal", "route": "Gale, Algarve (Villa Stay)", "duration": "8 days", "price": "$4,461/person", "badge": "🏡 Villa Stay", "link": "https://kensingtontours.com/villas/europe/portugal/algarve-unveiled-a-luxury-villa-stay-in-portugal"}, {"id": "best-of-lisbon-porto-and-the-algarve", "title": "Best of Lisbon, Porto & the Algarve", "route": "Porto, Lisbon, Albufeira, Faro", "duration": "11 days", "price": "$8,664/person", "badge": null, "link": "https://kensingtontours.com/tours/europe/portugal/best-of-lisbon-porto-and-the-algarve"}, {"id": "lisbon-flavors-and-porto-wine", "title": "Lisbon Flavors & Porto Wine", "route": "Lisbon, Porto", "duration": "8 days", "price": "$7,872/person", "badge": null, "link": "https://kensingtontours.com/tours/europe/portugal/lisbon-flavors-and-porto-wine"}, {"id": "perfect-pairing-lisbon-marrakech-and-atlas-peaks", "title": "Perfect Pairing: Lisbon, Marrakech & Atlas Peaks", "route": "Lisbon, Marrakech, High Atlas Mountains", "duration": "9 days", "price": "$7,293/person", "badge": null, "link": "https://kensingtontours.com/tours/europe/portugal/perfect-pairing-lisbon-marrakech-and-atlas-peaks"}, {"id": "portugal-golf-lisbon-and-coastal-greens", "title": "Portugal Golf: Lisbon & Coastal Greens", "route": "Lisbon, Albufeira, Vilamoura, Sintra", "duration": "7 days", "price": "$6,085/person", "badge": "⛳ Golf", "link": "https://kensingtontours.com/tours/europe/portugal/portugal-golf-lisbon-and-coastal-greens"}, {"id": "portugal-golf-and-culture-lisbon-to-cascais", "title": "Portugal Golf & Culture: Lisbon to Cascais", "route": "Lisbon, Cascais", "duration": "8 days", "price": "$6,318/person", "badge": "⛳ Golf", "link": "https://kensingtontours.com/tours/europe/portugal/portugal-golf-and-culture-lisbon-to-cascais"}, {"id": "portugal-highlights-lisbon-and-porto", "title": "Portugal Highlights: Lisbon & Porto", "route": "Lisbon, Porto", "duration": "7 days", "price": "$5,793/person", "badge": null, "link": "https://kensingtontours.com/tours/europe/portugal/portugal-highlights-lisbon-and-porto"}, {"id": "portugal-island-gems-the-azores", "title": "Portugal Island Gems: The Azores", "route": "Ponta Delgada, São Miguel Island, Faial Island, Terceira Island", "duration": "9 days", "price": "$4,360/person", "badge": null, "link": "https://kensingtontours.com/tours/europe/portugal/portugal-island-gems-the-azores"}, {"id": "portugal-revealed-city-to-coast", "title": "Portugal Revealed: City to Coast", "route": "Lisbon, Cascais", "duration": "7 days", "price": "$4,949/person", "badge": null, "link": "https://kensingtontours.com/tours/europe/portugal/portugal-revealed-city-to-coast"}];
+  function findItinerary(id){ return id ? (KT_ITINERARIES.find(it=>it.id===id) || null) : null; }
+
+  function renderItinerarySummary(itineraryId){
+    const el = document.getElementById('cm-itinerary-summary');
+    const it = findItinerary(itineraryId);
+    if(!it){ el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = `${escapeHtml(it.route)} · ${escapeHtml(it.duration)} · ${escapeHtml(it.price)}` +
+      (it.badge ? ` · ${escapeHtml(it.badge)}` : '') +
+      ` — <a href="${escapeHtml(it.link)}" target="_blank" rel="noopener" style="color:var(--sage-dark); font-weight:700;">View on kensingtontours.com ↗</a>`;
+  }
+
   const ContactRepo = {
     KEY: 'kt_crm_contacts_v1',
     all(){ return StorageAdapter.load(this.KEY, []); },
@@ -821,6 +846,7 @@
         stage: data.stage || 'new',
         quotedPrice: '',
         itinRef: '',
+        itineraryId: '',
         jobNotes: '',
         leadTemp: '',
         tags: '',
@@ -1286,6 +1312,7 @@
         <div>
           <div class="lc-name">${escapeHtml(c.name)}</div>
           ${c.destination ? `<div class="lc-dest">✈️ ${escapeHtml(c.destination)}</div>` : ''}
+          ${(function(){ const it = findItinerary(c.itineraryId); return it ? `<div class="lc-dest">🗺️ ${escapeHtml(it.title)}</div>` : ''; })()}
         </div>
       </div>
       <div class="lc-meta">
@@ -1554,6 +1581,11 @@
     document.getElementById('cm-f-budget').value = c.budget || '';
     document.getElementById('cm-f-datestart').value = c.dateStart || '';
     document.getElementById('cm-f-dateend').value = c.dateEnd || '';
+    fillSelect(document.getElementById('cm-f-itinerary'),
+      [...KT_ITINERARIES].sort((a,b)=>a.title.localeCompare(b.title)).map(it=>({key:it.id, label:it.title})),
+      '— Not selected —');
+    document.getElementById('cm-f-itinerary').value = c.itineraryId || '';
+    renderItinerarySummary(c.itineraryId);
 
     document.getElementById('cm-f-quotedprice').value = c.quotedPrice || '';
     document.getElementById('cm-f-itinref').value = c.itinRef || '';
@@ -1700,6 +1732,11 @@
     wireAutosaveField('cm-f-budget','budget');
     wireAutosaveField('cm-f-datestart','dateStart');
     wireAutosaveField('cm-f-dateend','dateEnd');
+    document.getElementById('cm-f-itinerary').addEventListener('change', (e)=>{
+      if(!currentContactId) return;
+      ContactRepo.update(currentContactId, { itineraryId: e.target.value });
+      renderItinerarySummary(e.target.value);
+    });
     wireAutosaveField('cm-f-quotedprice','quotedPrice');
     wireAutosaveField('cm-f-itinref','itinRef');
     wireAutosaveField('cm-f-jobnotes','jobNotes', {evt:'blur'});
