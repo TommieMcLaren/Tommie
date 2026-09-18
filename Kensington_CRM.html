@@ -296,6 +296,8 @@
 
   .icon-del{background:transparent; border:none; color:var(--ink-soft); cursor:pointer; font-size:14px; padding:4px 6px; border-radius:5px;}
   .icon-del:hover{color:var(--red); background:var(--red-bg);}
+  .icon-cal{background:transparent; border:none; color:var(--sage-dark); cursor:pointer; font-size:14px; padding:4px 6px; border-radius:5px; flex-shrink:0;}
+  .icon-cal:hover{background:var(--sage-light);}
 
   @media print{ #app-nav, .overlay{display:none !important;} }
 </style>
@@ -417,6 +419,7 @@
         <div class="modal-sub" id="cm-created-sub"></div>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn btn-outline btn-sm" id="cm-email-btn">✉️ Email Client</button>
         <button class="btn btn-danger btn-sm" id="cm-delete-btn">🗑️ Delete</button>
         <button class="modal-close" id="cm-close-btn">✕</button>
       </div>
@@ -754,6 +757,72 @@
     toast._t = setTimeout(()=>el.classList.remove('show'), 2200);
   }
 
+  /* ---- Outlook Web deep links ----
+     No OAuth/backend possible from a plain static file — this opens Outlook
+     Web's own compose screen pre-filled, in a new tab. One extra click
+     (the user hits Save/Send themselves) instead of a silent API write,
+     which matches this app's own "the DE reviews before it's final" spirit. */
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function buildOutlookEventLink(subject, dueDateStr, bodyText){
+    // dueDateStr is a plain 'YYYY-MM-DD' (from a <input type=date>, or absent).
+    // Built from Date getters, not toISOString(), so the local date typed in
+    // doesn't silently shift a day from a UTC conversion.
+    const base = dueDateStr ? dueDateStr.split('-').map(Number) : null;
+    const [y,m,d] = base && base.length===3 ? base : (()=>{ const t=new Date(); return [t.getFullYear(), t.getMonth()+1, t.getDate()]; })();
+    const start = new Date(y, m-1, d, 9, 0, 0);
+    const end = new Date(start.getTime() + 30*60000);
+    const fmt = dt => `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:00`;
+    const params = new URLSearchParams({
+      path: '/calendar/action/compose',
+      rru: 'addevent',
+      startdt: fmt(start),
+      enddt: fmt(end),
+      subject: subject || '',
+      body: bodyText || ''
+    });
+    return 'https://outlook.office.com/calendar/0/deeplink/compose?' + params.toString();
+  }
+
+  function buildOutlookMailLink(toEmail, subject, bodyText){
+    const params = new URLSearchParams({ to: toEmail || '', subject: subject || '', body: bodyText || '' });
+    return 'https://outlook.office.com/mail/deeplink/compose?' + params.toString();
+  }
+
+  function openOutlookLink(url){
+    const win = window.open(url, '_blank', 'noopener');
+    if(!win){
+      toast('Popup blocked — allow popups for this page and try again.');
+    }
+  }
+
+  function addTaskToOutlook(taskId){
+    const t = TaskRepo.get(taskId);
+    if(!t) return;
+    const c = ContactRepo.get(t.contactId);
+    const contactName = c ? c.name : 'Unknown contact';
+    const subject = `Follow-up: ${contactName}` + (t.note ? ' — ' + t.note : '');
+    let body = t.note ? `${t.note}\n\n` : '';
+    if(c){
+      body += `Contact: ${contactName}\n`;
+      if(c.phone) body += `Phone: ${c.phone}\n`;
+      if(c.email) body += `Email: ${c.email}\n`;
+      if(c.destination) body += `Trip: ${c.destination}\n`;
+    }
+    openOutlookLink(buildOutlookEventLink(subject, t.dueDate, body));
+  }
+
+  function emailContactViaOutlook(contactId){
+    const c = ContactRepo.get(contactId);
+    if(!c) return;
+    if(!c.email){ toast('Add an email address for this contact first.'); return; }
+    const firstName = (c.name||'').trim().split(/\s+/)[0] || c.name || 'there';
+    const subject = `Kensington Tours — following up${c.destination ? ' on ' + c.destination : ''}`;
+    const body = `Hi ${firstName},\n\nWanted to follow up${c.destination ? ' on your upcoming trip to ' + c.destination : ' on your trip'}. Let me know if you have any questions!\n\nBest,\n`;
+    openOutlookLink(buildOutlookMailLink(c.email, subject, body));
+  }
+
   function fillSelect(sel, options, placeholder){
     sel.innerHTML = '';
     if(placeholder){
@@ -868,10 +937,14 @@
             <div class="fu-note">${escapeHtml(t.note)}</div>
           </div>
           <span class="pill-date ${overdue?'overdue':''}">${dLabel}</span>
+          <button class="icon-cal" data-cal-task="${t.id}" title="Add to Outlook">📅</button>
         </div>`;
       }).join('');
       fuEl.querySelectorAll('[data-open-contact]').forEach(el=>{
         el.addEventListener('click', ()=>openContactModal(el.getAttribute('data-open-contact')));
+      });
+      fuEl.querySelectorAll('[data-cal-task]').forEach(btn=>{
+        btn.addEventListener('click', ()=>addTaskToOutlook(btn.getAttribute('data-cal-task')));
       });
     }
 
@@ -1111,6 +1184,9 @@
         toast('Task deleted');
       });
     });
+    listEl.querySelectorAll('[data-cal-task]').forEach(btn=>{
+      btn.addEventListener('click', ()=>addTaskToOutlook(btn.getAttribute('data-cal-task')));
+    });
 
     updateNavBadge();
   }
@@ -1126,6 +1202,7 @@
         <div class="task-note">${escapeHtml(t.note)}</div>
       </div>
       <div class="task-due" style="color:${overdue ? 'var(--red)' : 'var(--ink-soft)'};">${escapeHtml(dueLabel)}</div>
+      <button class="icon-cal" data-cal-task="${t.id}" title="Add to Outlook">📅</button>
       <button class="icon-del" data-id="${t.id}" title="Delete task">✕</button>
     </div>`;
   }
@@ -1219,6 +1296,7 @@
           <input type="checkbox" data-task-id="${t.id}" ${t.completed?'checked':''}>
           <span class="mt-note" style="${t.completed?'text-decoration:line-through; color:var(--ink-soft);':''}">${escapeHtml(t.note)}</span>
           <span class="mt-due">${t.dueDate ? fmtDate(t.dueDate) : 'No date'}</span>
+          <button class="icon-cal" data-cal-task="${t.id}" title="Add to Outlook">📅</button>
           <button class="icon-del" data-del-task="${t.id}" title="Delete">✕</button>
         </div>`;
       }).join('');
@@ -1236,6 +1314,9 @@
         renderContactTasksMini(contactId);
         updateNavBadge();
       });
+    });
+    tasksEl.querySelectorAll('[data-cal-task]').forEach(btn=>{
+      btn.addEventListener('click', ()=>addTaskToOutlook(btn.getAttribute('data-cal-task')));
     });
   }
 
@@ -1302,6 +1383,11 @@
       renderContactTasksMini(currentContactId);
       updateNavBadge();
       toast('Task added');
+    });
+
+    document.getElementById('cm-email-btn').addEventListener('click', ()=>{
+      if(!currentContactId) return;
+      emailContactViaOutlook(currentContactId);
     });
 
     document.getElementById('cm-delete-btn').addEventListener('click', ()=>{
