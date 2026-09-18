@@ -2379,7 +2379,26 @@ Respond with ONLY the JSON object. No markdown code fence, no explanation before
     });
   }
 
+  function resetAllOverlaysOnLoad(){
+    // A freshly-loaded page should never show an open modal. Nothing in this
+    // app persists overlay state on purpose, but a hard reload isn't the only
+    // way this script re-runs — browser back/forward-cache restoration, and
+    // this Artifact platform's own state-preserving "hot update" on republish,
+    // can both re-execute this script against DOM that still carries an
+    // 'open'/'shown' class from before. Force every overlay closed and clear
+    // the two forms most likely to still hold a half-typed entry, so the app
+    // always starts on a clean Dashboard regardless of how this run started.
+    document.querySelectorAll('.overlay').forEach(ov=>{
+      ov.classList.remove('open');
+      ov.classList.remove('shown');
+    });
+    const quickForm = document.getElementById('quick-form');
+    if(quickForm) quickForm.reset();
+    currentContactId = null;
+  }
+
   function init(){
+    resetAllOverlaysOnLoad();
     seedSampleDataIfEmpty();
     initContactsFilters();
     initTaskForm();
