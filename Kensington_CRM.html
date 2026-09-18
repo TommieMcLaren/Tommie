@@ -255,6 +255,25 @@
   .section-block{margin-top:22px; padding-top:18px; border-top:1px solid var(--border);}
   .section-block h3{font-size:13.5px; font-weight:800; color:var(--sage-dark); margin:0 0 12px; display:flex; align-items:center; gap:8px;}
 
+  .cm-intake-section{margin-top:16px; padding-top:16px; border-top:1px solid var(--border);}
+  .cm-intake-section summary{
+    font-size:13.5px; font-weight:800; color:var(--sage-dark); cursor:pointer; list-style:none;
+    display:flex; align-items:center; gap:8px; user-select:none;
+  }
+  .cm-intake-section summary::-webkit-details-marker{display:none;}
+  .cm-intake-section summary::before{content:'▸'; font-size:11px; color:var(--ink-soft); transition:transform .12s ease;}
+  .cm-intake-section[open] summary::before{transform:rotate(90deg);}
+  .cm-intake-section .field-grid{margin-top:14px;}
+
+  .cm-traveler-row{
+    display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr 1fr auto; gap:8px; align-items:center;
+    padding:9px 0; border-bottom:1px solid var(--border);
+  }
+  .cm-traveler-row:last-child{border-bottom:none;}
+  @media (max-width:700px){ .cm-traveler-row{grid-template-columns:1fr 1fr;} }
+  #cm-travelers-head{display:flex; align-items:center; justify-content:space-between; margin-top:16px; margin-bottom:8px;}
+  #cm-travelers-head span{font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-soft);}
+
   .stage-selector{display:flex; gap:6px; flex-wrap:wrap;}
   .stage-btn{
     font-size:12px; font-weight:700; padding:6px 13px; border-radius:20px; border:1.5px solid var(--border);
@@ -516,6 +535,16 @@
           <div class="field"><label>Lead Source</label>
             <select class="input" id="cm-f-source"></select>
           </div>
+          <div class="field"><label>Lead Category</label>
+            <select class="input" id="cm-f-leadtemp">
+              <option value="">— Not set —</option>
+              <option value="Hot Lead">🔥 Hot Lead</option>
+              <option value="Warm Lead">🌤️ Warm Lead</option>
+              <option value="Check Back Later">🕐 Check Back Later</option>
+              <option value="Cold Lead">❄️ Cold Lead</option>
+            </select>
+          </div>
+          <div class="field full"><label>Tags</label><input class="input" id="cm-f-tags" placeholder="referral, repeat client, VIP..."></div>
         </div>
       </div>
 
@@ -538,8 +567,111 @@
         <div class="field-grid">
           <div class="field"><label>Quoted Price</label><input class="input" id="cm-f-quotedprice" placeholder="e.g. $9,450"></div>
           <div class="field"><label>Itinerary Reference / Link</label><input class="input" id="cm-f-itinref" placeholder="Itinerary name, TMT ref, or link"></div>
+          <div class="field"><label>TMT Link</label><input class="input" id="cm-f-tmtlink" placeholder="https://..."></div>
+          <div class="field" style="justify-content:flex-end;">
+            <label style="visibility:hidden;">.</label>
+            <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-weight:600; color:var(--ink); font-size:13px;">
+              <input type="checkbox" id="cm-f-tmtupdated" style="width:16px; height:16px; accent-color:var(--sage);">
+              I've updated TMT with the latest notes
+            </label>
+          </div>
           <div class="field full"><label>Additional Job Notes</label><textarea class="input" id="cm-f-jobnotes" rows="3" style="resize:vertical;"></textarea></div>
         </div>
+      </div>
+
+      <div class="cm-intake-section-wrap">
+        <details class="cm-intake-section">
+          <summary>🧳 Client Details</summary>
+          <div class="field-grid">
+            <div class="field"><label>Traveler Ages</label><input class="input" id="cm-f-travelerages" placeholder="2 adults, kids 8 &amp; 11"></div>
+            <div class="field"><label>Flexible on Dates</label>
+              <select class="input" id="cm-f-flexibledates"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            </div>
+            <div class="field"><label>Special Occasion</label><input class="input" id="cm-f-specialoccasion" placeholder="25th anniversary"></div>
+            <div class="field"><label>Home State / Province</label><input class="input" id="cm-f-homestate" placeholder="Ontario"></div>
+          </div>
+        </details>
+
+        <details class="cm-intake-section">
+          <summary>🛂 Passport &amp; Travelers</summary>
+          <div class="field-grid">
+            <div class="field"><label>Name on Passport</label><input class="input" id="cm-f-passportname" placeholder="As it appears on the passport"></div>
+            <div class="field"><label>Date of Birth</label><input class="input" id="cm-f-passportdob" type="date"></div>
+            <div class="field"><label>Nationality</label><input class="input" id="cm-f-passportnationality" placeholder="Canadian, American..."></div>
+            <div class="field"><label>Passport Number</label><input class="input" id="cm-f-passportnumber" placeholder="Passport #"></div>
+            <div class="field"><label>Passport Expiry</label><input class="input" id="cm-f-passportexpiry" type="date"></div>
+          </div>
+          <div id="cm-travelers-head">
+            <span>Additional Travelers</span>
+            <button type="button" class="btn btn-outline btn-sm" id="cm-add-traveler-btn">+ Add Traveler</button>
+          </div>
+          <div id="cm-travelers-list"></div>
+        </details>
+
+        <details class="cm-intake-section">
+          <summary>✨ Trip Vision</summary>
+          <div class="field-grid">
+            <div class="field full"><label>What are we hoping to do / experience</label><textarea class="input" id="cm-f-tripvision" rows="2" style="resize:vertical;" placeholder="Slow-paced, food-focused, art &amp; architecture..."></textarea></div>
+            <div class="field"><label>Pace</label>
+              <select class="input" id="cm-f-pace"><option value="">Not asked yet</option><option>Relaxed</option><option>Balanced</option><option>Packed</option></select>
+            </div>
+            <div class="field"><label>Past Trips to This Destination</label><input class="input" id="cm-f-pasttrips" placeholder="First time / been before, stayed at..."></div>
+          </div>
+        </details>
+
+        <details class="cm-intake-section">
+          <summary>🏨 Hotel Preferences</summary>
+          <div class="field-grid">
+            <div class="field"><label>Style</label><input class="input" id="cm-f-hotelstyle" placeholder="Boutique, historic, modern..."></div>
+            <div class="field"><label>View</label><input class="input" id="cm-f-hotelview" placeholder="City, courtyard, sea..."></div>
+            <div class="field"><label>Location</label><input class="input" id="cm-f-hotellocation" placeholder="Walkable old town, quiet street..."></div>
+            <div class="field"><label>Elevator Proximity</label><input class="input" id="cm-f-elevator" placeholder="Close to elevator preferred"></div>
+            <div class="field"><label>Floor Preference</label><input class="input" id="cm-f-floor" placeholder="Higher floor, away from street"></div>
+            <div class="field"><label>Bedding</label><input class="input" id="cm-f-bedding" placeholder="King bed, two doubles..."></div>
+            <div class="field"><label>Room Category</label><input class="input" id="cm-f-roomcategory" placeholder="Deluxe, suite..."></div>
+            <div class="field"><label>Allergies</label><input class="input" id="cm-f-allergies" placeholder="Feather pillows, fragrance..."></div>
+            <div class="field"><label>Loyalty Number</label><input class="input" id="cm-f-loyalty" placeholder="Marriott Bonvoy #..."></div>
+          </div>
+        </details>
+
+        <details class="cm-intake-section">
+          <summary>🚗 Transfers</summary>
+          <div class="field-grid">
+            <div class="field"><label>Private Transfer</label>
+              <select class="input" id="cm-f-privatetransfer"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            </div>
+            <div class="field"><label>Train</label>
+              <select class="input" id="cm-f-train"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            </div>
+            <div class="field"><label>Rental Car</label>
+              <select class="input" id="cm-f-rentalcar"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            </div>
+          </div>
+        </details>
+
+        <details class="cm-intake-section">
+          <summary>🍽️ Restaurants</summary>
+          <div class="field-grid">
+            <div class="field"><label>Cuisine Preferences</label><input class="input" id="cm-f-cuisine" placeholder="Seafood, tapas, avoids spicy..."></div>
+            <div class="field"><label>Dress Code Comfort</label>
+              <select class="input" id="cm-f-dresscode"><option value="">Not asked yet</option><option>Casual</option><option>Upscale</option><option>Either</option></select>
+            </div>
+            <div class="field"><label>Special Reservations Wanted</label>
+              <select class="input" id="cm-f-specialres"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            </div>
+            <div class="field"><label>Dietary Restrictions</label><input class="input" id="cm-f-dietary" placeholder="Vegetarian, gluten-free, kosher..."></div>
+          </div>
+        </details>
+
+        <details class="cm-intake-section">
+          <summary>📋 Other</summary>
+          <div class="field-grid">
+            <div class="field"><label>Travel Insurance</label>
+              <select class="input" id="cm-f-insurance"><option value="">Not asked yet</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            </div>
+            <div class="field full"><label>Mobility / Accessibility Needs</label><input class="input" id="cm-f-mobility" placeholder="Wheelchair accessible rooms, limited walking..."></div>
+          </div>
+        </details>
       </div>
 
       <div class="section-block">
@@ -665,6 +797,7 @@
 
   const LEAD_SOURCES = ['Referral','Website Inquiry','Instagram','Facebook','Google Search','Repeat Client','Trade Show / Event','Walk-in / Phone Call','Other'];
   const TRIP_TYPES = ['Custom Itinerary','Guided Small-Group Tour','Family Trip','Honeymoon / Romance','Multi-Generational Trip','Group Trip','Corporate / Incentive','Cruise','Other'];
+  const LEAD_TEMP_EMOJI = { 'Hot Lead':'🔥', 'Warm Lead':'🌤️', 'Check Back Later':'🕐', 'Cold Lead':'❄️' };
 
   const ContactRepo = {
     KEY: 'kt_crm_contacts_v1',
@@ -689,6 +822,48 @@
         quotedPrice: '',
         itinRef: '',
         jobNotes: '',
+        leadTemp: '',
+        tags: '',
+        tmtLink: '',
+        tmtUpdated: false,
+        // Client Details
+        travelerAges: '',
+        flexibleDates: '',
+        specialOccasion: '',
+        homeState: '',
+        // Passport (primary client) + additional travelers
+        passportName: '',
+        passportDob: '',
+        passportNationality: '',
+        passportNumber: '',
+        passportExpiry: '',
+        travelers: [],
+        // Trip Vision
+        tripVision: '',
+        pace: '',
+        pastTrips: '',
+        // Hotel Preferences
+        hotelStyle: '',
+        hotelView: '',
+        hotelLocation: '',
+        elevatorProximity: '',
+        floorPreference: '',
+        bedding: '',
+        roomCategory: '',
+        allergies: '',
+        loyaltyNumber: '',
+        // Transfers
+        privateTransfer: '',
+        train: '',
+        rentalCar: '',
+        // Restaurants
+        cuisinePreferences: '',
+        dressCode: '',
+        specialReservations: '',
+        dietaryRestrictions: '',
+        // Other
+        travelInsurance: '',
+        mobilityNeeds: '',
         notes: [],
         history: [{ id: uid(), type:'created', description: 'Lead created', timestamp: nowIso() }],
         createdAt: nowIso(),
@@ -1118,6 +1293,7 @@
         ${c.budget ? `<span>💰 ${escapeHtml(c.budget)}</span>` : ''}
       </div>
       <div class="lc-badges">
+        ${c.leadTemp ? `<span class="mini-badge">${LEAD_TEMP_EMOJI[c.leadTemp]||''} ${escapeHtml(c.leadTemp)}</span>` : ''}
         ${c.tripType ? `<span class="mini-badge">${escapeHtml(c.tripType)}</span>` : ''}
         ${c.leadSource ? `<span class="mini-badge source">${escapeHtml(c.leadSource)}</span>` : ''}
       </div>
@@ -1288,6 +1464,58 @@
      ============================================================ */
 
   let currentContactId = null;
+  let cmTravelersBuffer = [];
+
+  function cmSyncTravelersFromDom(){
+    // Read every row's live input values back into the buffer before any
+    // add/remove-triggered re-render — otherwise an edit made to one row
+    // gets silently reverted the moment another row is added or removed.
+    document.querySelectorAll('#cm-travelers-list .cm-traveler-row').forEach(row=>{
+      const id = row.getAttribute('data-traveler-id');
+      const t = cmTravelersBuffer.find(x=>x.id===id);
+      if(!t) return;
+      row.querySelectorAll('[data-f]').forEach(inp=>{
+        t[inp.getAttribute('data-f')] = inp.value;
+      });
+    });
+  }
+
+  function cmSaveTravelersBuffer(){
+    if(!currentContactId) return;
+    ContactRepo.update(currentContactId, { travelers: cmTravelersBuffer });
+  }
+
+  function cmRenderTravelers(){
+    const listEl = document.getElementById('cm-travelers-list');
+    if(!listEl) return;
+    if(cmTravelersBuffer.length === 0){
+      listEl.innerHTML = '<div class="empty-note">No additional travelers yet.</div>';
+      return;
+    }
+    listEl.innerHTML = cmTravelersBuffer.map(t=>`
+      <div class="cm-traveler-row" data-traveler-id="${t.id}">
+        <input class="input" data-f="name" placeholder="Name" value="${escapeHtml(t.name||'')}">
+        <input class="input" data-f="dob" type="date" value="${escapeHtml(t.dob||'')}" title="Date of birth">
+        <input class="input" data-f="nationality" placeholder="Nationality" value="${escapeHtml(t.nationality||'')}">
+        <input class="input" data-f="passportNumber" placeholder="Passport #" value="${escapeHtml(t.passportNumber||'')}">
+        <input class="input" data-f="passportExpiry" type="date" value="${escapeHtml(t.passportExpiry||'')}" title="Passport expiry">
+        <button type="button" class="icon-del" data-remove-traveler="${t.id}" title="Remove traveler">✕</button>
+      </div>`).join('');
+    listEl.querySelectorAll('.cm-traveler-row input[data-f]').forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        cmSyncTravelersFromDom();
+        cmSaveTravelersBuffer();
+      });
+    });
+    listEl.querySelectorAll('[data-remove-traveler]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        cmSyncTravelersFromDom();
+        cmTravelersBuffer = cmTravelersBuffer.filter(t=>t.id !== btn.getAttribute('data-remove-traveler'));
+        cmRenderTravelers();
+        cmSaveTravelersBuffer();
+      });
+    });
+  }
 
   function openContactModal(id){
     const c = ContactRepo.get(id);
@@ -1330,6 +1558,56 @@
     document.getElementById('cm-f-quotedprice').value = c.quotedPrice || '';
     document.getElementById('cm-f-itinref').value = c.itinRef || '';
     document.getElementById('cm-f-jobnotes').value = c.jobNotes || '';
+    document.getElementById('cm-f-tmtlink').value = c.tmtLink || '';
+    document.getElementById('cm-f-tmtupdated').checked = !!c.tmtUpdated;
+    document.getElementById('cm-f-leadtemp').value = c.leadTemp || '';
+    document.getElementById('cm-f-tags').value = c.tags || '';
+
+    // Client Details
+    document.getElementById('cm-f-travelerages').value = c.travelerAges || '';
+    document.getElementById('cm-f-flexibledates').value = c.flexibleDates || '';
+    document.getElementById('cm-f-specialoccasion').value = c.specialOccasion || '';
+    document.getElementById('cm-f-homestate').value = c.homeState || '';
+
+    // Passport (primary) + additional travelers
+    document.getElementById('cm-f-passportname').value = c.passportName || '';
+    document.getElementById('cm-f-passportdob').value = c.passportDob || '';
+    document.getElementById('cm-f-passportnationality').value = c.passportNationality || '';
+    document.getElementById('cm-f-passportnumber').value = c.passportNumber || '';
+    document.getElementById('cm-f-passportexpiry').value = c.passportExpiry || '';
+    cmTravelersBuffer = (c.travelers || []).map(t=>Object.assign({}, t));
+    cmRenderTravelers();
+
+    // Trip Vision
+    document.getElementById('cm-f-tripvision').value = c.tripVision || '';
+    document.getElementById('cm-f-pace').value = c.pace || '';
+    document.getElementById('cm-f-pasttrips').value = c.pastTrips || '';
+
+    // Hotel Preferences
+    document.getElementById('cm-f-hotelstyle').value = c.hotelStyle || '';
+    document.getElementById('cm-f-hotelview').value = c.hotelView || '';
+    document.getElementById('cm-f-hotellocation').value = c.hotelLocation || '';
+    document.getElementById('cm-f-elevator').value = c.elevatorProximity || '';
+    document.getElementById('cm-f-floor').value = c.floorPreference || '';
+    document.getElementById('cm-f-bedding').value = c.bedding || '';
+    document.getElementById('cm-f-roomcategory').value = c.roomCategory || '';
+    document.getElementById('cm-f-allergies').value = c.allergies || '';
+    document.getElementById('cm-f-loyalty').value = c.loyaltyNumber || '';
+
+    // Transfers
+    document.getElementById('cm-f-privatetransfer').value = c.privateTransfer || '';
+    document.getElementById('cm-f-train').value = c.train || '';
+    document.getElementById('cm-f-rentalcar').value = c.rentalCar || '';
+
+    // Restaurants
+    document.getElementById('cm-f-cuisine').value = c.cuisinePreferences || '';
+    document.getElementById('cm-f-dresscode').value = c.dressCode || '';
+    document.getElementById('cm-f-specialres').value = c.specialReservations || '';
+    document.getElementById('cm-f-dietary').value = c.dietaryRestrictions || '';
+
+    // Other
+    document.getElementById('cm-f-insurance').value = c.travelInsurance || '';
+    document.getElementById('cm-f-mobility').value = c.mobilityNeeds || '';
 
     // notes
     const notesEl = document.getElementById('cm-notes-list');
@@ -1425,6 +1703,64 @@
     wireAutosaveField('cm-f-quotedprice','quotedPrice');
     wireAutosaveField('cm-f-itinref','itinRef');
     wireAutosaveField('cm-f-jobnotes','jobNotes', {evt:'blur'});
+    wireAutosaveField('cm-f-tmtlink','tmtLink');
+    wireAutosaveField('cm-f-leadtemp','leadTemp');
+    wireAutosaveField('cm-f-tags','tags');
+    document.getElementById('cm-f-tmtupdated').addEventListener('change', (e)=>{
+      if(!currentContactId) return;
+      ContactRepo.update(currentContactId, { tmtUpdated: e.target.checked });
+    });
+
+    // Client Details
+    wireAutosaveField('cm-f-travelerages','travelerAges');
+    wireAutosaveField('cm-f-flexibledates','flexibleDates');
+    wireAutosaveField('cm-f-specialoccasion','specialOccasion');
+    wireAutosaveField('cm-f-homestate','homeState');
+
+    // Passport (primary client)
+    wireAutosaveField('cm-f-passportname','passportName');
+    wireAutosaveField('cm-f-passportdob','passportDob');
+    wireAutosaveField('cm-f-passportnationality','passportNationality');
+    wireAutosaveField('cm-f-passportnumber','passportNumber');
+    wireAutosaveField('cm-f-passportexpiry','passportExpiry');
+    document.getElementById('cm-add-traveler-btn').addEventListener('click', ()=>{
+      if(!currentContactId) return;
+      cmSyncTravelersFromDom();
+      cmTravelersBuffer.push({ id: uid(), name:'', dob:'', nationality:'', passportNumber:'', passportExpiry:'' });
+      cmRenderTravelers();
+      cmSaveTravelersBuffer();
+    });
+
+    // Trip Vision
+    wireAutosaveField('cm-f-tripvision','tripVision', {evt:'blur'});
+    wireAutosaveField('cm-f-pace','pace');
+    wireAutosaveField('cm-f-pasttrips','pastTrips');
+
+    // Hotel Preferences
+    wireAutosaveField('cm-f-hotelstyle','hotelStyle');
+    wireAutosaveField('cm-f-hotelview','hotelView');
+    wireAutosaveField('cm-f-hotellocation','hotelLocation');
+    wireAutosaveField('cm-f-elevator','elevatorProximity');
+    wireAutosaveField('cm-f-floor','floorPreference');
+    wireAutosaveField('cm-f-bedding','bedding');
+    wireAutosaveField('cm-f-roomcategory','roomCategory');
+    wireAutosaveField('cm-f-allergies','allergies');
+    wireAutosaveField('cm-f-loyalty','loyaltyNumber');
+
+    // Transfers
+    wireAutosaveField('cm-f-privatetransfer','privateTransfer');
+    wireAutosaveField('cm-f-train','train');
+    wireAutosaveField('cm-f-rentalcar','rentalCar');
+
+    // Restaurants
+    wireAutosaveField('cm-f-cuisine','cuisinePreferences');
+    wireAutosaveField('cm-f-dresscode','dressCode');
+    wireAutosaveField('cm-f-specialres','specialReservations');
+    wireAutosaveField('cm-f-dietary','dietaryRestrictions');
+
+    // Other
+    wireAutosaveField('cm-f-insurance','travelInsurance');
+    wireAutosaveField('cm-f-mobility','mobilityNeeds');
 
     document.getElementById('cm-note-add-btn').addEventListener('click', ()=>{
       if(!currentContactId) return;
