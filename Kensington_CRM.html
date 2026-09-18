@@ -230,8 +230,8 @@
     width:100%; max-height:92vh; overflow-y:auto;
     transform:translateY(14px) scale(.98); opacity:0; transition:transform .18s ease, opacity .18s ease;
   }
-  #contact-modal .modal-box{max-width:880px;}
-  #quick-modal .modal-box, #task-modal .modal-box, #confirm-modal .modal-box{max-width:460px;}
+  #contact-modal .modal-box, #scan-modal .modal-box{max-width:880px;}
+  #quick-modal .modal-box, #task-modal .modal-box, #confirm-modal .modal-box, #settings-modal .modal-box{max-width:460px;}
 
   .modal-head{
     display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
@@ -299,6 +299,31 @@
   .icon-cal{background:transparent; border:none; color:var(--sage-dark); cursor:pointer; font-size:14px; padding:4px 6px; border-radius:5px; flex-shrink:0;}
   .icon-cal:hover{background:var(--sage-light);}
 
+  /* ---------- Screenshot scan: dropzone + spinner + review form ---------- */
+  #scan-dropzone-overlay{
+    position:fixed; inset:0; z-index:1500; display:none; align-items:center; justify-content:center;
+    background:rgba(107,128,104,.16); pointer-events:none;
+  }
+  #scan-dropzone-overlay.active{display:flex;}
+  #scan-dropzone-box{
+    background:#fff; border:3px dashed var(--sage); border-radius:16px; padding:40px 60px;
+    font-size:18px; font-weight:800; color:var(--sage-dark); box-shadow:var(--shadow-lg);
+  }
+  .spinner{
+    display:inline-block; width:16px; height:16px; border:2px solid var(--sage-light);
+    border-right-color:var(--sage); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:6px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .scan-loading{display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; gap:14px; color:var(--ink-soft); font-size:13.5px;}
+  .scan-loading .spinner{width:26px; height:26px; border-width:3px;}
+  .scan-error{background:var(--red-bg); color:var(--red); border-radius:8px; padding:14px 16px; font-size:13.5px; line-height:1.5;}
+  .scan-error .btn{margin-top:10px;}
+  .scan-match-row{display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--border);}
+  .scan-match-row label{font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-soft); white-space:nowrap;}
+  .scan-match-row select{flex:1;}
+  .scan-followup-toggle{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:var(--ink-soft);}
+  .scan-followup-toggle input{accent-color:var(--sage); width:16px; height:16px;}
+
   @media print{ #app-nav, .overlay{display:none !important;} }
 </style>
 </head>
@@ -319,9 +344,12 @@
     <button class="nav-tab" data-view="tasks">✅ Tasks <span class="badge-count" id="nav-task-badge" style="display:none;">0</span></button>
   </div>
   <div id="nav-actions">
+    <button class="btn btn-outline-light btn-sm" id="nav-scan-btn" title="Paste, drop, or pick a screenshot of a customer profile">📷 Scan Profile</button>
+    <button class="btn btn-outline-light btn-sm" id="nav-settings-btn" title="API key settings">⚙️</button>
     <button class="btn btn-outline-light btn-sm" id="nav-export-btn" title="Export all data as JSON">📥 Export</button>
     <button class="btn btn-primary" id="nav-new-lead-btn">+ New Lead</button>
   </div>
+  <input type="file" id="scan-file-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
 </nav>
 
 <main id="app-main">
@@ -409,6 +437,54 @@
   </section>
 
 </main>
+
+<!-- ===================== Drop Zone Overlay (screenshot drag-and-drop) ===================== -->
+<div id="scan-dropzone-overlay">
+  <div id="scan-dropzone-box">📷 Drop screenshot to scan customer profile</div>
+</div>
+
+<!-- ===================== Settings Modal (Anthropic API key) ===================== -->
+<div class="overlay" id="settings-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h2>⚙️ Settings</h2><div class="modal-sub">Needed for 📷 Scan Profile — reads a screenshot with Claude's vision.</div></div>
+      <button class="modal-close" id="settings-close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field full">
+        <label>Anthropic API Key</label>
+        <input class="input" id="settings-api-key" type="password" placeholder="sk-ant-...">
+      </div>
+      <p style="font-size:12px; color:var(--ink-soft); margin:10px 0 0; line-height:1.5;">
+        Stored only in this browser (never sent anywhere but api.anthropic.com), and billed to your own
+        Anthropic account. Get a key at
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+      </p>
+      <div id="settings-status" style="font-size:12.5px; margin-top:12px; font-weight:700;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" id="settings-clear-btn">Clear Key</button>
+      <button class="btn btn-primary" id="settings-save-btn">Save Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Scan Review Modal ===================== -->
+<div class="overlay" id="scan-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h2>📷 Scanned Profile</h2><div class="modal-sub" id="scan-sub">Reading the screenshot...</div></div>
+      <button class="modal-close" id="scan-close-btn">✕</button>
+    </div>
+    <div class="modal-body" id="scan-body">
+      <!-- populated by JS: loading / error / review-form state -->
+    </div>
+    <div class="modal-foot" id="scan-foot" style="display:none;">
+      <button class="btn btn-outline" id="scan-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="scan-apply-btn">Apply</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===================== Contact Profile Modal ===================== -->
 <div class="overlay" id="contact-modal">
@@ -1445,6 +1521,397 @@
   }
 
   /* ============================================================
+     SETTINGS (Anthropic API key, BYOK)
+     ============================================================ */
+
+  const API_KEY_STORAGE = 'kt_crm_anthropic_key_v1';
+  const SCAN_MODEL = 'claude-sonnet-5';
+  const SCAN_MAX_IMAGE_BYTES = 5 * 1024 * 1024; // conservative client-side ceiling, not a confirmed API limit
+
+  function getApiKey(){
+    try{ return localStorage.getItem(API_KEY_STORAGE) || ''; }catch(e){ return ''; }
+  }
+  function setApiKey(key){
+    try{
+      if(key){ localStorage.setItem(API_KEY_STORAGE, key); }
+      else{ localStorage.removeItem(API_KEY_STORAGE); }
+      // Verify the write actually round-tripped rather than trusting setItem not
+      // throwing was enough — a browser silently blocking site storage (private
+      // mode, a "block site data" setting) can make setItem a no-op with no error.
+      return getApiKey() === (key || '');
+    }catch(e){ return false; }
+  }
+
+  function refreshSettingsStatus(){
+    const statusEl = document.getElementById('settings-status');
+    const key = getApiKey();
+    if(key){
+      statusEl.textContent = '✓ Key saved (' + key.slice(0,7) + '...' + key.slice(-4) + ')';
+      statusEl.style.color = 'var(--sage-dark)';
+    }else{
+      statusEl.textContent = 'No key saved yet.';
+      statusEl.style.color = 'var(--ink-soft)';
+    }
+  }
+
+  function openSettingsModal(){
+    document.getElementById('settings-api-key').value = getApiKey();
+    refreshSettingsStatus();
+    openOverlay('settings-modal');
+  }
+
+  function initSettingsModal(){
+    document.getElementById('nav-settings-btn').addEventListener('click', openSettingsModal);
+    document.getElementById('settings-close-btn').addEventListener('click', ()=>closeOverlay('settings-modal'));
+    document.getElementById('settings-save-btn').addEventListener('click', ()=>{
+      const val = document.getElementById('settings-api-key').value.trim();
+      if(!val){ toast('Enter a key first, or use Clear Key.'); return; }
+      const ok = setApiKey(val);
+      refreshSettingsStatus();
+      toast(ok ? 'API key saved' : "Couldn't save — this browser may be blocking site storage");
+    });
+    document.getElementById('settings-clear-btn').addEventListener('click', ()=>{
+      setApiKey('');
+      document.getElementById('settings-api-key').value = '';
+      refreshSettingsStatus();
+      toast('API key cleared');
+    });
+  }
+
+  /* ============================================================
+     SCREENSHOT SCAN — paste/drop/pick a customer-profile screenshot,
+     extract fields with Claude's vision, review, then apply.
+
+     No backend exists for this static file to hide a key behind, so
+     this calls api.anthropic.com directly from the browser with the
+     key from Settings (BYOK) — same approach already proven out in
+     the companion Kensington Tours guide's Trip Assistant/Scan TMT
+     features. Nothing is ever saved to a contact until the user hits
+     Apply on the review screen below.
+     ============================================================ */
+
+  const SCAN_PROMPT = `You are looking at a screenshot of a single travel client's profile or contact record (from an internal CRM, booking system, or similar). Extract only what is actually visible into one JSON object with exactly these keys — use null for anything not visible, never guess or invent a value:
+{
+  "name": string or null,
+  "phone": string or null,
+  "email": string or null,
+  "destination": string or null,
+  "tripType": string or null,
+  "travelers": number or null,
+  "budget": string or null,
+  "dateStart": "YYYY-MM-DD" or null,
+  "dateEnd": "YYYY-MM-DD" or null,
+  "leadSource": string or null,
+  "quotedPrice": string or null,
+  "itinRef": string or null,
+  "note": string or null,
+  "followUpNote": string or null,
+  "followUpDate": "YYYY-MM-DD" or null
+}
+"note" is a short free-text summary of anything relevant that doesn't fit another field. "followUpNote"/"followUpDate" are only for an explicit next-step/follow-up visible in the screenshot (e.g. "call back", "send quote") — leave both null if there isn't one.
+Respond with ONLY the JSON object. No markdown code fence, no explanation before or after it.`;
+
+  function parseScanJson(text){
+    if(!text) return null;
+    let cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/,'').trim();
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if(start === -1 || end === -1 || end < start) return null;
+    try{ return JSON.parse(cleaned.slice(start, end+1)); }catch(e){ return null; }
+  }
+
+  async function callClaudeVision(base64Data, mediaType){
+    const key = getApiKey();
+    if(!key) return { error:'no-key' };
+    let resp, data;
+    try{
+      resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{
+          'content-type':'application/json',
+          'x-api-key': key,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body: JSON.stringify({
+          model: SCAN_MODEL,
+          max_tokens: 1024,
+          messages:[{
+            role:'user',
+            content:[
+              { type:'image', source:{ type:'base64', media_type: mediaType, data: base64Data } },
+              { type:'text', text: SCAN_PROMPT }
+            ]
+          }]
+        })
+      });
+    }catch(e){
+      return { error:'network', message: e.message || 'Could not reach api.anthropic.com' };
+    }
+    try{ data = await resp.json(); }catch(e){ return { error:'network', message:'Malformed response from Anthropic' }; }
+    if(!resp.ok){
+      const msg = (data && data.error && data.error.message) ? data.error.message : `HTTP ${resp.status}`;
+      return { error:'api', message: msg };
+    }
+    if(data.stop_reason === 'refusal' || !data.content || data.content.length===0){
+      return { error:'refusal' };
+    }
+    const textBlock = data.content.find(b=>b.type==='text');
+    if(!textBlock || !textBlock.text) return { error:'no-text' };
+    const parsed = parseScanJson(textBlock.text);
+    if(!parsed) return { error:'bad-json', message: textBlock.text };
+    return { fields: parsed };
+  }
+
+  function fuzzyMatchContactByName(name){
+    if(!name) return '';
+    const norm = s => (s||'').toLowerCase().trim();
+    const target = norm(name);
+    if(!target) return '';
+    const list = ContactRepo.all();
+    const exact = list.find(c=>norm(c.name)===target);
+    if(exact) return exact.id;
+    const sub = list.find(c=>norm(c.name).includes(target) || target.includes(norm(c.name)));
+    return sub ? sub.id : '';
+  }
+
+  let lastScanFields = null;
+
+  function scanBodyLoading(){
+    document.getElementById('scan-sub').textContent = 'Reading the screenshot...';
+    document.getElementById('scan-foot').style.display = 'none';
+    document.getElementById('scan-body').innerHTML = `<div class="scan-loading"><div class="spinner"></div>Asking Claude to read the image — this takes a few seconds.</div>`;
+  }
+
+  function scanBodyError(err){
+    document.getElementById('scan-sub').textContent = "Couldn't read that screenshot.";
+    document.getElementById('scan-foot').style.display = 'none';
+    let msg, showSettingsBtn = false;
+    if(err.error === 'no-key'){ msg = 'No Anthropic API key saved yet.'; showSettingsBtn = true; }
+    else if(err.error === 'network'){ msg = 'Network error reaching api.anthropic.com: ' + escapeHtml(err.message || ''); }
+    else if(err.error === 'refusal'){ msg = 'Claude declined to process this image.'; }
+    else if(err.error === 'bad-json'){ msg = "Got a response back but couldn't find real data in it. Try a clearer screenshot, or crop it tighter to the profile fields."; }
+    else if(err.error === 'api'){ msg = 'Anthropic returned an error: ' + escapeHtml(err.message || ''); }
+    else if(err.error === 'too-large'){ msg = 'That image is too large (over 5MB) — try a smaller screenshot or crop it.'; }
+    else if(err.error === 'not-image'){ msg = "That doesn't look like an image file."; }
+    else { msg = 'Something unexpected went wrong.'; }
+    document.getElementById('scan-body').innerHTML = `<div class="scan-error">${msg}
+      ${showSettingsBtn ? '<br><button class="btn btn-primary btn-sm" id="scan-open-settings-btn">⚙️ Open Settings</button>' : ''}
+    </div>`;
+    const sBtn = document.getElementById('scan-open-settings-btn');
+    if(sBtn) sBtn.addEventListener('click', ()=>{ closeOverlay('scan-modal'); openSettingsModal(); });
+  }
+
+  function scanBodyReview(fields){
+    lastScanFields = fields;
+    document.getElementById('scan-sub').textContent = 'Review what was found, then apply.';
+    document.getElementById('scan-foot').style.display = 'flex';
+
+    const matchedId = fuzzyMatchContactByName(fields.name);
+    const existing = ContactRepo.all().sort((a,b)=>a.name.localeCompare(b.name));
+    const matchOptions = existing.map(c=>`<option value="${c.id}" ${c.id===matchedId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+
+    const hasFollowUp = !!(fields.followUpNote || fields.followUpDate);
+
+    document.getElementById('scan-body').innerHTML = `
+      <div class="scan-match-row">
+        <label>Save to</label>
+        <select class="input" id="scan-f-target">
+          <option value="">+ Create new contact</option>
+          ${matchOptions}
+        </select>
+      </div>
+      <div class="field-grid">
+        <div class="field full"><label>Full Name</label><input class="input" id="scan-f-name" value="${escapeHtml(fields.name||'')}"></div>
+        <div class="field"><label>Phone</label><input class="input" id="scan-f-phone" value="${escapeHtml(fields.phone||'')}"></div>
+        <div class="field"><label>Email</label><input class="input" id="scan-f-email" value="${escapeHtml(fields.email||'')}"></div>
+        <div class="field full"><label>Destination / Trip</label><input class="input" id="scan-f-destination" value="${escapeHtml(fields.destination||'')}"></div>
+        <div class="field"><label>Trip Type</label><select class="input" id="scan-f-triptype"></select></div>
+        <div class="field"><label># of Travelers</label><input class="input" id="scan-f-travelers" type="number" min="1" value="${escapeHtml(fields.travelers||'')}"></div>
+        <div class="field"><label>Budget</label><input class="input" id="scan-f-budget" value="${escapeHtml(fields.budget||'')}"></div>
+        <div class="field"><label>Lead Source</label><select class="input" id="scan-f-source"></select></div>
+        <div class="field"><label>Travel Start Date</label><input class="input" id="scan-f-datestart" type="date" value="${escapeHtml(fields.dateStart||'')}"></div>
+        <div class="field"><label>Travel End Date</label><input class="input" id="scan-f-dateend" type="date" value="${escapeHtml(fields.dateEnd||'')}"></div>
+        <div class="field"><label>Quoted Price</label><input class="input" id="scan-f-quotedprice" value="${escapeHtml(fields.quotedPrice||'')}"></div>
+        <div class="field"><label>Itinerary Reference</label><input class="input" id="scan-f-itinref" value="${escapeHtml(fields.itinRef||'')}"></div>
+        <div class="field full"><label>Note</label><textarea class="input" id="scan-f-note" rows="2" style="resize:vertical;">${escapeHtml(fields.note||'')}</textarea></div>
+      </div>
+      <div class="section-block">
+        <h3>📅 Follow-up</h3>
+        <div class="scan-followup-toggle">
+          <input type="checkbox" id="scan-f-followup-add" ${hasFollowUp ? 'checked' : ''}>
+          <label for="scan-f-followup-add" style="text-transform:none; font-weight:600; color:var(--ink);">Add as a follow-up task</label>
+        </div>
+        <div class="field-grid" style="margin-top:10px;">
+          <div class="field full"><label>Follow-up Note</label><input class="input" id="scan-f-followup-note" value="${escapeHtml(fields.followUpNote||'')}"></div>
+          <div class="field"><label>Follow-up Date</label><input class="input" id="scan-f-followup-date" type="date" value="${escapeHtml(fields.followUpDate||'')}"></div>
+        </div>
+      </div>`;
+
+    fillSelect(document.getElementById('scan-f-triptype'), TRIP_TYPES, 'Select...');
+    document.getElementById('scan-f-triptype').value = fields.tripType || '';
+    fillSelect(document.getElementById('scan-f-source'), LEAD_SOURCES, 'Select...');
+    document.getElementById('scan-f-source').value = fields.leadSource || '';
+  }
+
+  function applyScanReview(){
+    const targetId = document.getElementById('scan-f-target').value;
+    const readVal = id => document.getElementById(id).value.trim();
+    const newFields = {
+      name: readVal('scan-f-name') || 'Unnamed Lead',
+      phone: readVal('scan-f-phone'),
+      email: readVal('scan-f-email'),
+      destination: readVal('scan-f-destination'),
+      tripType: readVal('scan-f-triptype'),
+      travelers: readVal('scan-f-travelers'),
+      budget: readVal('scan-f-budget'),
+      dateStart: readVal('scan-f-datestart'),
+      dateEnd: readVal('scan-f-dateend'),
+      leadSource: readVal('scan-f-source'),
+      quotedPrice: readVal('scan-f-quotedprice'),
+      itinRef: readVal('scan-f-itinref'),
+      jobNotes: readVal('scan-f-note')
+    };
+
+    let contactId;
+    if(targetId){
+      const existing = ContactRepo.get(targetId);
+      if(!existing){ toast('That contact no longer exists.'); return; }
+      const patch = {};
+      Object.keys(newFields).forEach(k=>{
+        if(newFields[k] && !existing[k]) patch[k] = newFields[k];
+      });
+      if(Object.keys(patch).length){
+        ContactRepo.update(targetId, patch);
+        ContactRepo.addHistory(targetId, 'scan', `Profile scanned from a screenshot — filled in ${Object.keys(patch).length} field(s)`);
+      }else{
+        ContactRepo.addHistory(targetId, 'scan', 'Profile scanned from a screenshot — no new fields to add');
+      }
+      contactId = targetId;
+    }else{
+      const c = ContactRepo.create(newFields);
+      ContactRepo.addHistory(c.id, 'scan', 'Contact created from a scanned profile screenshot');
+      contactId = c.id;
+    }
+
+    const addFollowUp = document.getElementById('scan-f-followup-add').checked;
+    const followUpNote = readVal('scan-f-followup-note');
+    const followUpDate = readVal('scan-f-followup-date');
+    if(addFollowUp && followUpNote){
+      TaskRepo.create({ contactId, note: followUpNote, dueDate: followUpDate || '' });
+    }
+
+    closeOverlay('scan-modal');
+    refreshAllViews();
+    openContactModal(contactId);
+    toast('Scan applied');
+  }
+
+  async function runProfileScan(base64Data, mediaType){
+    openOverlay('scan-modal');
+    scanBodyLoading();
+    const result = await callClaudeVision(base64Data, mediaType);
+    // The modal may have been closed while the request was in flight.
+    if(!document.getElementById('scan-modal').classList.contains('open')) return;
+    if(result.error){ scanBodyError(result); return; }
+    scanBodyReview(result.fields);
+  }
+
+  function handleScanImageFile(file){
+    if(!file || !file.type || !file.type.startsWith('image/')){
+      openOverlay('scan-modal');
+      scanBodyError({ error:'not-image' });
+      return;
+    }
+    if(file.size > SCAN_MAX_IMAGE_BYTES){
+      openOverlay('scan-modal');
+      scanBodyError({ error:'too-large' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result || '';
+      const commaIdx = dataUrl.indexOf(',');
+      const meta = dataUrl.slice(5, dataUrl.indexOf(';')); // "image/png" out of "data:image/png;base64,..."
+      const base64Data = commaIdx !== -1 ? dataUrl.slice(commaIdx+1) : '';
+      if(!base64Data){
+        openOverlay('scan-modal');
+        scanBodyError({ error:'not-image' });
+        return;
+      }
+      runProfileScan(base64Data, meta || 'image/png');
+    };
+    reader.onerror = () => {
+      openOverlay('scan-modal');
+      scanBodyError({ error:'network', message:'Could not read that file.' });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function initScanFeature(){
+    document.getElementById('nav-scan-btn').addEventListener('click', ()=>{
+      if(!getApiKey()){ openSettingsModal(); toast('Add your Anthropic API key first'); return; }
+      document.getElementById('scan-file-input').click();
+    });
+    document.getElementById('scan-file-input').addEventListener('change', (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if(file) handleScanImageFile(file);
+      e.target.value = '';
+    });
+    document.getElementById('scan-close-btn').addEventListener('click', ()=>closeOverlay('scan-modal'));
+    document.getElementById('scan-cancel-btn').addEventListener('click', ()=>closeOverlay('scan-modal'));
+    document.getElementById('scan-apply-btn').addEventListener('click', applyScanReview);
+
+    // Paste anywhere in the app — only intercepted when the clipboard actually
+    // holds an image, so pasting text into any input/textarea is untouched.
+    document.addEventListener('paste', (e)=>{
+      const items = e.clipboardData && e.clipboardData.items;
+      if(!items) return;
+      for(let i=0; i<items.length; i++){
+        if(items[i].type && items[i].type.startsWith('image/')){
+          const file = items[i].getAsFile();
+          if(file){
+            e.preventDefault();
+            handleScanImageFile(file);
+          }
+          return;
+        }
+      }
+    });
+
+    // Drag-and-drop anywhere on the page, with a depth counter so a drag over
+    // a child element doesn't flicker the overlay on/off (dragenter/dragleave
+    // fire per-element, not just once for the whole page).
+    let dragDepth = 0;
+    const dropOverlay = document.getElementById('scan-dropzone-overlay');
+    document.addEventListener('dragenter', (e)=>{
+      if(!e.dataTransfer || !Array.from(e.dataTransfer.types||[]).includes('Files')) return;
+      e.preventDefault();
+      dragDepth++;
+      dropOverlay.classList.add('active');
+    });
+    document.addEventListener('dragover', (e)=>{
+      if(!e.dataTransfer || !Array.from(e.dataTransfer.types||[]).includes('Files')) return;
+      e.preventDefault();
+    });
+    document.addEventListener('dragleave', ()=>{
+      dragDepth = Math.max(0, dragDepth-1);
+      if(dragDepth===0) dropOverlay.classList.remove('active');
+    });
+    document.addEventListener('drop', (e)=>{
+      if(!e.dataTransfer || !Array.from(e.dataTransfer.types||[]).includes('Files')) return;
+      e.preventDefault();
+      dragDepth = 0;
+      dropOverlay.classList.remove('active');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if(file){
+        if(!getApiKey()){ openSettingsModal(); toast('Add your Anthropic API key first'); return; }
+        handleScanImageFile(file);
+      }
+    });
+  }
+
+  /* ============================================================
      CONFIRM MODAL
      ============================================================ */
 
@@ -1546,6 +2013,8 @@
     initContactModalFieldBindings();
     initQuickModal();
     initConfirmModal();
+    initSettingsModal();
+    initScanFeature();
     refreshAllViews();
   }
 
